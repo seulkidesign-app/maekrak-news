@@ -1,69 +1,89 @@
 import { getEvents, type NewsEvent } from "@/lib/news";
 import { detectContext } from "@/lib/context";
 import { classifyEvidence, eventEvidenceSummary, eventTimeline } from "@/lib/signals";
+import { categoryLabel, copy, localizedContext, type Language } from "@/lib/i18n";
 
 export const revalidate = 900;
 
-function relativeTime(date: string) {
+function relativeTime(date: string, lang: Language) {
   const time = new Date(date).getTime();
-  if (!Number.isFinite(time)) return "시간 확인 중";
+  if (!Number.isFinite(time)) return lang === "ko" ? "시간 확인 중" : "Time unavailable";
   const mins = Math.max(1, Math.floor((Date.now() - time) / 60000));
-  if (mins < 60) return `${mins}분 전`;
+  if (mins < 60) return lang === "ko" ? `${mins}분 전` : `${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}시간 전`;
-  return `${Math.floor(hours / 24)}일 전`;
+  if (hours < 24) return lang === "ko" ? `${hours}시간 전` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return lang === "ko" ? `${days}일 전` : `${days}d ago`;
 }
 
-function shortTime(date: string) {
+function shortTime(date: string, lang: Language) {
   const parsed = new Date(date);
-  if (!Number.isFinite(parsed.getTime())) return "시간 확인 중";
-  return parsed.toLocaleString("ko-KR", {
+  if (!Number.isFinite(parsed.getTime())) return lang === "ko" ? "시간 확인 중" : "Time unavailable";
+  return parsed.toLocaleString(lang === "ko" ? "ko-KR" : "en-US", {
     timeZone: "Asia/Seoul",
-    month: "numeric",
+    month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function coverageLabel(event: NewsEvent) {
-  if (event.sourceCount >= 3) return "여러 출처";
-  if (event.sourceCount === 2) return "2개 출처";
-  return "단일 출처";
+function coverageLabel(event: NewsEvent, lang: Language) {
+  if (lang === "ko") {
+    if (event.sourceCount >= 3) return "여러 출처";
+    if (event.sourceCount === 2) return "2개 출처";
+    return "단일 출처";
+  }
+  if (event.sourceCount >= 3) return "Multiple sources";
+  if (event.sourceCount === 2) return "2 sources";
+  return "Single source";
 }
 
-export default async function Home() {
+type PageProps = {
+  searchParams: Promise<{ lang?: string }>;
+};
+
+export default async function Home({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const lang: Language = params.lang === "en" ? "en" : "ko";
+  const t = copy[lang];
   const events = await getEvents();
-  const updatedAt = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+  const updatedAt = new Date().toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul" });
 
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="#top">맥락</a>
-        <nav><a href="#events">오늘의 사건</a><a href="#principles">원칙</a></nav>
+        <a className="brand" href="#top">{t.brand}</a>
+        <div className="topActions">
+          <nav><a href="#events">{t.eventsNav}</a><a href="#principles">{t.principlesNav}</a></nav>
+          <div className="languageToggle" aria-label="Language">
+            <a className={lang === "ko" ? "active" : ""} href="?lang=ko">한</a>
+            <a className={lang === "en" ? "active" : ""} href="?lang=en">EN</a>
+          </div>
+        </div>
       </header>
 
       <section className="hero" id="top">
         <div className="eyebrow">NEWS, WITH CONTEXT</div>
-        <h1>무슨 일이 있었는지보다,<br />왜 중요한지까지.</h1>
-        <p>같은 사건을 묶고, 이해에 필요한 배경만 먼저 보여줍니다. 더 알고 싶을 때 타임라인과 원문까지 내려가세요.</p>
-        <div className="status"><span className="dot" /> 최근 갱신 {updatedAt} · 최대 15분 캐시</div>
+        <h1>{t.heroTitle[0]}<br />{t.heroTitle[1]}</h1>
+        <p>{t.heroBody}</p>
+        <div className="status"><span className="dot" /> {t.updated} {updatedAt} · {t.cache}</div>
       </section>
 
       <section className="levels">
-        <div><span>01</span><strong>30초</strong><p>지금 무슨 일이 일어났는지.</p></div>
-        <div><span>02</span><strong>맥락</strong><p>왜 이 사건을 이해해야 하는지.</p></div>
-        <div><span>03</span><strong>근거</strong><p>어디서 나온 정보인지 직접 확인.</p></div>
+        <div><span>01</span><strong>{t.level1}</strong><p>{t.level1Body}</p></div>
+        <div><span>02</span><strong>{t.level2}</strong><p>{t.level2Body}</p></div>
+        <div><span>03</span><strong>{t.level3}</strong><p>{t.level3Body}</p></div>
       </section>
 
       <section className="section" id="events">
         <div className="sectionHead">
-          <div><div className="eyebrow">TODAY</div><h2>오늘 이해해둘 사건</h2></div>
-          <p>{events.length}개 사건 · 기사 수가 아니라 사건 단위</p>
+          <div><div className="eyebrow">TODAY</div><h2>{t.today}</h2></div>
+          <p>{events.length} {lang === "ko" ? `개 사건 · ${t.eventUnit}` : `events · ${t.eventUnit}`}</p>
         </div>
 
         {events.length === 0 ? (
-          <div className="empty">현재 피드를 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요.</div>
+          <div className="empty">{lang === "ko" ? "현재 피드를 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요." : "The feeds could not be loaded right now. Please try again shortly."}</div>
         ) : (
           <div className="eventList">
             {events.map((event, index) => {
@@ -75,54 +95,68 @@ export default async function Home() {
                   <div className="eventNumber">{String(index + 1).padStart(2, "0")}</div>
                   <div className="eventBody">
                     <div className="meta">
-                      <span>{event.category}</span><span>{coverageLabel(event)}</span><span>{relativeTime(event.publishedAt)}</span>
+                      <span>{categoryLabel(event.category, lang)}</span><span>{coverageLabel(event, lang)}</span><span>{relativeTime(event.publishedAt, lang)}</span>
                     </div>
                     <h3>{event.title}</h3>
+                    {lang === "en" && <p className="sourceLanguageNote">{t.sourceLanguage}</p>}
 
                     <div className="quickRead">
-                      <div className="boxLabel">30초 이해</div>
-                      <p>{event.summary ? `${event.summary.slice(0, 240)}${event.summary.length > 240 ? "…" : ""}` : "요약 정보가 충분하지 않아 원문 확인이 필요합니다."}</p>
+                      <div className="boxLabel">{t.quick}</div>
+                      <p>{event.summary ? `${event.summary.slice(0, 240)}${event.summary.length > 240 ? "…" : ""}` : t.quickEmpty}</p>
                     </div>
 
                     <div className="contextSection">
-                      <div className="sectionRow"><div className="boxLabel">이 사건을 이해하려면</div><span>{contexts.length ? `${contexts.length}개 핵심 개념` : "연결된 개념 없음"}</span></div>
+                      <div className="sectionRow"><div className="boxLabel">{t.understand}</div><span>{contexts.length ? `${contexts.length}${t.concepts}` : t.noConcept}</span></div>
                       {contexts.length > 0 ? (
-                        <div className="conceptChips">
-                          {contexts.map((info) => (
-                            <details className="concept" key={info.id}>
-                              <summary><b>{info.term}</b><span>{info.kind}</span></summary>
-                              <div className="depth">
-                                <div><small>쉽게</small><p>{info.simple}</p></div>
-                                <div><small>이 기사에서</small><p>{info.context}</p></div>
-                                <div><small>더 깊게</small><p>{info.deep}</p></div>
-                              </div>
-                              <a className="referenceLink" href={info.referenceUrl} target="_blank" rel="noreferrer">배경자료 · {info.referenceLabel} ↗</a>
-                            </details>
-                          ))}
-                        </div>
+                        <>
+                          <div className="glossaryStrip" aria-label={t.glossary}>
+                            <span className="glossaryLabel">{t.glossary}</span>
+                            {contexts.map((info) => {
+                              const localized = localizedContext(info, lang);
+                              return <span className="glossaryChip" key={`chip-${info.id}`}><b>{localized.term}</b><em>{localized.simple}</em></span>;
+                            })}
+                          </div>
+                          <div className="conceptChips">
+                            {contexts.map((info) => {
+                              const localized = localizedContext(info, lang);
+                              return (
+                                <details className="concept" key={info.id}>
+                                  <summary><b>{localized.term}</b><span>{localized.kind}</span></summary>
+                                  <div className="depth depthFour">
+                                    <div><small>{t.meaning}</small><p>{localized.simple}</p></div>
+                                    <div><small>{t.why}</small><p>{localized.context}</p></div>
+                                    <div className="historyCell"><small>{t.history}</small><p>{localized.history}</p></div>
+                                    <div><small>{t.deeper}</small><p>{localized.deep}</p></div>
+                                  </div>
+                                  <a className="referenceLink" href={info.referenceUrl} target="_blank" rel="noreferrer">{t.source} · {info.referenceLabel} ↗</a>
+                                </details>
+                              );
+                            })}
+                          </div>
+                        </>
                       ) : (
-                        <p className="pending">검수된 배경 개념을 찾지 못했습니다. 추측해서 채우지 않고 원문을 우선 제공합니다.</p>
+                        <p className="pending">{t.pending}</p>
                       )}
                     </div>
 
                     <details className="moreContext">
-                      <summary>보도 흐름과 근거 더 보기</summary>
+                      <summary>{t.more}</summary>
                       <div className="evidenceBox">
-                        <div className="sectionRow"><div className="boxLabel">보도 성격</div><span>표현 기반 참고 신호</span></div>
+                        <div className="sectionRow"><div className="boxLabel">{t.evidence}</div><span>{t.signal}</span></div>
                         <div className="evidencePills">
-                          <span>사실 서술 {evidence["보도된 사실"]}</span>
-                          <span>주장·발언 {evidence["주장·발언"]}</span>
-                          <span>추가 확인 {evidence["추가 확인 필요"]}</span>
+                          <span>{t.fact} {evidence["보도된 사실"]}</span>
+                          <span>{t.claim} {evidence["주장·발언"]}</span>
+                          <span>{t.verify} {evidence["추가 확인 필요"]}</span>
                         </div>
                       </div>
 
                       {timeline.length > 1 && (
                         <div className="timelineSection">
-                          <div className="boxLabel">이 사건의 흐름</div>
+                          <div className="boxLabel">{t.timeline}</div>
                           <ol className="timeline">
                             {timeline.map((article, timelineIndex) => (
                               <li key={`${article.link}-${timelineIndex}`}>
-                                <time>{shortTime(article.publishedAt)}</time>
+                                <time>{shortTime(article.publishedAt, lang)}</time>
                                 <div><b>{article.source}</b><span className="evidenceTag">{classifyEvidence(article)}</span><p>{article.title}</p></div>
                               </li>
                             ))}
@@ -131,13 +165,13 @@ export default async function Home() {
                       )}
 
                       <div className="sourcesBlock">
-                        <div className="boxLabel">원문 비교</div>
+                        <div className="boxLabel">{t.originals}</div>
                         <div className="sourceList">
                           {event.articles.map((article, articleIndex) => (
                             <a href={article.link} target="_blank" rel="noreferrer" key={`${article.link}-${articleIndex}`}>
-                              <span><b>{article.source}</b>{article.sourceType === "aggregated" && <em>집계 피드</em>}</span>
+                              <span><b>{article.source}</b>{article.sourceType === "aggregated" && <em>{t.aggregated}</em>}</span>
                               <span>{article.title}</span>
-                              <small>{relativeTime(article.publishedAt)} ↗</small>
+                              <small>{relativeTime(article.publishedAt, lang)} ↗</small>
                             </a>
                           ))}
                         </div>
@@ -152,18 +186,31 @@ export default async function Home() {
       </section>
 
       <section className="principles" id="principles">
-        <div><div className="eyebrow">TRUST MODEL</div><h2>쉽게 보여주되,<br />근거는 숨기지 않습니다.</h2></div>
+        <div><div className="eyebrow">TRUST MODEL</div><h2>{t.trustTitle[0]}<br />{t.trustTitle[1]}</h2></div>
         <div className="principleGrid">
-          <p><strong>같은 사건을 묶습니다.</strong> 비슷한 보도를 반복해서 보여주지 않습니다.</p>
-          <p><strong>맥락을 먼저 보여줍니다.</strong> 사용자가 무엇을 모르는지 직접 찾아야 하는 부담을 줄입니다.</p>
-          <p><strong>사실과 발언을 구분합니다.</strong> 단, 현재 분류는 문장 표현 기반 참고 신호입니다.</p>
-          <p><strong>출처를 바로 열 수 있습니다.</strong> 요약과 배경자료 모두 원문으로 돌아갈 수 있습니다.</p>
-          <p><strong>모르면 비워둡니다.</strong> 확실하지 않은 배경을 그럴듯하게 생성하지 않습니다.</p>
-          <p><strong>무료 규칙 기반으로 시작합니다.</strong> 유료 AI는 비용 대비 품질 이득이 명확할 때만 도입합니다.</p>
+          {lang === "ko" ? (
+            <>
+              <p><strong>같은 사건을 묶습니다.</strong> 비슷한 보도를 반복해서 보여주지 않습니다.</p>
+              <p><strong>맥락을 먼저 보여줍니다.</strong> 어려운 용어와 역사적 배경을 기사 옆에서 바로 확인합니다.</p>
+              <p><strong>사실과 발언을 구분합니다.</strong> 단, 현재 분류는 문장 표현 기반 참고 신호입니다.</p>
+              <p><strong>출처를 바로 열 수 있습니다.</strong> 요약과 배경자료 모두 원문으로 돌아갈 수 있습니다.</p>
+              <p><strong>모르면 비워둡니다.</strong> 확실하지 않은 배경을 그럴듯하게 생성하지 않습니다.</p>
+              <p><strong>언어를 바꿔도 근거는 같습니다.</strong> 한·영 설명은 같은 배경자료를 기준으로 제공합니다.</p>
+            </>
+          ) : (
+            <>
+              <p><strong>We group the same event.</strong> Similar reports are not repeated as separate stories.</p>
+              <p><strong>Context comes first.</strong> Difficult terms and historical background sit next to the story.</p>
+              <p><strong>Statements are separated from factual wording.</strong> The current classification is a language-based reference signal, not a fact-check verdict.</p>
+              <p><strong>Sources stay one click away.</strong> Both reporting and background references can be opened directly.</p>
+              <p><strong>Unknowns stay unknown.</strong> We do not generate plausible-sounding background when the link is uncertain.</p>
+              <p><strong>Evidence stays consistent across languages.</strong> Korean and English explanations point back to the same background sources.</p>
+            </>
+          )}
         </div>
       </section>
 
-      <footer>맥락 · 뉴스를 소비하는 대신 이해하기</footer>
+      <footer>{t.footer}</footer>
     </main>
   );
 }
