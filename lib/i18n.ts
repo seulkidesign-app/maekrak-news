@@ -2,12 +2,54 @@ import type { DetectedContext } from "@/lib/context";
 
 export type Language = "ko" | "en";
 
-export const copy = {
+type UiCopy = {
+  brand: string;
+  eventsNav: string;
+  principlesNav: string;
+  heroTitle: [string, string];
+  heroBody: string;
+  updated: string;
+  cache: string;
+  level1: string;
+  level1Body: string;
+  level2: string;
+  level2Body: string;
+  level3: string;
+  level3Body: string;
+  today: string;
+  eventUnit: string;
+  quick: string;
+  quickEmpty: string;
+  understand: string;
+  concepts: string;
+  noConcept: string;
+  glossary: string;
+  meaning: string;
+  why: string;
+  history: string;
+  deeper: string;
+  source: string;
+  pending: string;
+  more: string;
+  evidence: string;
+  signal: string;
+  fact: string;
+  claim: string;
+  verify: string;
+  timeline: string;
+  originals: string;
+  aggregated: string;
+  sourceLanguage: string;
+  trustTitle: [string, string];
+  footer: string;
+};
+
+export const copy: Record<Language, UiCopy> = {
   ko: {
     brand: "맥락",
     eventsNav: "오늘의 사건",
     principlesNav: "원칙",
-    heroTitle: <>오늘의 한국과 세계를,<br />하나의 흐름으로.</>,
+    heroTitle: ["오늘의 한국과 세계를,", "하나의 흐름으로."],
     heroBody: "여러 뉴스 채널을 따로 보지 않아도, 오늘 무슨 일이 있었는지와 왜 중요한지까지 쉽게 이해합니다.",
     updated: "최근 갱신",
     cache: "최대 15분 캐시",
@@ -41,14 +83,14 @@ export const copy = {
     originals: "원문 비교",
     aggregated: "집계 피드",
     sourceLanguage: "기사 제목은 출처 언어 그대로 표시됩니다.",
-    trustTitle: <>쉽게 보여주되,<br />근거는 숨기지 않습니다.</>,
+    trustTitle: ["쉽게 보여주되,", "근거는 숨기지 않습니다."],
     footer: "맥락 · 뉴스를 소비하는 대신 이해하기",
   },
   en: {
     brand: "Context",
     eventsNav: "Today's events",
     principlesNav: "Principles",
-    heroTitle: <>Korea and the world today,<br />in one clear flow.</>,
+    heroTitle: ["Korea and the world today,", "in one clear flow."],
     heroBody: "Understand what happened today and why it matters without checking multiple news channels.",
     updated: "Updated",
     cache: "up to 15 min cache",
@@ -82,132 +124,36 @@ export const copy = {
     originals: "Compare original reports",
     aggregated: "aggregated feed",
     sourceLanguage: "Article headlines remain in the source language.",
-    trustTitle: <>Easy to read,<br />without hiding the evidence.</>,
+    trustTitle: ["Easy to read,", "without hiding the evidence."],
     footer: "Context · Understand the news, not just consume it",
   },
-} as const;
+};
 
-const contextEn: Record<string, { term: string; simple: string; context: string; deep: string; history: string; kind: string }> = {
-  "interest-rate": {
-    term: "Policy rate",
-    simple: "The benchmark interest rate a central bank uses to influence borrowing costs across the economy.",
-    context: "Changes can affect loans, savings, spending and investment, so policy rates are central to inflation and growth stories.",
-    deep: "They can also move exchange rates, housing and business investment, although the effect depends on economic conditions and market expectations.",
-    history: "Modern central banks increasingly used short-term policy rates as a main monetary-policy tool from the late 20th century onward.",
-    kind: "Economy",
-  },
-  fed: {
-    term: "U.S. Federal Reserve (Fed)",
-    simple: "The central banking system of the United States.",
-    context: "Fed decisions influence the dollar and global capital flows, so they often affect Korean and global financial markets as well.",
-    deep: "The Fed weighs both price stability and employment, and markets often react as much to its future guidance as to the rate decision itself.",
-    history: "The Federal Reserve was created in 1913 after repeated U.S. banking crises highlighted the need for a more stable central banking system.",
-    kind: "Economy",
-  },
-  tariff: {
-    term: "Tariff",
-    simple: "A tax charged on goods entering a country.",
-    context: "Higher tariffs can raise import prices and business costs and may trigger retaliation from trading partners.",
-    deep: "Tariffs are tied to supply chains, exchange rates and industrial policy, and are often used as a negotiating tool between governments.",
-    history: "Tariffs were once a major source of government revenue. After World War II, multilateral trade agreements gradually reduced many tariff barriers.",
-    kind: "Economy",
-  },
-  inflation: {
-    term: "Inflation",
-    simple: "A sustained rise in the overall price level of goods and services.",
-    context: "It directly affects living costs and real income and is a key factor in central-bank rate decisions.",
-    deep: "Demand, supply shocks, wages and exchange rates can all contribute, so inflation rarely has a single cause.",
-    history: "High inflation episodes in the 1970s reshaped modern monetary policy and strengthened central banks' focus on price stability.",
-    kind: "Economy",
-  },
-  "exchange-rate": {
-    term: "Exchange rate",
-    simple: "The rate at which one currency can be exchanged for another.",
-    context: "A change in the won can affect import prices, overseas travel costs and exporters' earnings.",
-    deep: "Rates are influenced by interest-rate gaps, trade, risk sentiment and policy expectations rather than a single factor.",
-    history: "Many major currencies moved toward floating exchange rates after the Bretton Woods fixed-rate system broke down in the early 1970s.",
-    kind: "Economy",
-  },
-  nato: {
-    term: "NATO",
-    simple: "A military alliance linking countries in North America and Europe.",
-    context: "Its collective-defence principle makes an attack on one member a security issue for the alliance as a whole.",
-    deep: "Membership expansion, defence spending and relations with Russia are central to Europe's security order.",
-    history: "NATO was founded in 1949 during the early Cold War as a collective-defence alliance among Western countries.",
-    kind: "World",
-  },
-  ceasefire: {
-    term: "Ceasefire",
-    simple: "An agreement to stop fighting, usually without ending the underlying conflict.",
-    context: "It can create space for civilian protection, humanitarian aid and negotiations, but it is not the same as a peace agreement.",
-    deep: "Its durability depends on who guarantees it, how violations are defined and whether the parties have incentives to keep it.",
-    history: "Ceasefires have long been used as temporary pauses in war; some become stepping stones to peace agreements, while others collapse quickly.",
-    kind: "World",
-  },
-  sanctions: {
-    term: "Economic sanctions",
-    simple: "Restrictions on trade, finance or assets aimed at a country, organization or individual.",
-    context: "They allow governments to apply pressure without direct military action but can also affect markets and ordinary people.",
-    deep: "Their effectiveness depends on how many countries participate, whether trade can be rerouted and how exposed the target is.",
-    history: "Economic sanctions became a more prominent foreign-policy tool in the 20th century, especially through the League of Nations and later the United Nations.",
-    kind: "World",
-  },
-  unsc: {
-    term: "UN Security Council",
-    simple: "The UN body with primary responsibility for international peace and security.",
-    context: "It can authorize sanctions and peacekeeping measures, which is why it appears frequently in conflict reporting.",
-    deep: "Its five permanent members—China, France, Russia, the UK and the US—hold veto power, which can block action.",
-    history: "The Security Council was created with the United Nations in 1945 after World War II, giving major powers permanent seats and vetoes.",
-    kind: "World",
-  },
-  eu: {
-    term: "European Union (EU)",
-    simple: "A political and economic union of European countries.",
-    context: "Its rules on trade, privacy, climate and competition can affect companies well beyond Europe.",
-    deep: "The EU is not a single country; authority is divided differently between EU institutions and member states depending on the policy area.",
-    history: "European integration began after World War II with coal and steel cooperation and developed into today's EU through a series of treaties.",
-    kind: "World",
-  },
-  impeachment: {
-    term: "Impeachment",
-    simple: "A constitutional process for accusing and potentially removing a senior public official for serious legal or constitutional violations.",
-    context: "Political criticism and legal grounds for impeachment are not the same, so the procedure and deciding institution matter.",
-    deep: "The process differs by country, so cases in different political systems are not directly comparable.",
-    history: "The idea developed from parliamentary practice in Britain and was later incorporated into several constitutional systems, including the United States and South Korea.",
-    kind: "Politics",
-  },
-  referendum: {
-    term: "Referendum",
-    simple: "A vote in which citizens decide or express a view on a specific public issue.",
-    context: "Unlike a general election, it usually focuses on one question such as a constitutional change, policy or independence.",
-    deep: "Its political meaning depends on whether the result is legally binding and how the question is written.",
-    history: "Modern referendums expanded alongside constitutional democracy and have been used for questions ranging from constitutional reform to national independence.",
-    kind: "Politics",
-  },
-  "local-heavy-rain": {
-    term: "Localized torrential rain",
-    simple: "Very heavy rain concentrated over a small area in a short period of time.",
-    context: "Even within one city, flooding and damage can be severe in one neighborhood while another receives much less rain.",
-    deep: "Atmospheric instability, terrain and drainage capacity all shape the risk, so total rainfall alone does not tell the whole story.",
-    history: "Urban flood risk has grown in importance as dense development and more frequent extreme-rain events expose limits in drainage systems.",
-    kind: "Climate",
-  },
-  typhoon: {
-    term: "Typhoon",
-    simple: "A powerful tropical cyclone that develops over warm ocean water in the western North Pacific.",
-    context: "Damage can occur far from the storm center because wind fields and rain bands cover a wide area.",
-    deep: "Forecast tracks contain uncertainty, so the latest official forecast matters more than a single earlier projection.",
-    history: "Modern satellite observation and numerical weather models have greatly improved typhoon tracking since the second half of the 20th century.",
-    kind: "Climate",
-  },
-  nile: {
-    term: "Nile River",
-    simple: "A major river system crossing several African countries before reaching the Mediterranean Sea.",
-    context: "Upstream dams and water use can affect agriculture, electricity and water security in downstream countries.",
-    deep: "The operation of Ethiopia's GERD has become closely tied to negotiations with Egypt and Sudan over water security.",
-    history: "Nile water politics were shaped by colonial-era agreements and later treaties, while upstream countries increasingly challenged older allocations in the 21st century.",
-    kind: "Geography",
-  },
+type LocalizedConcept = {
+  term: string;
+  simple: string;
+  context: string;
+  deep: string;
+  history: string;
+  kind: string;
+};
+
+const contextEn: Record<string, LocalizedConcept> = {
+  "interest-rate": { term: "Policy rate", simple: "The benchmark interest rate a central bank uses to influence borrowing costs across the economy.", context: "Changes can affect loans, savings, spending and investment, making policy rates central to inflation and growth stories.", deep: "They can also move exchange rates, housing and business investment, although the effect depends on economic conditions and market expectations.", history: "Modern central banks increasingly used short-term policy rates as a main monetary-policy tool from the late 20th century onward.", kind: "Economy" },
+  fed: { term: "U.S. Federal Reserve (Fed)", simple: "The central banking system of the United States.", context: "Fed decisions influence the dollar and global capital flows, so they often affect Korean and global financial markets as well.", deep: "The Fed weighs both price stability and employment, and markets often react as much to future guidance as to the rate decision itself.", history: "The Federal Reserve was created in 1913 after repeated U.S. banking crises highlighted the need for a more stable central banking system.", kind: "Economy" },
+  tariff: { term: "Tariff", simple: "A tax charged on goods entering a country.", context: "Higher tariffs can raise import prices and business costs and may trigger retaliation from trading partners.", deep: "Tariffs are tied to supply chains, exchange rates and industrial policy, and are often used as a negotiating tool between governments.", history: "Tariffs were once a major source of government revenue. After World War II, multilateral trade agreements gradually reduced many tariff barriers.", kind: "Economy" },
+  inflation: { term: "Inflation", simple: "A sustained rise in the overall price level of goods and services.", context: "It directly affects living costs and real income and is a key factor in central-bank rate decisions.", deep: "Demand, supply shocks, wages and exchange rates can all contribute, so inflation rarely has a single cause.", history: "High inflation episodes in the 1970s reshaped modern monetary policy and strengthened central banks' focus on price stability.", kind: "Economy" },
+  "exchange-rate": { term: "Exchange rate", simple: "The rate at which one currency can be exchanged for another.", context: "A change in the won can affect import prices, overseas travel costs and exporters' earnings.", deep: "Rates are influenced by interest-rate gaps, trade, risk sentiment and policy expectations rather than a single factor.", history: "Many major currencies moved toward floating exchange rates after the Bretton Woods fixed-rate system broke down in the early 1970s.", kind: "Economy" },
+  nato: { term: "NATO", simple: "A military alliance linking countries in North America and Europe.", context: "Its collective-defence principle makes an attack on one member a security issue for the alliance as a whole.", deep: "Membership expansion, defence spending and relations with Russia are central to Europe's security order.", history: "NATO was founded in 1949 during the early Cold War as a collective-defence alliance among Western countries.", kind: "World" },
+  ceasefire: { term: "Ceasefire", simple: "An agreement to stop fighting, usually without ending the underlying conflict.", context: "It can create space for civilian protection, humanitarian aid and negotiations, but it is not the same as a peace agreement.", deep: "Its durability depends on who guarantees it, how violations are defined and whether the parties have incentives to keep it.", history: "Ceasefires have long been used as temporary pauses in war; some become stepping stones to peace agreements, while others collapse quickly.", kind: "World" },
+  sanctions: { term: "Economic sanctions", simple: "Restrictions on trade, finance or assets aimed at a country, organization or individual.", context: "They allow governments to apply pressure without direct military action but can also affect markets and ordinary people.", deep: "Their effectiveness depends on how many countries participate, whether trade can be rerouted and how exposed the target is.", history: "Economic sanctions became a more prominent foreign-policy tool in the 20th century, especially through the League of Nations and later the United Nations.", kind: "World" },
+  unsc: { term: "UN Security Council", simple: "The UN body with primary responsibility for international peace and security.", context: "It can authorize sanctions and peacekeeping measures, which is why it appears frequently in conflict reporting.", deep: "Its five permanent members—China, France, Russia, the UK and the US—hold veto power, which can block action.", history: "The Security Council was created with the United Nations in 1945 after World War II, giving major powers permanent seats and vetoes.", kind: "World" },
+  eu: { term: "European Union (EU)", simple: "A political and economic union of European countries.", context: "Its rules on trade, privacy, climate and competition can affect companies well beyond Europe.", deep: "The EU is not a single country; authority is divided differently between EU institutions and member states depending on the policy area.", history: "European integration began after World War II with coal and steel cooperation and developed into today's EU through a series of treaties.", kind: "World" },
+  impeachment: { term: "Impeachment", simple: "A constitutional process for accusing and potentially removing a senior public official for serious legal or constitutional violations.", context: "Political criticism and legal grounds for impeachment are not the same, so the procedure and deciding institution matter.", deep: "The process differs by country, so cases in different political systems are not directly comparable.", history: "The idea developed from parliamentary practice in Britain and was later incorporated into several constitutional systems, including the United States and South Korea.", kind: "Politics" },
+  referendum: { term: "Referendum", simple: "A vote in which citizens decide or express a view on a specific public issue.", context: "Unlike a general election, it usually focuses on one question such as a constitutional change, policy or independence.", deep: "Its political meaning depends on whether the result is legally binding and how the question is written.", history: "Modern referendums expanded alongside constitutional democracy and have been used for questions ranging from constitutional reform to national independence.", kind: "Politics" },
+  "local-heavy-rain": { term: "Localized torrential rain", simple: "Very heavy rain concentrated over a small area in a short period of time.", context: "Even within one city, flooding and damage can be severe in one neighborhood while another receives much less rain.", deep: "Atmospheric instability, terrain and drainage capacity all shape the risk, so total rainfall alone does not tell the whole story.", history: "Urban flood risk has grown in importance as dense development and more frequent extreme-rain events expose limits in drainage systems.", kind: "Climate" },
+  typhoon: { term: "Typhoon", simple: "A powerful tropical cyclone that develops over warm ocean water in the western North Pacific.", context: "Damage can occur far from the storm center because wind fields and rain bands cover a wide area.", deep: "Forecast tracks contain uncertainty, so the latest official forecast matters more than a single earlier projection.", history: "Modern satellite observation and numerical weather models have greatly improved typhoon tracking since the second half of the 20th century.", kind: "Climate" },
+  nile: { term: "Nile River", simple: "A major river system crossing several African countries before reaching the Mediterranean Sea.", context: "Upstream dams and water use can affect agriculture, electricity and water security in downstream countries.", deep: "The operation of Ethiopia's GERD has become closely tied to negotiations with Egypt and Sudan over water security.", history: "Nile water politics were shaped by colonial-era agreements and later treaties, while upstream countries increasingly challenged older allocations in the 21st century.", kind: "Geography" },
 };
 
 const historyKo: Record<string, string> = {
@@ -228,7 +174,7 @@ const historyKo: Record<string, string> = {
   nile: "나일강 물 분배는 식민지 시기 협정들의 영향을 오래 받아왔고, 21세기 들어 상류 국가들이 기존 질서에 문제를 제기하며 갈등 구조가 달라졌습니다.",
 };
 
-export function localizedContext(info: DetectedContext, lang: Language) {
+export function localizedContext(info: DetectedContext, lang: Language): LocalizedConcept {
   if (lang === "ko") {
     return {
       term: info.term,
