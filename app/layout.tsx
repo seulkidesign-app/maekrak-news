@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./signals.css";
 import "./briefing.css";
+import "./editorial.css";
 
 export const metadata: Metadata = {
   title: "맥락 — 알수록 보이는 뉴스",
