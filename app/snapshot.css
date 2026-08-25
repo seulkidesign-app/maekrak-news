@@ -1,0 +1,17 @@
+/* Make the five priority stories feel like a context product, not a news list. */
+.priorityEvent .briefingThree{position:relative;padding-top:38px!important;background:#fffef9!important;border-color:#c9c6bb!important;box-shadow:0 12px 36px rgba(17,17,17,.045)}
+.priorityEvent .briefingThree:before{content:"CONTEXT SNAPSHOT";position:absolute;top:0;left:0;right:0;height:38px;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--line);background:#f0ede3;color:var(--accent);font-size:10px;font-weight:900;letter-spacing:.12em}
+.priorityEvent .briefLine:nth-child(2){background:#f8f6ef}
+.priorityEvent .briefLine>span{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:900;letter-spacing:.04em}
+.priorityEvent .briefLine:nth-child(1)>span:before{content:"01";font-size:9px;color:var(--muted)}
+.priorityEvent .briefLine:nth-child(2)>span:before{content:"02";font-size:9px;color:var(--muted)}
+.priorityEvent .briefLine:nth-child(3)>span:before{content:"03";font-size:9px;color:var(--muted)}
+.priorityEvent .contextSection{margin-top:8px;padding-top:20px;border-top:1px solid var(--line)}
+.priorityEvent .contextSection .boxLabel:after{content:" · 용어와 역사까지";font-weight:500;color:var(--muted);letter-spacing:0}
+.priorityEvent .glossaryStrip{box-shadow:0 8px 24px rgba(17,17,17,.025)}
+
+@media(max-width:760px){
+  .priorityEvent .briefingThree{padding-top:36px!important}
+  .priorityEvent .briefingThree:before{height:36px;padding:0 15px;font-size:9px}
+  .priorityEvent .contextSection .boxLabel:after{content:" · 용어·역사"}
+}
