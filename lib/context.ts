@@ -32,7 +32,7 @@ const concepts: ContextConcept[] = [
   {
     id: "fed",
     term: "미 연준(Fed)",
-    aliases: ["연준", "fed ", "federal reserve", "fomc", "파월", "powell"],
+    aliases: ["연준", "fed", "federal reserve", "fomc", "파월", "powell"],
     simple: "미국의 중앙은행 역할을 하는 연방준비제도예요.",
     context: "미국 금리 결정은 달러와 글로벌 자금 흐름에 영향을 주기 때문에 한국 금융시장에도 연결됩니다.",
     deep: "연준은 물가 안정과 고용을 함께 고려하며, 실제 시장 반응은 결정 자체뿐 아니라 향후 정책 신호에 크게 좌우됩니다.",
@@ -43,7 +43,7 @@ const concepts: ContextConcept[] = [
   {
     id: "tariff",
     term: "관세",
-    aliases: ["관세", "tariff", "무역전쟁", "trade war"],
+    aliases: ["관세", "tariff", "tariffs", "무역전쟁", "trade war"],
     simple: "국경을 넘어 들어오는 상품에 붙이는 세금이에요.",
     context: "높아지면 수입품 가격과 기업 비용이 오를 수 있고 상대국의 보복 조치로 이어질 수 있습니다.",
     deep: "관세는 무역수지뿐 아니라 공급망·환율·산업정책과 연결되어 국가 간 협상 수단으로도 사용됩니다.",
@@ -65,7 +65,7 @@ const concepts: ContextConcept[] = [
   {
     id: "exchange-rate",
     term: "환율",
-    aliases: ["환율", "원·달러", "원달러", "exchange rate", "won", "dollar"],
+    aliases: ["환율", "원 달러", "원달러", "exchange rate", "won", "dollar"],
     simple: "한 나라의 돈을 다른 나라 돈으로 바꿀 때의 교환 비율이에요.",
     context: "원화 가치가 변하면 수입 물가, 해외여행 비용, 수출기업 실적 등에 영향을 줄 수 있습니다.",
     deep: "금리 차이·무역·위험 회피 심리·정책 기대가 함께 영향을 주기 때문에 한 요인만으로 움직이지 않습니다.",
@@ -120,7 +120,7 @@ const concepts: ContextConcept[] = [
   {
     id: "eu",
     term: "유럽연합(EU)",
-    aliases: ["유럽연합", " eu ", "european union"],
+    aliases: ["유럽연합", "eu", "european union"],
     simple: "유럽 국가들이 경제·정치적으로 협력하기 위해 만든 연합체예요.",
     context: "무역, 개인정보, 환경, 경쟁정책 같은 규칙이 회원국뿐 아니라 글로벌 기업에도 영향을 줍니다.",
     deep: "EU는 하나의 국가가 아니며 외교·재정 등 영역마다 회원국과 EU 기관의 권한이 다릅니다.",
@@ -197,7 +197,7 @@ const concepts: ContextConcept[] = [
   {
     id: "semiconductor",
     term: "반도체 공급망",
-    aliases: ["반도체", "semiconductor", "chip", "칩스법", "chips act"],
+    aliases: ["반도체", "semiconductor", "chip", "chips act", "칩스법"],
     simple: "반도체는 설계·장비·소재·제조·패키징이 여러 나라와 기업에 나뉜 복잡한 산업이에요.",
     context: "한 국가의 수출규제나 보조금 정책이 다른 국가의 생산과 가격, 기술 경쟁에 연쇄적으로 영향을 줄 수 있습니다.",
     deep: "첨단 공정은 소수 기업과 장비 공급사에 집중돼 있어 경제정책과 안보정책이 함께 움직이는 분야입니다.",
@@ -222,23 +222,34 @@ function normalize(text: string) {
   return ` ${text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim()} `;
 }
 
+function includesAlias(normalizedText: string, alias: string) {
+  return normalizedText.includes(normalize(alias));
+}
+
 export function detectContext(event: NewsEvent): DetectedContext[] {
-  const fullText = normalize([
-    event.title,
-    event.summary,
-    ...event.articles.flatMap((article) => [article.title, article.description])
-  ].join(" "));
+  const primaryText = normalize([event.title, event.summary].join(" "));
+  const articleTexts = event.articles.slice(0, 5).map((article) => normalize(`${article.title} ${article.description}`));
 
   return concepts
     .map((concept) => {
-      const matchedBy = concept.aliases.filter((alias) => fullText.includes(normalize(alias).trim()));
-      if (!matchedBy.length) return null;
-      const primaryMatch = matchedBy.some((alias) => normalize(event.title).includes(normalize(alias).trim()));
+      const evidence = concept.aliases.map((alias) => {
+        const primaryMatch = includesAlias(primaryText, alias);
+        const supportCount = articleTexts.filter((text) => includesAlias(text, alias)).length;
+        return { alias, primaryMatch, supportCount };
+      });
+
+      const accepted = evidence.filter((item) => item.primaryMatch || item.supportCount >= 2);
+      if (!accepted.length) return null;
+
+      const matchedBy = accepted.map((item) => item.alias);
+      const primaryMatch = accepted.some((item) => item.primaryMatch);
+      const supportCount = Math.max(...accepted.map((item) => item.supportCount));
+
       return {
         ...concept,
         matchedBy,
-        confidence: primaryMatch || matchedBy.length >= 2 ? "높음" as const : "보통" as const,
-        score: (primaryMatch ? 4 : 0) + matchedBy.length
+        confidence: primaryMatch || supportCount >= 2 ? "높음" as const : "보통" as const,
+        score: (primaryMatch ? 5 : 0) + supportCount + matchedBy.length,
       };
     })
     .filter((item): item is DetectedContext & { score: number } => Boolean(item))
