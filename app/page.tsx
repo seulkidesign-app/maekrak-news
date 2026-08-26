@@ -10,6 +10,8 @@ import {
 import { detectContext } from "@/lib/context";
 import { classifyEvidence, eventEvidenceSummary, eventTimeline } from "@/lib/signals";
 import { categoryLabel, copy, localizedContext, type Language } from "@/lib/i18n";
+import { buildWorldFlows, dailyMemoryLine, historicalOneLiner, koreaImpact } from "@/lib/world-briefing";
+import { BriefingComplete, WorldFlowBoard } from "./world-flow";
 
 export const revalidate = 900;
 
@@ -174,6 +176,8 @@ function EventCard({ event, index, lang, priority }: { event: NewsEvent; index: 
   const { article: displayArticle, text: displayText } = conciseExcerpt(event, lang);
   const primaryContext = contexts[0] ? localizedContext(contexts[0], lang) : null;
   const why = primaryContext?.context ?? whyText(event.briefWhy, lang);
+  const impact = koreaImpact(event, lang);
+  const history = historicalOneLiner(event, lang, primaryContext?.history ?? null);
 
   return (
     <article className={`eventCard ${priority ? "priorityEvent" : ""}`}>
@@ -202,6 +206,20 @@ function EventCard({ event, index, lang, priority }: { event: NewsEvent; index: 
             <p>{watchText(event.briefWatch, lang)}</p>
           </div>
         </div>
+
+        {impact && (
+          <div className="koreaImpactLine">
+            <span>{lang === "ko" ? "🇰🇷 그래서 한국에는?" : "🇰🇷 What could this mean for Korea?"}</span>
+            <p>{impact}</p>
+          </div>
+        )}
+
+        {history && (
+          <div className="historyZoomLine">
+            <span>{lang === "ko" ? "TIME ZOOM · 지금만 보면 놓치는 배경" : "TIME ZOOM · Background beyond today"}</span>
+            <p>{history.replace(/^지금만 보면 놓치는 배경 · |^Background beyond today's headline · /, "")}</p>
+          </div>
+        )}
 
         {event.whySelected.length > 0 && (
           <div className="selectionReason">
@@ -338,6 +356,8 @@ export default async function Home({ searchParams }: PageProps) {
 
   const priorityIds = new Set(priorityEvents.map((event) => event.id));
   const moreEvents = readyEvents.filter((event) => !priorityIds.has(event.id));
+  const worldFlows = buildWorldFlows(readyEvents, lang);
+  const memoryLine = dailyMemoryLine(worldFlows, lang);
   const updatedAt = new Date().toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul" });
 
   return (
@@ -345,7 +365,11 @@ export default async function Home({ searchParams }: PageProps) {
       <header className="topbar">
         <a className="brand" href="#top">{t.brand}</a>
         <div className="topActions">
-          <nav><a href="#events">{t.eventsNav}</a><a href="#principles">{t.principlesNav}</a></nav>
+          <nav>
+            <a href="#world-flow">{lang === "ko" ? "오늘의 흐름" : "Today's flow"}</a>
+            <a href="#events">{t.eventsNav}</a>
+            <a href="#principles">{t.principlesNav}</a>
+          </nav>
           <div className="languageToggle" aria-label="Language">
             <a className={lang === "ko" ? "active" : ""} href="?lang=ko">한</a>
             <a className={lang === "en" ? "active" : ""} href="?lang=en">EN</a>
@@ -356,21 +380,23 @@ export default async function Home({ searchParams }: PageProps) {
       <section className="hero" id="top">
         <div className="eyebrow">NEWS, WITH CONTEXT</div>
         <h1>{t.heroTitle[0]}<br />{t.heroTitle[1]}</h1>
-        <p>{t.heroBody}</p>
+        <p>{lang === "ko" ? "기사 수를 늘리는 대신, 오늘 세계의 큰 흐름부터 사건의 배경과 한국에 미칠 영향까지 한 번에 이해합니다." : "Instead of giving you more articles, we start with today's big currents, then explain the background and what they could mean for Korea."}</p>
         <div className="briefingPromise">
-          <div><b>{lang === "ko" ? "약 10분 브리핑" : "About a 10-minute briefing"}</b><span>{lang === "ko" ? "오늘은 이 5개부터 보면 됩니다." : "Start with these five stories today."}</span></div>
-          <a href="#events">{lang === "ko" ? "5개 바로 보기 ↓" : "Read the five ↓"}</a>
+          <div><b>{lang === "ko" ? "오늘의 큰 흐름 3개 → 핵심 사건 5개" : "3 big currents → 5 must-know events"}</b><span>{lang === "ko" ? "여기까지만 보면 오늘의 큰 그림을 잡도록 설계했습니다." : "Designed to give you the day's big picture without reading everything."}</span></div>
+          <a href="#world-flow">{lang === "ko" ? "오늘 흐름 보기 ↓" : "See today's flow ↓"}</a>
         </div>
         <div className="status"><span className={`dot ${briefing.healthySources < briefing.totalSources ? "warningDot" : ""}`} /> {t.updated} {updatedAt} · {t.cache}</div>
         <SourceStatus health={briefing.sourceHealth} lang={lang} />
       </section>
 
+      <WorldFlowBoard flows={worldFlows} events={readyEvents} lang={lang} />
+
       <section className="section mustKnowSection" id="events">
         <div className="sectionHead">
-          <div><div className="eyebrow">MUST KNOW · 5</div><h2>{lang === "ko" ? "오늘은 이 5개부터 보면 됩니다" : "Start with these five today"}</h2></div>
-          <p>{lang === "ko" ? "한국·세계·경제를 섞어 큰 흐름부터" : "A balanced view across Korea, world and economy"}</p>
+          <div><div className="eyebrow">MUST KNOW · 5</div><h2>{lang === "ko" ? "이제 핵심 사건 5개만 이해하면 됩니다" : "Now understand just five key events"}</h2></div>
+          <p>{lang === "ko" ? "무슨 일 → 왜 중요 → 한국에는? → 역사 → 다음 장면" : "What happened → why it matters → Korea → history → what next"}</p>
         </div>
-        <p className="sectionLead">{lang === "ko" ? "다섯 개를 먼저 읽고, 더 필요하면 아래 뉴스를 이어보세요. 중요도는 보도량만이 아니라 출처·영향도·최신성·영역 균형을 함께 봅니다." : "Read these five first, then continue only if you need more. Priority considers sources, impact, recency and topic balance—not article volume alone."}</p>
+        <p className="sectionLead">{lang === "ko" ? "뉴스 제목만 훑지 않고, 각 사건이 왜 중요한지와 지금만 보면 놓치는 배경까지 이어서 봅니다." : "Go beyond headlines to see why each event matters and the background that today's report alone can miss."}</p>
 
         {priorityEvents.length === 0 ? (
           <div className="empty">{lang === "ko" ? "현재 피드를 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요." : "The feeds could not be loaded right now. Please try again shortly."}</div>
@@ -381,13 +407,15 @@ export default async function Home({ searchParams }: PageProps) {
         )}
       </section>
 
+      {priorityEvents.length > 0 && <BriefingComplete memoryLine={memoryLine} flows={worldFlows} lang={lang} />}
+
       <CoverageBoard coverage={briefing.categoryCoverage} lang={lang} />
 
       {moreEvents.length > 0 && (
         <section className="section secondarySection">
           <div className="sectionHead">
-            <div><div className="eyebrow">MORE TODAY</div><h2>{lang === "ko" ? "더 알아두면 좋은 사건" : "More events worth knowing"}</h2></div>
-            <p>{lang === "ko" ? `${moreEvents.length}개 사건` : `${moreEvents.length} events`}</p>
+            <div><div className="eyebrow">MORE TODAY</div><h2>{lang === "ko" ? "더 보고 싶다면 여기부터" : "If you want to go further"}</h2></div>
+            <p>{lang === "ko" ? `${moreEvents.length}개 추가 사건` : `${moreEvents.length} more events`}</p>
           </div>
           <div className="eventList compactEvents">
             {moreEvents.map((event, index) => <EventCard key={event.id} event={event} index={index + priorityEvents.length} lang={lang} priority={false} />)}
@@ -415,20 +443,20 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="principleGrid">
           {lang === "ko" ? (
             <>
+              <p><strong>흐름과 인과를 구분합니다.</strong> 같은 흐름에 묶인 사건이 서로의 원인이라는 뜻은 아닙니다.</p>
+              <p><strong>한국 영향도 확실한 연결고리만 표시합니다.</strong> 억지로 ‘나와 무슨 상관’을 만들지 않습니다.</p>
               <p><strong>한국어 화면에는 한국어 보도를 우선합니다.</strong> 영어 원문만 확인된 사건은 별도 영역으로 분리합니다.</p>
               <p><strong>빠진 영역을 숨기지 않습니다.</strong> 수집 소스와 카테고리 커버리지를 함께 보여줍니다.</p>
               <p><strong>같은 사건을 보수적으로 묶습니다.</strong> 제목뿐 아니라 대상·행동·시간 간격이 함께 맞아야 합니다.</p>
-              <p><strong>30초 이해를 세 부분으로 나눕니다.</strong> 무슨 일, 왜 중요한지, 앞으로 확인할 점을 구분합니다.</p>
-              <p><strong>사실 검증처럼 보이는 라벨을 쓰지 않습니다.</strong> 기사 표현을 일반 보도·주장·추정으로만 분류합니다.</p>
               <p><strong>모르면 비워둡니다.</strong> 맥락도 한 기사에 우연히 등장한 단어만으로 연결하지 않습니다.</p>
             </>
           ) : (
             <>
+              <p><strong>We separate thematic flow from causality.</strong> Stories grouped together are not automatically presented as causing one another.</p>
+              <p><strong>Korea impact appears only with a plausible connection.</strong> We avoid forcing relevance where it is not supported.</p>
               <p><strong>Headline language follows the selected view.</strong> Stories without a matching-language report are kept out of the main briefing.</p>
               <p><strong>Coverage gaps stay visible.</strong> Source health and category coverage are shown alongside the briefing.</p>
               <p><strong>Events are grouped conservatively.</strong> Headlines, entities, actions and time distance must align.</p>
-              <p><strong>The 30-second read has three layers.</strong> What happened, why it matters and what to watch are kept separate.</p>
-              <p><strong>We avoid fact-check-like labels.</strong> Article language is classified only as general reporting, claims or uncertainty.</p>
               <p><strong>Unknowns stay unknown.</strong> Context is not attached from a single stray keyword in a secondary report.</p>
             </>
           )}
