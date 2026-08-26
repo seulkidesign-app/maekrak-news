@@ -8,11 +8,12 @@ import "./world-flow.css";
 import "./practical.css";
 import "./trust.css";
 import "./ux-polish.css";
+import "./qa-fixes.css";
 
 const siteUrl = "https://maekrak-news-rrrb-gamma.vercel.app";
 const title = "맥락 — 오늘 뉴스, 3가지 흐름으로";
-const description = "출근길 10분 안에 오늘의 3가지 흐름과 핵심 사건 5개, 출처, 한국과의 연결, 배경지식까지 한 번에 이해하는 데일리 뉴스 브리핑.";
-const socialImage = `${siteUrl}/og-image?v=8`;
+const description = "출근길 10분 안에 오늘의 흐름과 핵심 사건, 출처, 한국과의 연결, 배경지식까지 한 번에 이해하는 데일리 뉴스 브리핑.";
+const socialImage = `${siteUrl}/og-image?v=9`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
