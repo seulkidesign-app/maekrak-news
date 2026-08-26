@@ -5,6 +5,7 @@ import "./briefing.css";
 import "./editorial.css";
 import "./snapshot.css";
 import "./world-flow.css";
+import "./practical.css";
 
 const siteUrl = "https://maekrak-news-rrrb-gamma.vercel.app";
 const title = "맥락 — 오늘의 한국과 세계를, 하나의 흐름으로";
