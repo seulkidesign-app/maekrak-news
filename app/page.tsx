@@ -13,6 +13,7 @@ import { categoryLabel, copy, localizedContext, type Language } from "@/lib/i18n
 import { buildWorldFlows, dailyMemoryLine, historicalOneLiner, koreaImpact } from "@/lib/world-briefing";
 import { BriefingComplete, RegionPulse, WorldFlowBoard } from "./world-flow";
 import ReturningBrief from "./returning-brief";
+import { SourceCheck } from "./trust-panel";
 
 export const revalidate = 900;
 
@@ -191,6 +192,8 @@ function EventCard({ event, index, lang, priority }: { event: NewsEvent; index: 
           <span>{relativeTime(event.publishedAt, lang)}</span>
         </div>
         <h3>{displayArticle.title || event.title}</h3>
+
+        {priority && <SourceCheck event={event} representative={displayArticle} evidence={evidence} lang={lang} />}
 
         <div className="quickRead briefingThree">
           <div className="briefLine">
@@ -407,7 +410,7 @@ export default async function Home({ searchParams }: PageProps) {
           <div><div className="eyebrow">MUST KNOW · 5</div><h2>{lang === "ko" ? "이제 핵심 사건 5개만 이해하면 됩니다" : "Now understand just five key events"}</h2></div>
           <p>{lang === "ko" ? "무슨 일 → 왜 중요 → 한국에는? → 역사 → 다음 장면" : "What happened → why it matters → Korea → history → what next"}</p>
         </div>
-        <p className="sectionLead">{lang === "ko" ? "뉴스 제목만 훑지 않고, 각 사건이 왜 중요한지와 지금만 보면 놓치는 배경까지 이어서 봅니다." : "Go beyond headlines to see why each event matters and the background that today's report alone can miss."}</p>
+        <p className="sectionLead">{lang === "ko" ? "먼저 출처와 보도 상태를 확인하고, 그다음 사건의 의미와 배경을 읽습니다. 뉴스와 맥락 설명을 섞어 보여주지 않습니다." : "Check source coverage first, then read the meaning and background. Reporting and contextual explanation are kept visually separate."}</p>
 
         {priorityEvents.length === 0 ? (
           <div className="empty">{lang === "ko" ? "현재 피드를 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요." : "The feeds could not be loaded right now. Please try again shortly."}</div>
@@ -454,21 +457,21 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="principleGrid">
           {lang === "ko" ? (
             <>
+              <p><strong>출처를 설명보다 먼저 보여줍니다.</strong> 핵심 사건마다 원문 링크·출처 수·출처 유형·수집 경로를 먼저 확인할 수 있습니다.</p>
+              <p><strong>복수 출처를 사실 점수로 쓰지 않습니다.</strong> 여러 곳이 보도했다는 신호일 뿐, 내용이 모두 맞거나 완전히 일치한다는 뜻은 아닙니다.</p>
+              <p><strong>뉴스와 맥락을 구분합니다.</strong> 대표 보도 발췌는 원문 기반으로, 왜 중요한지·한국 영향·역사 설명은 별도 맥락으로 표시합니다.</p>
               <p><strong>지난 방문과 비교합니다.</strong> 이 기기에서 마지막으로 본 브리핑과 비교해 새 핵심 사건을 표시합니다.</p>
-              <p><strong>흐름과 인과를 구분합니다.</strong> 같은 흐름에 묶인 사건이 서로의 원인이라는 뜻은 아닙니다.</p>
-              <p><strong>한국 영향도 확실한 연결고리만 표시합니다.</strong> 억지로 ‘나와 무슨 상관’을 만들지 않습니다.</p>
               <p><strong>지역별 빈칸도 숨기지 않습니다.</strong> 0은 아무 일도 없다는 뜻이 아니라 현재 수집에서 주요 사건을 잡지 못했다는 뜻입니다.</p>
-              <p><strong>같은 사건을 보수적으로 묶습니다.</strong> 제목뿐 아니라 대상·행동·시간 간격이 함께 맞아야 합니다.</p>
-              <p><strong>모르면 비워둡니다.</strong> 맥락도 한 기사에 우연히 등장한 단어만으로 연결하지 않습니다.</p>
+              <p><strong>모르면 비워둡니다.</strong> 공식기관 원문 여부처럼 아직 자동으로 판정하지 않는 항목은 판정했다고 가장하지 않습니다.</p>
             </>
           ) : (
             <>
+              <p><strong>Sources come before explanation.</strong> Each key event exposes original links, source count, source types and collection paths before context.</p>
+              <p><strong>Multiple sources are not a truth score.</strong> They show breadth of coverage, not guaranteed accuracy or complete agreement.</p>
+              <p><strong>Reporting and context stay separate.</strong> Source-derived excerpts are labeled differently from explanatory context, Korea impact and historical background.</p>
               <p><strong>We compare with your last visit.</strong> This device highlights new key events since the briefing you last saw.</p>
-              <p><strong>We separate thematic flow from causality.</strong> Stories grouped together are not automatically presented as causing one another.</p>
-              <p><strong>Korea impact appears only with a plausible connection.</strong> We avoid forcing relevance where it is not supported.</p>
               <p><strong>Regional gaps stay visible.</strong> Zero means no major event was captured in the current collection, not that nothing happened.</p>
-              <p><strong>Events are grouped conservatively.</strong> Headlines, entities, actions and time distance must align.</p>
-              <p><strong>Unknowns stay unknown.</strong> Context is not attached from a single stray keyword in a secondary report.</p>
+              <p><strong>Unknowns stay unknown.</strong> We do not pretend to automatically determine things, such as official-primary-source status, that are not yet reliably classified.</p>
             </>
           )}
         </div>
