@@ -6,6 +6,7 @@ export type SourceRole = "broadcaster" | "wire" | "international";
 export type HealthStatus = "ok" | "http-error" | "empty" | "fetch-error";
 export type BriefWhyCode = "security" | "politics" | "economy" | "disaster" | "technology" | "society" | "broad-impact";
 export type BriefWatchCode = "single-source" | "uncertain" | "claim-heavy" | "multi-source" | "follow-up";
+export type EventDayStatus = "today" | "ongoing";
 
 export type NewsItem = {
   title: string;
@@ -27,6 +28,7 @@ export type SourceHealth = {
   role: SourceRole;
   status: HealthStatus;
   checkedAt: string;
+  latestPublishedAt?: string;
 };
 
 export type NewsEvent = {
@@ -36,6 +38,7 @@ export type NewsEvent = {
   scope: NewsScope;
   summary: string;
   publishedAt: string;
+  dayStatus: EventDayStatus;
   articles: NewsItem[];
   sourceCount: number;
   importanceScore: number;
@@ -88,6 +91,21 @@ const feeds: Feed[] = [
 ];
 
 const feedByName = new Map(feeds.map((feed) => [feed.name, feed]));
+const sourceWeights: Record<string, number> = {
+  Reuters: 1.35,
+  "Associated Press": 1.3,
+  "AP News": 1.3,
+  AP: 1.3,
+  연합뉴스: 1.25,
+  BBC: 1.15,
+  KBS: 1.1,
+  SBS: 1.0,
+  MBC: 1.0,
+  CNN: 1.0,
+  "Al Jazeera": 1.0,
+  DW: 0.95,
+  NHK: 0.95,
+};
 const parser = new XMLParser({ ignoreAttributes: false });
 const stopwords = new Set([
   "속보", "단독", "영상", "뉴스", "today", "live", "says", "said", "after", "with", "from", "that", "this", "대한", "관련", "오늘", "정부",
@@ -314,6 +332,28 @@ function isTodayKst(value: string) {
   return kstDateKey(value) === kstDateKey(new Date());
 }
 
+function isWithinHours(value: string, hours: number) {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return false;
+  const age = Date.now() - time;
+  return age >= 0 && age <= hours * 3_600_000;
+}
+
+function isOngoingCandidate(item: NewsItem) {
+  if (isTodayKst(item.publishedAt) || !isWithinHours(item.publishedAt, 18)) return false;
+  return highImpactPattern.test(`${item.title} ${item.description}`);
+}
+
+function dedupeNews(items: NewsItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.source.toLowerCase()}|${normalizePhrase(item.title)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: SourceHealth }> {
   const checkedAt = new Date().toISOString();
   const controller = new AbortController();
@@ -321,7 +361,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/6.0" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.0" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -353,6 +393,9 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
       } satisfies NewsItem;
     }).filter((item: NewsItem) => item.title && item.link !== "#");
 
+    const latestPublishedAt = [...items]
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())[0]?.publishedAt;
+
     return {
       items,
       health: {
@@ -363,6 +406,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
         role: feed.role,
         status: items.length > 0 ? "ok" : "empty",
         checkedAt,
+        latestPublishedAt,
       },
     };
   } catch {
@@ -370,6 +414,10 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function sourceAuthorityWeight(article: NewsItem) {
+  return sourceWeights[article.source] ?? feedByName.get(article.source)?.weight ?? (article.sourceRole === "wire" ? 1.2 : 0.9);
 }
 
 function importanceFor(articles: NewsItem[]) {
@@ -382,7 +430,7 @@ function importanceFor(articles: NewsItem[]) {
   const recency = Math.max(0, 2.4 - ageHours / 12);
   const diversity = Math.min(4, sources.size) * 1.05;
   const roleDiversity = Math.min(3, roles.size) * 0.6;
-  const sourceAuthority = Math.max(...articles.map((article) => feedByName.get(article.source)?.weight ?? (article.sourceRole === "wire" ? 1.2 : 0.9)));
+  const sourceAuthority = Math.max(...articles.map(sourceAuthorityWeight));
   const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
   const impact = highImpactPattern.test(text) ? 2.0 : structuralImpactPattern.test(text) ? 1.25 : 0;
   const crossScope = new Set(articles.map((article) => article.scope)).size > 1 ? 0.65 : 0;
@@ -435,19 +483,24 @@ function majority<T extends string>(values: T[], fallback: T): T {
 }
 
 function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
-  const selected: NewsEvent[] = [];
-  const add = (event?: NewsEvent) => {
-    if (event && !selected.some((item) => item.id === event.id) && selected.length < limit) selected.push(event);
-  };
-  const pool = events;
+  const selected = events.slice(0, limit);
+  if (!selected.length) return [];
 
-  add(pool[0]);
-  add(pool.find((event) => event.scope === "domestic"));
-  add(pool.find((event) => event.scope === "world"));
-  add(pool.find((event) => event.category === "경제"));
-  add(pool.find((event) => ["정치", "사회", "재난", "기술"].includes(event.category)));
-  pool.forEach(add);
-  return selected.slice(0, limit).map((event) => event.id);
+  const ensureScope = (scope: NewsScope) => {
+    if (selected.some((event) => event.scope === scope)) return;
+    const candidate = events.find((event) => event.scope === scope && !selected.some((item) => item.id === event.id));
+    if (!candidate) return;
+    const lowestIndex = selected.reduce((lowest, event, index) => event.importanceScore < selected[lowest].importanceScore ? index : lowest, 0);
+    const lowest = selected[lowestIndex];
+    if (candidate.importanceScore >= lowest.importanceScore * 0.75) selected[lowestIndex] = candidate;
+  };
+
+  ensureScope("domestic");
+  ensureScope("world");
+  return [...new Map(selected.map((event) => [event.id, event])).values()]
+    .sort((a, b) => b.importanceScore - a.importanceScore)
+    .slice(0, limit)
+    .map((event) => event.id);
 }
 
 export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
@@ -467,9 +520,11 @@ export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
 export async function getBriefing(): Promise<Briefing> {
   const loaded = await Promise.all(feeds.map(loadFeed));
   const sourceHealth = loaded.map((result) => result.health);
-  const allNews = loaded.flatMap((result) => result.items)
+  const allNews = dedupeNews(loaded.flatMap((result) => result.items))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  const news = allNews.filter((item) => isTodayKst(item.publishedAt)).slice(0, 240);
+  const news = allNews
+    .filter((item) => isTodayKst(item.publishedAt) || isOngoingCandidate(item))
+    .slice(0, 260);
 
   const clusters: NewsItem[][] = [];
   for (const item of news) {
@@ -494,6 +549,7 @@ export async function getBriefing(): Promise<Briefing> {
       scope,
       summary: primary.description,
       publishedAt: sorted[0].publishedAt,
+      dayStatus: sorted.some((article) => isTodayKst(article.publishedAt)) ? "today" : "ongoing",
       articles: sorted,
       sourceCount: sources.size,
       importanceScore,
@@ -528,10 +584,10 @@ export async function getBriefing(): Promise<Briefing> {
 
 export async function getNews(): Promise<NewsItem[]> {
   const loaded = await Promise.all(feeds.map(loadFeed));
-  return loaded.flatMap((result) => result.items)
-    .filter((item) => isTodayKst(item.publishedAt))
+  return dedupeNews(loaded.flatMap((result) => result.items))
+    .filter((item) => isTodayKst(item.publishedAt) || isOngoingCandidate(item))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .slice(0, 240);
+    .slice(0, 260);
 }
 
 export async function getEvents(): Promise<NewsEvent[]> {
