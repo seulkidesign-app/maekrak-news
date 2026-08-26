@@ -163,12 +163,18 @@ const topicRules: Array<{ category: NewsCategory; pattern: RegExp }> = [
   { category: "사회", pattern: /사건|사고|범죄|수사|검찰|경찰|교육|의료|병원|노동|주거|주택|crime|police|prosecut|education|healthcare|hospital|labor|housing/i },
 ];
 
-const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선거|대통령|총리|사망|붕괴|지진|태풍|홍수|산불|금리|관세|제재|war|attack|missile|nuclear|ceasefire|election|president|prime minister|earthquake|typhoon|flood|wildfire|interest rate|tariff|sanction/i;
+const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선거|대통령|총리|붕괴|지진|태풍|홍수|산불|금리|관세|제재|war|attack|missile|nuclear|ceasefire|election|president|prime minister|earthquake|typhoon|flood|wildfire|interest rate|tariff|sanction/i;
+const leaderDeathPattern = /(?:대통령|총리|국왕|교황).{0,35}(?:사망|숨져)|(?:사망|숨져).{0,35}(?:대통령|총리|국왕|교황)|(?:president|prime minister|king|pope).{0,35}(?:dies|dead|death)|(?:dies|dead|death).{0,35}(?:president|prime minister|king|pope)/i;
+const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|야구|농구|celebrity|singer|actor|actress|concert|album|country music|football|baseball|basketball/i;
 const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|police reform|prosecution reform|budget|housing supply|birth|population|semiconductor/i;
 const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|reportedly|unconfirmed|appears?|likely|estimated|may|might|could/i;
 const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|says?|said|claims?|alleges?|warns?|expects?|plans?/i;
 const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|united states|china|japan|russia|ukraine|iran|israel|palestin|gaza|canada|europe|nato|hormuz/i;
 const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|korea|seoul|busan|jeju|lee jae myung|kospi/i;
+
+function isHighImpact(text: string) {
+  return highImpactPattern.test(text) || leaderDeathPattern.test(text);
+}
 
 function decodeEntities(value: string) {
   return value
@@ -290,11 +296,11 @@ function sameEvent(a: NewsItem, b: NewsItem) {
   const actions = actionSimilarity(a.title, b.title);
   const hours = timeDistanceHours(a.publishedAt, b.publishedAt);
 
-  if (hours > 36) return false;
+  if (hours > 30) return false;
   if (lexical >= 0.74 && hours <= 24) return true;
   if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
-  if (entities >= 0.67 && actions >= 0.5 && hours <= 18) return true;
-  if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && hours <= 8) return true;
+  if (entities >= 0.67 && actions >= 0.5 && lexical >= 0.42 && hours <= 12) return true;
+  if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && lexical >= 0.5 && hours <= 6) return true;
   return false;
 }
 
@@ -341,7 +347,7 @@ function isWithinHours(value: string, hours: number) {
 
 function isOngoingCandidate(item: NewsItem) {
   if (isTodayKst(item.publishedAt) || !isWithinHours(item.publishedAt, 18)) return false;
-  return highImpactPattern.test(`${item.title} ${item.description}`);
+  return isHighImpact(`${item.title} ${item.description}`);
 }
 
 function dedupeNews(items: NewsItem[]) {
@@ -361,7 +367,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.0" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.1" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -432,12 +438,13 @@ function importanceFor(articles: NewsItem[]) {
   const roleDiversity = Math.min(3, roles.size) * 0.6;
   const sourceAuthority = Math.max(...articles.map(sourceAuthorityWeight));
   const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
-  const impact = highImpactPattern.test(text) ? 2.0 : structuralImpactPattern.test(text) ? 1.25 : 0;
+  const impact = isHighImpact(text) ? 2.0 : structuralImpactPattern.test(text) ? 1.25 : 0;
+  const softNewsPenalty = softNewsPattern.test(text) && !structuralImpactPattern.test(text) && !isHighImpact(text) ? 1.8 : 0;
   const crossScope = new Set(articles.map((article) => article.scope)).size > 1 ? 0.65 : 0;
   const directSignal = articles.some((article) => article.sourceType === "direct") ? 0.45 : 0;
   const singleSourcePenalty = sources.size === 1 ? 1.6 : 0;
   const aggregatedOnlyPenalty = sources.size === 1 && articles.every((article) => article.sourceType === "aggregated") ? 0.45 : 0;
-  const score = diversity + roleDiversity + sourceAuthority + recency + impact + crossScope + directSignal - singleSourcePenalty - aggregatedOnlyPenalty;
+  const score = diversity + roleDiversity + sourceAuthority + recency + impact + crossScope + directSignal - singleSourcePenalty - aggregatedOnlyPenalty - softNewsPenalty;
   return Math.round(Math.max(0, score) * 100) / 100;
 }
 
@@ -449,7 +456,7 @@ function selectionReasons(articles: NewsItem[], score: number) {
   if (sources.size >= 3) reasons.push("여러 매체에서 동시 보도");
   if (roles.has("wire")) reasons.push("통신사 보도 포함");
   if (roles.size >= 2) reasons.push("서로 다른 유형의 출처");
-  if (highImpactPattern.test(text)) reasons.push("정책·안보·재난 등 영향도가 큰 주제");
+  if (isHighImpact(text)) reasons.push("정책·안보·재난 등 영향도가 큰 주제");
   else if (structuralImpactPattern.test(text)) reasons.push("제도·생활에 이어질 구조적 이슈");
   if (score >= 7 && reasons.length === 0) reasons.push("최신성과 보도량을 함께 반영");
   return reasons.slice(0, 3);
