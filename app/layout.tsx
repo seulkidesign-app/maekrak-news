@@ -7,10 +7,11 @@ import "./snapshot.css";
 import "./world-flow.css";
 import "./practical.css";
 import "./trust.css";
+import "./ux-polish.css";
 
 const siteUrl = "https://maekrak-news-rrrb-gamma.vercel.app";
-const title = "맥락 — 오늘의 한국과 세계를, 하나의 흐름으로";
-const description = "여러 뉴스 채널을 따로 보지 않아도, 무슨 일이 있었는지부터 왜 중요한지·어려운 용어·역사적 배경·다음 장면까지 한 번에 이해합니다.";
+const title = "맥락 — 오늘 뉴스의 흐름과 배경을 한 번에";
+const description = "여러 뉴스 채널을 돌아다니지 않아도 오늘의 3가지 흐름, 핵심 사건 5개, 출처, 한국과의 연결, 배경지식까지 한 번에 이해하는 데일리 뉴스 브리핑.";
 const socialImage = `${siteUrl}/og-image`;
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
     siteName: "맥락",
     type: "website",
     locale: "ko_KR",
-    images: [{ url: socialImage, width: 1200, height: 630, alt: title }],
+    images: [{ url: socialImage, width: 1200, height: 630, alt: "맥락 — 오늘 뉴스의 흐름, 출처, 배경을 한 번에" }],
   },
   twitter: {
     card: "summary_large_image",
