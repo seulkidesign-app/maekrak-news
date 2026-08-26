@@ -82,7 +82,7 @@ export const copy: Record<Language, UiCopy> = {
     timeline: "이 사건의 흐름",
     originals: "원문 비교",
     aggregated: "집계 피드",
-    sourceLanguage: "기사 제목은 출처 언어 그대로 표시됩니다.",
+    sourceLanguage: "한국어 화면에서는 해외 원문 제목을 자동 번역해 보조 표시합니다.",
     trustTitle: ["쉽게 보여주되,", "근거는 숨기지 않습니다."],
     footer: "맥락 · 뉴스를 소비하는 대신 이해하기",
   },
@@ -181,7 +181,7 @@ export function localizedContext(info: DetectedContext, lang: Language): Localiz
       simple: info.simple,
       context: info.context,
       deep: info.deep,
-      history: historyKo[info.id] ?? "이 개념의 역사적 배경은 검수 후 추가할 예정입니다.",
+      history: historyKo[info.id] ?? "",
       kind: info.kind,
     };
   }
@@ -191,13 +191,13 @@ export function localizedContext(info: DetectedContext, lang: Language): Localiz
     simple: info.simple,
     context: info.context,
     deep: info.deep,
-    history: "Historical background is being reviewed before publication.",
+    history: "",
     kind: info.kind,
   };
 }
 
 export function categoryLabel(category: string, lang: Language) {
   if (lang === "ko") return category;
-  const map: Record<string, string> = { 국내: "Korea", 세계: "World", 경제: "Economy", 정치: "Politics", 사회: "Society", 기술: "Technology", 기후: "Climate" };
+  const map: Record<string, string> = { 국내: "Korea", 세계: "World", 경제: "Economy", 정치: "Politics", 사회: "Society", 기술: "Technology", 재난: "Disaster", 기후: "Climate" };
   return map[category] ?? category;
 }
