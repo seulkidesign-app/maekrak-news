@@ -11,6 +11,7 @@ import { detectContext } from "@/lib/context";
 import { classifyEvidence, eventEvidenceSummary, eventTimeline } from "@/lib/signals";
 import { categoryLabel, copy, localizedContext, type Language } from "@/lib/i18n";
 import { buildWorldFlows, dailyMemoryLine, historicalOneLiner, koreaImpact } from "@/lib/world-briefing";
+import { translateToKorean } from "@/lib/translate";
 import { BriefingComplete, RegionPulse, WorldFlowBoard } from "./world-flow";
 import ReturningBrief from "./returning-brief";
 import { SourceCheck } from "./trust-panel";
@@ -38,13 +39,12 @@ function shortTime(date: string, lang: Language) {
 }
 
 function eventCategoryLabel(category: string, lang: Language) {
-  if (lang === "en" && category === "재난") return "Disaster";
   return categoryLabel(category, lang);
 }
 
 function coverageLabel(event: NewsEvent, lang: Language) {
-  if (lang === "ko") return event.sourceCount >= 3 ? "복수 출처" : event.sourceCount === 2 ? "2개 출처" : "단일 출처";
-  return event.sourceCount >= 3 ? "Multiple sources" : event.sourceCount === 2 ? "2 sources" : "Single source";
+  if (lang === "ko") return event.sourceCount >= 3 ? `${event.sourceCount}개 매체 보도` : event.sourceCount === 2 ? "2개 매체 보도" : "단일 매체 보도";
+  return event.sourceCount >= 3 ? `${event.sourceCount} outlets` : event.sourceCount === 2 ? "2 outlets" : "Single outlet";
 }
 
 function localizedSignal(label: ReturnType<typeof classifyEvidence>, lang: Language) {
@@ -106,7 +106,7 @@ function SourceStatus({ health, lang }: { health: SourceHealth[]; lang: Language
     <details className={`sourceHealth ${failed.length ? "hasWarning" : ""}`}>
       <summary>
         <span>{lang === "ko" ? "수집 상태" : "Source health"}</span>
-        <b>{health.length - failed.length}/{health.length} {lang === "ko" ? "정상" : "healthy"}</b>
+        <b>{health.length - failed.length}/{health.length} {lang === "ko" ? "응답" : "responding"}</b>
       </summary>
       <div className="sourceHealthGrid">
         {health.map((source) => (
@@ -117,6 +117,9 @@ function SourceStatus({ health, lang }: { health: SourceHealth[]; lang: Language
           </div>
         ))}
       </div>
+      <p className="healthWarning">
+        {lang === "ko" ? "수집 응답 상태는 기사 내용의 사실 여부나 전체 뉴스 커버리지를 보증하지 않습니다." : "Source response status does not verify article accuracy or complete news coverage."}
+      </p>
       {failed.length > 0 && (
         <p className="healthWarning">
           {lang === "ko" ? `일부 소스(${failed.map((source) => source.name).join(", ")}) 수집에 문제가 있어 오늘 커버리지가 평소보다 낮을 수 있습니다.` : `Some sources (${failed.map((source) => source.name).join(", ")}) have collection issues, so today's coverage may be incomplete.`}
@@ -136,7 +139,7 @@ function CoverageBoard({ coverage, lang }: { coverage: Record<NewsCategory, numb
         <small>{lang === "ko" ? "빠진 영역이 있는지 확인" : "See possible gaps"}</small>
       </summary>
       <div className="coverageBody">
-        <p>{lang === "ko" ? "수집된 사건 기준이며, 세상의 모든 뉴스를 담았다는 뜻은 아닙니다." : "Based on collected events; this does not mean every news story is covered."}</p>
+        <p>{lang === "ko" ? "오늘 KST 기준으로 수집된 사건입니다. 0은 아무 일도 없다는 뜻이 아니라 현재 수집에서 포착하지 못했다는 뜻입니다." : "Events collected for today in KST. Zero means the current collection did not capture a major event, not that nothing happened."}</p>
         <div className="coverageGrid">
           {coverageOrder.map((category) => (
             <div className={`coverageItem ${coverage[category] === 0 ? "coverageMissing" : ""}`} key={category}>
@@ -156,12 +159,17 @@ function conciseExcerpt(event: NewsEvent, lang: Language) {
   return { article, text: text.trim() };
 }
 
-function EventCard({ event, index, lang }: { event: NewsEvent; index: number; lang: Language }) {
+async function EventCard({ event, index, total, lang }: { event: NewsEvent; index: number; total: number; lang: Language }) {
   const t = copy[lang];
   const contexts = detectContext(event);
   const evidence = eventEvidenceSummary(event);
   const timeline = eventTimeline(event);
   const { article: displayArticle, text: displayText } = conciseExcerpt(event, lang);
+  const needsTranslation = lang === "ko" && !/[가-힣]/.test(displayArticle.title);
+  const translatedTitle = needsTranslation ? await translateToKorean(displayArticle.title) : null;
+  const translatedExcerpt = needsTranslation && displayText ? await translateToKorean(displayText.slice(0, 430)) : null;
+  const shownTitle = translatedTitle ?? displayArticle.title ?? event.title;
+  const shownText = translatedExcerpt ?? displayText;
   const primaryContext = contexts[0] ? localizedContext(contexts[0], lang) : null;
   const why = primaryContext?.context ?? whyText(event.briefWhy, lang);
   const impact = koreaImpact(event, lang);
@@ -169,7 +177,7 @@ function EventCard({ event, index, lang }: { event: NewsEvent; index: number; la
 
   return (
     <article className="eventCard priorityEvent">
-      <div className="eventNumber">{index + 1}/5</div>
+      <div className="eventNumber">{index + 1}/{total}</div>
       <div className="eventBody">
         <div className="meta">
           <span className="priorityMark">{lang === "ko" ? "오늘 핵심" : "Must know"}</span>
@@ -177,15 +185,16 @@ function EventCard({ event, index, lang }: { event: NewsEvent; index: number; la
           <span>{coverageLabel(event, lang)}</span>
           <span>{relativeTime(event.publishedAt, lang)}</span>
         </div>
-        <h3>{displayArticle.title || event.title}</h3>
+        <h3>{shownTitle}</h3>
+        {needsTranslation && translatedTitle && <div className="translationNote">자동 번역 · 원문 제목은 출처에서 확인</div>}
 
         <SourceCheck event={event} representative={displayArticle} evidence={evidence} lang={lang} />
 
         <div className="quickRead briefingThree">
           <div className="briefLine primaryBrief">
             <span>{lang === "ko" ? "무슨 일" : "What happened"}</span>
-            <p>{displayText ? `${displayText.slice(0, 250)}${displayText.length > 250 ? "…" : ""}` : t.quickEmpty}</p>
-            <small>{lang === "ko" ? `원문 기반 · ${displayArticle.source}` : `Source-derived · ${displayArticle.source}`}</small>
+            <p>{shownText ? `${shownText.slice(0, 250)}${shownText.length > 250 ? "…" : ""}` : t.quickEmpty}</p>
+            <small>{needsTranslation && translatedExcerpt ? `자동 번역 · ${displayArticle.source} 원문 기반` : (lang === "ko" ? `원문 기반 · ${displayArticle.source}` : `Source-derived · ${displayArticle.source}`)}</small>
           </div>
           <div className="briefLine contextBrief">
             <span>{lang === "ko" ? "볼 포인트" : "What to notice"}</span>
@@ -234,7 +243,7 @@ function EventCard({ event, index, lang }: { event: NewsEvent; index: number; la
                       <div className="depth depthFour">
                         <div><small>{t.meaning}</small><p>{localized.simple}</p></div>
                         <div><small>{lang === "ko" ? "이 기사에서 볼 점" : "In this story"}</small><p>{localized.context}</p></div>
-                        <div className="historyCell"><small>{t.history}</small><p>{localized.history}</p></div>
+                        {localized.history && <div className="historyCell"><small>{t.history}</small><p>{localized.history}</p></div>}
                         <div><small>{t.deeper}</small><p>{localized.deep}</p></div>
                       </div>
                       <a className="referenceLink" href={info.referenceUrl} target="_blank" rel="noreferrer">{t.source} · {info.referenceLabel} ↗</a>
@@ -298,6 +307,32 @@ function hasHeadlineForLanguage(event: NewsEvent, lang: Language) {
   return lang === "ko" ? /[가-힣]/.test(title) : !/[가-힣]/.test(title);
 }
 
+async function TranslatedSourceOnly({ events }: { events: NewsEvent[] }) {
+  const rows = await Promise.all(events.slice(0, 12).map(async (event) => {
+    const article = getDisplayArticle(event, "en");
+    const translated = await translateToKorean(article.title);
+    return { event, article, translated };
+  }));
+
+  return (
+    <section className="section sourceOnlySection">
+      <details className="sourceOnlyDetails">
+        <summary>한국어 보도가 아직 없는 해외 원문 {events.length}건</summary>
+        <p>제목은 무료 자동 번역을 보조로 제공하며, 판단이 필요한 내용은 반드시 원문 링크에서 확인할 수 있습니다.</p>
+        <div className="sourceOnlyList">
+          {rows.map(({ event, article, translated }) => (
+            <a href={article.link} target="_blank" rel="noreferrer" key={event.id}>
+              <b>{article.source}</b>
+              <span>{translated ?? article.title}</span>
+              <small>{translated ? "자동 번역 · " : "원문 · "}{relativeTime(event.publishedAt, "ko")} ↗</small>
+            </a>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}
+
 type PageProps = { searchParams: Promise<{ lang?: string }> };
 
 export default async function Home({ searchParams }: PageProps) {
@@ -307,8 +342,8 @@ export default async function Home({ searchParams }: PageProps) {
   const briefing = await getBriefing();
   const events = briefing.events;
 
-  const readyEvents = lang === "ko" ? events.filter((event) => hasHeadlineForLanguage(event, lang)) : events;
-  const languagePending = lang === "ko" ? events.filter((event) => !hasHeadlineForLanguage(event, lang)) : [];
+  const readyEvents = events;
+  const languagePending = lang === "ko" ? events.filter((event) => !hasHeadlineForLanguage(event, "ko")) : [];
   const readyById = new Map(readyEvents.map((event) => [event.id, event]));
   const priorityEvents: NewsEvent[] = [];
 
@@ -322,11 +357,11 @@ export default async function Home({ searchParams }: PageProps) {
   }
 
   const priorityIds = new Set(priorityEvents.map((event) => event.id));
-  const moreEvents = readyEvents.filter((event) => !priorityIds.has(event.id));
+  const moreEvents = readyEvents.filter((event) => !priorityIds.has(event.id) && (lang === "en" || hasHeadlineForLanguage(event, "ko")));
   const worldFlows = buildWorldFlows(readyEvents, lang);
   const memoryLine = dailyMemoryLine(worldFlows, lang);
   const updatedAt = new Date().toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul" });
-  const visitEvents = readyEvents.map((event) => ({ title: getDisplayArticle(event, lang).title || event.title, publishedAt: event.publishedAt, priority: priorityIds.has(event.id) }));
+  const visitEvents = readyEvents.map((event) => ({ id: event.id, title: getDisplayArticle(event, lang).title || event.title, publishedAt: event.publishedAt, priority: priorityIds.has(event.id) }));
 
   return (
     <main>
@@ -335,7 +370,7 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="topActions">
           <nav>
             <a href="#world-flow">{lang === "ko" ? "오늘의 흐름" : "Today's flow"}</a>
-            <a href="#events">{lang === "ko" ? "핵심 5개" : "Key 5"}</a>
+            <a href="#events">{lang === "ko" ? "핵심 뉴스" : "Key events"}</a>
             <a href="#principles">{lang === "ko" ? "편집 원칙" : "Editorial policy"}</a>
           </nav>
           <div className="languageToggle" aria-label="Language">
@@ -348,9 +383,9 @@ export default async function Home({ searchParams }: PageProps) {
       <section className="hero compactHero" id="top">
         <div className="eyebrow">DAILY NEWS, WITH CONTEXT</div>
         <h1>{lang === "ko" ? <>오늘 무슨 일이 있었고,<br />왜 봐야 하는지만.</> : <>What happened today,<br />and what is worth noticing.</>}</h1>
-        <p>{lang === "ko" ? "여러 뉴스 채널을 돌아다니지 않아도, 오늘의 흐름·핵심 사건·출처·배경지식을 한 번에 봅니다." : "See today's currents, key events, sources and background without hopping between news channels."}</p>
+        <p>{lang === "ko" ? "여러 뉴스 채널을 돌아다니지 않아도, 오늘 KST 기준의 흐름·핵심 사건·출처·배경지식을 한 번에 봅니다." : "See today's KST-based currents, key events, sources and background without hopping between news channels."}</p>
         <div className="heroMeta">
-          <span>{lang === "ko" ? "3가지 흐름 → 핵심 5개 → 출처와 배경" : "3 currents → 5 key events → sources & context"}</span>
+          <span>{lang === "ko" ? `오늘의 흐름 → 핵심 ${priorityEvents.length}개 → 출처와 배경` : `Today's currents → ${priorityEvents.length} key events → sources & context`}</span>
           <a href="#world-flow">{lang === "ko" ? "오늘 브리핑 시작 ↓" : "Start today's brief ↓"}</a>
         </div>
         <div className="status"><span className={`dot ${briefing.healthySources < briefing.totalSources ? "warningDot" : ""}`} /> {t.updated} {updatedAt} · {t.cache}</div>
@@ -361,14 +396,14 @@ export default async function Home({ searchParams }: PageProps) {
 
       <section className="section mustKnowSection" id="events">
         <div className="sectionHead">
-          <div><div className="eyebrow">KEY 5</div><h2>{lang === "ko" ? "오늘은 이 5개만 이해하면 됩니다" : "Understand these five events today"}</h2></div>
+          <div><div className="eyebrow">KEY EVENTS</div><h2>{lang === "ko" ? `오늘은 이 ${priorityEvents.length}개부터 보면 됩니다` : `Start with these ${priorityEvents.length} events today`}</h2></div>
           <p>{lang === "ko" ? "보도와 맥락을 섞지 않고 단계별로 보여줍니다." : "Reporting and context are kept visibly separate."}</p>
         </div>
 
         {priorityEvents.length === 0 ? (
-          <div className="empty">{lang === "ko" ? "현재 피드를 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요." : "The feeds could not be loaded right now. Please try again shortly."}</div>
+          <div className="empty">{lang === "ko" ? "오늘 KST 기준으로 핵심 브리핑을 만들 만큼 최신 기사를 수집하지 못했습니다." : "Not enough current KST-day reporting was collected to build the briefing."}</div>
         ) : (
-          <div className="eventList">{priorityEvents.map((event, index) => <EventCard key={event.id} event={event} index={index} lang={lang} />)}</div>
+          <div className="eventList">{priorityEvents.map((event, index) => <EventCard key={event.id} event={event} index={index} total={priorityEvents.length} lang={lang} />)}</div>
         )}
       </section>
 
@@ -382,20 +417,7 @@ export default async function Home({ searchParams }: PageProps) {
 
       <MoreTodayCompact events={moreEvents} lang={lang} />
 
-      {lang === "ko" && languagePending.length > 0 && (
-        <section className="section sourceOnlySection">
-          <details className="sourceOnlyDetails">
-            <summary>한국어 대응 보도를 아직 찾지 못한 해외 원문 {languagePending.length}건</summary>
-            <p>커버리지에서 버리지는 않되, 한국어 핵심 브리핑에는 섞지 않았습니다.</p>
-            <div className="sourceOnlyList">
-              {languagePending.slice(0, 12).map((event) => {
-                const article = getDisplayArticle(event, "en");
-                return <a href={article.link} target="_blank" rel="noreferrer" key={event.id}><b>{article.source}</b><span>{article.title}</span><small>{relativeTime(event.publishedAt, "ko")} ↗</small></a>;
-              })}
-            </div>
-          </details>
-        </section>
-      )}
+      {lang === "ko" && languagePending.length > 0 && <TranslatedSourceOnly events={languagePending} />}
 
       <section className="principles" id="principles">
         <details className="principlesDetails">
@@ -410,8 +432,8 @@ export default async function Home({ searchParams }: PageProps) {
                 <p><strong>정치 진영을 평가하지 않습니다.</strong> 좋다·나쁘다 같은 가치판단보다 제도·정책·경제·안보에 어떤 변화가 생기는지를 설명합니다.</p>
                 <p><strong>발언과 확인된 보도를 구분합니다.</strong> 주장·추정 표현을 별도로 표시하고 원문 비교를 제공합니다.</p>
                 <p><strong>출처 수를 진실 점수로 쓰지 않습니다.</strong> 복수 매체 보도는 커버리지 신호일 뿐, 사실 보증이 아닙니다.</p>
-                <p><strong>정치·외교는 원문 비교를 권장합니다.</strong> 같은 사실도 매체별 강조점이 다를 수 있음을 숨기지 않습니다.</p>
-                <p><strong>모르면 비워둡니다.</strong> 근거 없이 원인·의도·정치적 성향을 추정해 채우지 않습니다.</p>
+                <p><strong>자동 번역은 번역이라고 표시합니다.</strong> 번역문은 이해를 위한 보조이며, 원문 링크를 항상 함께 제공합니다.</p>
+                <p><strong>모르면 비워둡니다.</strong> 검수되지 않은 역사 배경이나 근거 없는 원인·의도·정치 성향은 채우지 않습니다.</p>
               </>
             ) : (
               <>
@@ -419,8 +441,8 @@ export default async function Home({ searchParams }: PageProps) {
                 <p><strong>We do not rate political camps.</strong> Explanations focus on institutional, policy, economic and security effects instead of value judgments.</p>
                 <p><strong>Claims and reporting are separated.</strong> Claim and uncertainty language is flagged and originals can be compared.</p>
                 <p><strong>Source count is not a truth score.</strong> Multiple coverage is a breadth signal, not a guarantee of accuracy.</p>
-                <p><strong>Politics and diplomacy invite source comparison.</strong> Different outlets can emphasize the same event differently.</p>
-                <p><strong>Unknowns stay unknown.</strong> We avoid guessing motives, causality or political alignment without support.</p>
+                <p><strong>Machine translation is labeled.</strong> It is an aid to understanding and the original link remains available.</p>
+                <p><strong>Unknowns stay unknown.</strong> We do not fill unreviewed history, motives, causality or political alignment without support.</p>
               </>
             )}
           </div>
