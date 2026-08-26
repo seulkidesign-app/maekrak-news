@@ -3,11 +3,7 @@ import type { Language } from "@/lib/i18n";
 import { dailyMemoryLine, koreaImpact, type WorldFlow } from "@/lib/world-briefing";
 import { TrustLegend } from "./trust-panel";
 
-type SignalRule = {
-  pattern: RegExp;
-  ko: string;
-  en: string;
-};
+type SignalRule = { pattern: RegExp; ko: string; en: string };
 
 const signalRules: SignalRule[] = [
   { pattern: /이란|iran/i, ko: "이란", en: "Iran" },
@@ -62,30 +58,16 @@ function flowSignals(flow: WorldFlow, events: NewsEvent[], lang: Language) {
   const matchedEvents = flowEvents(flow, events);
   const text = matchedEvents.flatMap((event) => event.articles.map((article) => `${article.title} ${article.description}`)).join(" ");
   const labels: string[] = [];
-  signalRules.forEach((rule) => {
-    if (rule.pattern.test(text)) labels.push(lang === "ko" ? rule.ko : rule.en);
-  });
+  signalRules.forEach((rule) => { if (rule.pattern.test(text)) labels.push(lang === "ko" ? rule.ko : rule.en); });
 
   if (labels.length < 2) {
-    const fallback = matchedEvents.map((event) => {
-      if (lang === "ko") {
-        if (event.category === "경제") return "경제";
-        if (event.category === "정치") return "정치";
-        if (event.category === "사회") return "사회";
-        if (event.category === "기술") return "기술";
-        if (event.category === "재난") return "재난";
-        return event.scope === "world" ? "국제정세" : "한국";
-      }
-      if (event.category === "경제") return "Economy";
-      if (event.category === "정치") return "Politics";
-      if (event.category === "사회") return "Society";
-      if (event.category === "기술") return "Technology";
-      if (event.category === "재난") return "Disaster";
-      return event.scope === "world" ? "World affairs" : "Korea";
+    matchedEvents.forEach((event) => {
+      const fallback = lang === "ko"
+        ? event.category === "세계" ? "국제정세" : event.category
+        : event.category === "경제" ? "Economy" : event.category === "정치" ? "Politics" : event.category === "사회" ? "Society" : event.category === "기술" ? "Technology" : event.category === "재난" ? "Disaster" : event.scope === "world" ? "World affairs" : "Korea";
+      labels.push(fallback);
     });
-    fallback.forEach((label) => labels.push(label));
   }
-
   return [...new Set(labels)].slice(0, 4);
 }
 
@@ -112,14 +94,9 @@ function flowSources(flow: WorldFlow, events: NewsEvent[]) {
 }
 
 function todayLabel(lang: Language) {
-  const formatter = new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-  });
-  return formatter.format(new Date());
+  return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short",
+  }).format(new Date());
 }
 
 export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; events: NewsEvent[]; lang: Language }) {
@@ -127,14 +104,13 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
 
   return (
     <section className="worldFlowSection" id="world-flow">
-      <div className="worldFlowDate">{todayLabel(lang)} · {lang === "ko" ? "오늘의 세계" : "TODAY'S WORLD"}</div>
-
+      <div className="worldFlowDate">{todayLabel(lang)} · {lang === "ko" ? "오늘의 브리핑" : "TODAY'S BRIEF"}</div>
       <div className="worldFlowHead">
         <div>
           <div className="eyebrow">THE BIG PICTURE</div>
           <h2>{lang === "ko" ? `오늘 뉴스를 이해하는 ${flows.length || 3}가지 흐름` : `${flows.length || 3} currents to understand today's news`}</h2>
         </div>
-        <p>{lang === "ko" ? "뉴스를 하나씩 외우는 대신, 오늘 함께 봐야 할 사건을 큰 흐름으로 먼저 정리했습니다." : "Instead of memorizing headlines, start with the major currents that organize today's events."}</p>
+        <p>{lang === "ko" ? "기사 목록보다 먼저, 오늘 함께 봐야 할 사건의 큰 줄기를 정리합니다." : "Start with the major currents before diving into individual stories."}</p>
       </div>
 
       <div className="worldMemoryLine">
@@ -156,33 +132,19 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
             <article className="worldFlowCard" key={flow.code}>
               <div className="flowIndex">0{index + 1}</div>
               <div className="flowBody">
-                <div className="flowCount">{matchedEvents.length} {lang === "ko" ? "개 사건을 한 흐름으로" : "events in one current"}</div>
+                <div className="flowCount">{matchedEvents.length} {lang === "ko" ? "개 핵심 사건" : "key events"}</div>
                 <h3>{eventSpecificTitle}</h3>
                 {eventSpecificTitle !== flow.title && <div className="flowTheme">{flow.title}</div>}
                 <p>{flow.summary}</p>
 
-                <div className="flowSourceProof">
-                  <span>SOURCE</span>
-                  <div>
-                    {sources.slice(0, 4).map((source) => (
-                      <a href={source.link} target="_blank" rel="noreferrer" key={`${flow.code}-${source.source}`}>{source.source} ↗</a>
-                    ))}
-                    {sources.length > 4 && <small>+{sources.length - 4}</small>}
-                  </div>
-                  <em>{lang === "ko" ? `${sources.length}개 출처에서 연결` : `linked from ${sources.length} sources`}</em>
-                </div>
-
                 {signals.length > 0 && (
-                  <div className="signalBlock">
-                    <span>{lang === "ko" ? "함께 볼 키워드 · 인과관계 아님" : "Read together · not a causal chain"}</span>
-                    <div className="signalRail">
-                      {signals.map((signal) => <b key={signal}>{signal}</b>)}
-                    </div>
+                  <div className="signalRail" aria-label={lang === "ko" ? "함께 볼 키워드" : "Key terms"}>
+                    {signals.map((signal) => <b key={signal}>{signal}</b>)}
                   </div>
                 )}
 
                 <div className="flowEvents">
-                  {matchedEvents.slice(0, 3).map((event, eventIndex) => {
+                  {matchedEvents.slice(0, 2).map((event, eventIndex) => {
                     const article = getDisplayArticle(event, lang);
                     return (
                       <a href="#events" key={event.id}>
@@ -193,9 +155,19 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
                   })}
                 </div>
 
+                <div className="flowSourceProof">
+                  <span>{lang === "ko" ? "출처" : "Sources"}</span>
+                  <div>
+                    {sources.slice(0, 3).map((source) => (
+                      <a href={source.link} target="_blank" rel="noreferrer" key={`${flow.code}-${source.source}`}>{source.source} ↗</a>
+                    ))}
+                    {sources.length > 3 && <small>+{sources.length - 3}</small>}
+                  </div>
+                </div>
+
                 {impact && (
                   <div className="flowKorea">
-                    <span>🇰🇷 {lang === "ko" ? "한국에서 볼 포인트" : "Korea lens"}</span>
+                    <span>🇰🇷 {lang === "ko" ? "한국과의 연결" : "Korea connection"}</span>
                     <p>{impact}</p>
                   </div>
                 )}
@@ -206,8 +178,8 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
       </div>
 
       <div className="flowFooter">
-        <p>{lang === "ko" ? "키워드는 오늘 뉴스를 읽는 순서를 돕는 장치입니다. 같은 흐름에 있다고 해서 사건 사이의 직접적인 인과를 뜻하지 않습니다." : "Keywords are reading aids for today's news. Sharing a current does not assert direct causality between events."}</p>
-        <a href="#events">{lang === "ko" ? "핵심 사건 5개 이해하기 ↓" : "Understand the 5 key events ↓"}</a>
+        <p>{lang === "ko" ? "흐름 묶기와 ‘볼 포인트’는 이해를 돕는 편집적 가이드입니다. 직접적인 인과나 정치적 평가를 의미하지 않습니다." : "Story grouping and reading points are editorial aids, not claims of direct causality or political judgment."}</p>
+        <a href="#events">{lang === "ko" ? "핵심 사건 5개 보기 ↓" : "See the 5 key events ↓"}</a>
       </div>
     </section>
   );
@@ -221,23 +193,25 @@ export function RegionPulse({ events, lang }: { events: NewsEvent[]; lang: Langu
   });
 
   return (
-    <section className="regionPulse" aria-label={lang === "ko" ? "세계 지역별 뉴스 커버리지" : "Regional news coverage"}>
-      <div className="regionPulseHead">
-        <div>
-          <div className="eyebrow">WORLD COVERAGE</div>
-          <h2>{lang === "ko" ? "세계 어디에서 무슨 일이 잡혔나" : "Where today's events are coming from"}</h2>
-        </div>
-        <p>{lang === "ko" ? "0은 ‘아무 일도 없음’이 아니라, 현재 수집된 주요 사건에서 잡히지 않았다는 뜻입니다." : "A zero does not mean nothing happened — only that no major event from that region was captured in the current collection."}</p>
-      </div>
-      <div className="regionPulseGrid">
-        {rows.map((row) => (
-          <div className={`regionPulseItem ${row.matched.length === 0 ? "regionEmpty" : ""}`} key={row.code}>
-            <span>{lang === "ko" ? row.ko : row.en}</span>
-            <b>{row.matched.length}</b>
-            <small>{row.top ? getDisplayArticle(row.top, lang).title : (lang === "ko" ? "현재 주요 사건 미포착" : "No major event captured")}</small>
+    <section className="regionPulse">
+      <details className="regionPulseDetails">
+        <summary>
+          <div><span className="eyebrow">WORLD COVERAGE</span><strong>{lang === "ko" ? "지역별 커버리지 확인" : "Check regional coverage"}</strong></div>
+          <small>{lang === "ko" ? "누락 가능성을 투명하게 보여줍니다" : "See possible coverage gaps"}</small>
+        </summary>
+        <div className="regionPulseBody">
+          <p>{lang === "ko" ? "0은 ‘아무 일도 없음’이 아니라 현재 수집된 주요 사건에서 포착되지 않았다는 뜻입니다." : "A zero does not mean nothing happened; it means no major event was captured in the current collection."}</p>
+          <div className="regionPulseGrid">
+            {rows.map((row) => (
+              <div className={`regionPulseItem ${row.matched.length === 0 ? "regionEmpty" : ""}`} key={row.code}>
+                <span>{lang === "ko" ? row.ko : row.en}</span>
+                <b>{row.matched.length}</b>
+                <small>{row.top ? getDisplayArticle(row.top, lang).title : (lang === "ko" ? "현재 주요 사건 미포착" : "No major event captured")}</small>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </details>
     </section>
   );
 }
@@ -250,9 +224,7 @@ export function BriefingComplete({ memoryLine, flows, lang }: { memoryLine: stri
         <div className="eyebrow">TODAY IN ONE SENTENCE</div>
         <h2>{lang === "ko" ? "여기까지 읽었다면, 오늘의 큰 흐름은 잡았습니다." : "If you've read this far, you have today's big picture."}</h2>
         <p className="memoryLine">{memoryLine}</p>
-        <div className="memoryTags">
-          {flows.map((flow) => <span key={flow.code}>{flow.title}</span>)}
-        </div>
+        <div className="memoryTags">{flows.map((flow) => <span key={flow.code}>{flow.title}</span>)}</div>
       </div>
     </section>
   );
