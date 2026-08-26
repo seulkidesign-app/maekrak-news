@@ -1,19 +1,33 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
 
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|reportedly|unconfirmed|alleged|appears?|likely|estimated|\bmay\b|\bmight\b|\bcould\b/i;
-const SYNDICATION = /\breuters\b|associated press|\bap\b|\bafp\b|agence france|연합뉴스|yonhap/i;
+const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
-function headlineNumbers(title: string) {
-  return [...new Set((title.match(/\d+(?:[.,]\d+)*(?:\s*%|\s*percent|\s*퍼센트|\s*명|\s*명)?/gi) ?? [])
+function headlineNumbers(title: string): string[] {
+  const raw = title.match(/\d+(?:[.,]\d+)*(?:\s*%|\s*percent|\s*퍼센트|\s*명)?/gi) ?? [];
+  const cleaned = raw
     .map((value) => value.replace(/\s+/g, "").toLowerCase())
     .filter((value) => {
-      const plain = Number(value.replace(/[^\d.]/g, ""));
-      return !(Number.isInteger(plain) && plain >= 1900 && plain <= 2100 && /^\d{4}$/.test(value));
-    })];
+      const plainText = value.replace(/[^\d.]/g, "");
+      const plain = Number(plainText);
+      const looksLikeYear = /^\d{4}$/.test(value) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
+      return !looksLikeYear;
+    });
+  return Array.from(new Set(cleaned));
 }
 
-function articleText(article: NewsItem) {
+function articleText(article: NewsItem): string {
   return `${article.title} ${article.description}`;
+}
+
+function hasSyndicationHint(article: NewsItem): boolean {
+  const text = ` ${articleText(article).toLowerCase()} `;
+  const source = article.source.toLowerCase();
+  return SYNDICATION_TERMS.some((term) => {
+    const normalized = term.trim();
+    if (!text.includes(term)) return false;
+    return normalized.length > 0 && !source.includes(normalized);
+  });
 }
 
 export type AccuracyAudit = {
@@ -30,7 +44,7 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
   event.articles.forEach((article) => {
     if (!bySource.has(article.source)) bySource.set(article.source, article);
   });
-  const uniqueArticles = [...bySource.values()];
+  const uniqueArticles = Array.from(bySource.values());
 
   const numberExamples = uniqueArticles
     .map((article) => ({ source: article.source, values: headlineNumbers(article.title) }))
@@ -45,13 +59,9 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
   const certaintyStates = new Set(certaintyExamples.map((item) => item.uncertain));
   const certaintyDifference = uniqueArticles.length >= 2 && certaintyStates.size >= 2;
 
-  const syndicationHintSources = uniqueArticles
-    .filter((article) => {
-      const match = articleText(article).match(SYNDICATION)?.[0]?.toLowerCase();
-      if (!match) return false;
-      return !article.source.toLowerCase().includes(match);
-    })
-    .map((article) => article.source);
+  const syndicationHintSources = Array.from(new Set(
+    uniqueArticles.filter(hasSyndicationHint).map((article) => article.source),
+  )).slice(0, 5);
 
   return {
     outletCount: bySource.size,
@@ -59,6 +69,6 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
     numberExamples: numberExamples.slice(0, 5),
     certaintyDifference,
     certaintyExamples: certaintyExamples.slice(0, 6),
-    syndicationHintSources: [...new Set(syndicationHintSources)].slice(0, 5),
+    syndicationHintSources,
   };
 }
