@@ -1,6 +1,4 @@
 export function SocialImage() {
-  const chips = ["오늘의 3대 흐름", "핵심 사건 5개", "한국에는?", "역사적 배경"];
-
   return (
     <div
       style={{
@@ -11,37 +9,38 @@ export function SocialImage() {
         justifyContent: "space-between",
         background: "#f4f2ec",
         color: "#111111",
-        padding: "64px 72px",
+        padding: "54px 64px",
         fontFamily: "Arial, sans-serif",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ display: "flex", fontSize: 34, fontWeight: 800, letterSpacing: "-0.05em" }}>맥락</div>
-          <div style={{ display: "flex", fontSize: 15, fontWeight: 800, letterSpacing: "0.16em", color: "#1f55d5" }}>DAILY WORLD BRIEF</div>
+          <div style={{ display: "flex", fontSize: 14, fontWeight: 800, letterSpacing: "0.14em", color: "#1f55d5" }}>DAILY NEWS BRIEF</div>
         </div>
-        <div style={{ display: "flex", fontSize: 17, color: "#6b6b68" }}>약 10분</div>
+        <div style={{ display: "flex", fontSize: 16, color: "#66635d" }}>약 10분</div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 22, maxWidth: 1000 }}>
-        <div style={{ display: "flex", flexDirection: "column", fontSize: 72, lineHeight: 1.05, fontWeight: 800, letterSpacing: "-0.055em" }}>
-          <div style={{ display: "flex" }}>오늘은 이 3개 흐름만</div>
-          <div style={{ display: "flex" }}>잡으면 됩니다.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1030 }}>
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 61, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.05em" }}>
+          <div style={{ display: "flex" }}>뉴스를 더 모으지 않고,</div>
+          <div style={{ display: "flex" }}>오늘을 이해하게 합니다.</div>
         </div>
-        <div style={{ display: "flex", fontSize: 24, lineHeight: 1.5, color: "#454541", maxWidth: 900 }}>
-          여러 뉴스 채널 대신, 오늘 세계의 큰 흐름부터 한국에 미칠 영향과 배경지식까지 한 번에.
+        <div style={{ display: "flex", fontSize: 22, lineHeight: 1.5, color: "#4f4c47", maxWidth: 980 }}>
+          여러 뉴스 채널을 돌아다니지 않아도 오늘의 흐름, 핵심 사건, 출처와 배경지식을 한 번에.
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderTop: "1px solid #cbc9c1", paddingTop: 28 }}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", maxWidth: 900 }}>
-          {chips.map((label) => (
-            <div key={label} style={{ display: "flex", padding: "10px 15px", border: "1px solid #cbc9c1", background: "#fffef9", fontSize: 16, fontWeight: 700 }}>
-              {label}
-            </div>
-          ))}
+      <div style={{ display: "flex", gap: 14 }}>
+        <div style={{ display: "flex", flex: 1, flexDirection: "column", gap: 9, padding: "18px 20px", border: "1px solid #c9c6bd", background: "#ebe8df" }}>
+          <div style={{ display: "flex", fontSize: 12, fontWeight: 900, letterSpacing: "0.12em", color: "#77736b" }}>PROBLEM</div>
+          <div style={{ display: "flex", fontSize: 18, fontWeight: 750, lineHeight: 1.35 }}>기사만 보면 흐름과 배경이 흩어집니다</div>
         </div>
-        <div style={{ display: "flex", fontSize: 18, fontWeight: 800, color: "#1f55d5" }}>maekrak</div>
+        <div style={{ display: "flex", alignItems: "center", fontSize: 24, color: "#1f55d5" }}>→</div>
+        <div style={{ display: "flex", flex: 1.8, flexDirection: "column", gap: 9, padding: "18px 20px", border: "1px solid #aebbe1", background: "#fffef9" }}>
+          <div style={{ display: "flex", fontSize: 12, fontWeight: 900, letterSpacing: "0.12em", color: "#1f55d5" }}>MAEKRAK</div>
+          <div style={{ display: "flex", fontSize: 18, fontWeight: 800, lineHeight: 1.35 }}>3가지 흐름 → 핵심 5개 → 출처 · 한국 연결 · 배경지식</div>
+        </div>
       </div>
     </div>
   );
