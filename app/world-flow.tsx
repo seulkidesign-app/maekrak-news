@@ -1,5 +1,6 @@
 import { getDisplayArticle, type NewsEvent } from "@/lib/news";
 import type { Language } from "@/lib/i18n";
+import { translateToKorean } from "@/lib/translate";
 import { dailyMemoryLine, koreaImpact, type WorldFlow } from "@/lib/world-briefing";
 import { TrustLegend } from "./trust-panel";
 
@@ -39,7 +40,7 @@ const regionRules = [
   { code: "korea", ko: "한국", en: "Korea", pattern: /한국|대한민국|서울|부산|제주|국회|이재명|south korea|seoul|busan|jeju|lee jae myung/i },
   { code: "north-america", ko: "미국·북미", en: "U.S. · N. America", pattern: /미국|캐나다|트럼프|연준|united states|america|canada|trump|federal reserve|\bfed\b/i },
   { code: "china", ko: "중국", en: "China", pattern: /중국|홍콩|대만|china|chinese|hong kong|taiwan/i },
-  { code: "europe", ko: "유럽", en: "Europe", pattern: /유럽|EU|나토|영국|프랑스|독일|이탈리아|europe|european union|nato|britain|uk\b|france|germany|italy/i },
+  { code: "europe", ko: "유럽", en: "Europe", pattern: /유럽|\beu\b|나토|영국|프랑스|독일|이탈리아|europe|european union|nato|britain|\buk\b|france|germany|italy/i },
   { code: "middle-east", ko: "중동", en: "Middle East", pattern: /중동|이란|이스라엘|가자|팔레스타인|호르무즈|시리아|오만|iran|israel|gaza|palestin|hormuz|syria|oman|middle east/i },
   { code: "russia-ukraine", ko: "러시아·우크라이나", en: "Russia · Ukraine", pattern: /러시아|우크라이나|russia|russian|ukraine|ukrainian/i },
   { code: "asia", ko: "일본·아시아", en: "Japan · Asia", pattern: /일본|인도|인도네시아|베트남|태국|필리핀|싱가포르|japan|india|indonesia|vietnam|thailand|philippines|singapore/i },
@@ -99,8 +100,27 @@ function todayLabel(lang: Language) {
   }).format(new Date());
 }
 
-export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; events: NewsEvent[]; lang: Language }) {
+async function localizedHeadline(event: NewsEvent, lang: Language) {
+  const article = getDisplayArticle(event, lang);
+  if (lang !== "ko" || /[가-힣]/.test(article.title)) return article.title || event.title;
+  return await translateToKorean(article.title) ?? article.title ?? event.title;
+}
+
+export async function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; events: NewsEvent[]; lang: Language }) {
   const memoryLine = dailyMemoryLine(flows, lang);
+  const cards = await Promise.all(flows.map(async (flow, index) => {
+    const matchedEvents = flowEvents(flow, events);
+    const signals = flowSignals(flow, events, lang);
+    const impact = flowKoreaImpact(flow, events, lang);
+    const sources = flowSources(flow, events);
+    const eventSpecificTitle = signals.length >= 2 ? signals.slice(0, 2).join(" · ") : flow.title;
+    const eventRows = await Promise.all(matchedEvents.slice(0, 2).map(async (event, eventIndex) => ({
+      id: event.id,
+      index: eventIndex,
+      title: await localizedHeadline(event, lang),
+    })));
+    return { flow, index, matchedEvents, signals, impact, sources, eventSpecificTitle, eventRows };
+  }));
 
   return (
     <section className="worldFlowSection" id="world-flow">
@@ -108,7 +128,7 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
       <div className="worldFlowHead">
         <div>
           <div className="eyebrow">THE BIG PICTURE</div>
-          <h2>{lang === "ko" ? `오늘 뉴스를 이해하는 ${flows.length || 3}가지 흐름` : `${flows.length || 3} currents to understand today's news`}</h2>
+          <h2>{lang === "ko" ? `오늘 뉴스를 이해하는 ${flows.length}가지 흐름` : `${flows.length} currents to understand today's news`}</h2>
         </div>
         <p>{lang === "ko" ? "기사 목록보다 먼저, 오늘 함께 봐야 할 사건의 큰 줄기를 정리합니다." : "Start with the major currents before diving into individual stories."}</p>
       </div>
@@ -121,76 +141,66 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
       <TrustLegend lang={lang} />
 
       <div className="worldFlowGrid">
-        {flows.map((flow, index) => {
-          const matchedEvents = flowEvents(flow, events);
-          const signals = flowSignals(flow, events, lang);
-          const impact = flowKoreaImpact(flow, events, lang);
-          const sources = flowSources(flow, events);
-          const eventSpecificTitle = signals.length >= 2 ? signals.slice(0, 2).join(" · ") : flow.title;
+        {cards.map(({ flow, index, matchedEvents, signals, impact, sources, eventSpecificTitle, eventRows }) => (
+          <article className="worldFlowCard" key={flow.code}>
+            <div className="flowIndex">0{index + 1}</div>
+            <div className="flowBody">
+              <div className="flowCount">{matchedEvents.length} {lang === "ko" ? "개 핵심 사건" : "key events"}</div>
+              <h3>{eventSpecificTitle}</h3>
+              {eventSpecificTitle !== flow.title && <div className="flowTheme">{flow.title}</div>}
+              <p>{flow.summary}</p>
 
-          return (
-            <article className="worldFlowCard" key={flow.code}>
-              <div className="flowIndex">0{index + 1}</div>
-              <div className="flowBody">
-                <div className="flowCount">{matchedEvents.length} {lang === "ko" ? "개 핵심 사건" : "key events"}</div>
-                <h3>{eventSpecificTitle}</h3>
-                {eventSpecificTitle !== flow.title && <div className="flowTheme">{flow.title}</div>}
-                <p>{flow.summary}</p>
-
-                {signals.length > 0 && (
-                  <div className="signalRail" aria-label={lang === "ko" ? "함께 볼 키워드" : "Key terms"}>
-                    {signals.map((signal) => <b key={signal}>{signal}</b>)}
-                  </div>
-                )}
-
-                <div className="flowEvents">
-                  {matchedEvents.slice(0, 2).map((event, eventIndex) => {
-                    const article = getDisplayArticle(event, lang);
-                    return (
-                      <a href="#events" key={event.id}>
-                        <span>{String(eventIndex + 1).padStart(2, "0")}</span>
-                        <b>{article.title || event.title}</b>
-                      </a>
-                    );
-                  })}
+              {signals.length > 0 && (
+                <div className="signalRail" aria-label={lang === "ko" ? "함께 볼 키워드" : "Key terms"}>
+                  {signals.map((signal) => <b key={signal}>{signal}</b>)}
                 </div>
+              )}
 
-                <div className="flowSourceProof">
-                  <span>{lang === "ko" ? "출처" : "Sources"}</span>
-                  <div>
-                    {sources.slice(0, 3).map((source) => (
-                      <a href={source.link} target="_blank" rel="noreferrer" key={`${flow.code}-${source.source}`}>{source.source} ↗</a>
-                    ))}
-                    {sources.length > 3 && <small>+{sources.length - 3}</small>}
-                  </div>
-                </div>
-
-                {impact && (
-                  <div className="flowKorea">
-                    <span>🇰🇷 {lang === "ko" ? "한국과의 연결" : "Korea connection"}</span>
-                    <p>{impact}</p>
-                  </div>
-                )}
+              <div className="flowEvents">
+                {eventRows.map((row) => (
+                  <a href="#events" key={row.id}>
+                    <span>{String(row.index + 1).padStart(2, "0")}</span>
+                    <b>{row.title}</b>
+                  </a>
+                ))}
               </div>
-            </article>
-          );
-        })}
+
+              <div className="flowSourceProof">
+                <span>{lang === "ko" ? "출처" : "Sources"}</span>
+                <div>
+                  {sources.slice(0, 3).map((source) => (
+                    <a href={source.link} target="_blank" rel="noreferrer" key={`${flow.code}-${source.source}`}>{source.source} ↗</a>
+                  ))}
+                  {sources.length > 3 && <small>+{sources.length - 3}</small>}
+                </div>
+              </div>
+
+              {impact && (
+                <div className="flowKorea">
+                  <span>🇰🇷 {lang === "ko" ? "한국과의 연결" : "Korea connection"}</span>
+                  <p>{impact}</p>
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="flowFooter">
         <p>{lang === "ko" ? "흐름 묶기와 ‘볼 포인트’는 이해를 돕는 편집적 가이드입니다. 직접적인 인과나 정치적 평가를 의미하지 않습니다." : "Story grouping and reading points are editorial aids, not claims of direct causality or political judgment."}</p>
-        <a href="#events">{lang === "ko" ? "핵심 사건 5개 보기 ↓" : "See the 5 key events ↓"}</a>
+        <a href="#events">{lang === "ko" ? "핵심 사건 보기 ↓" : "See the key events ↓"}</a>
       </div>
     </section>
   );
 }
 
-export function RegionPulse({ events, lang }: { events: NewsEvent[]; lang: Language }) {
-  const rows = regionRules.map((region) => {
+export async function RegionPulse({ events, lang }: { events: NewsEvent[]; lang: Language }) {
+  const rows = await Promise.all(regionRules.map(async (region) => {
     const matched = events.filter((event) => region.pattern.test(eventText(event)));
     const top = [...matched].sort((a, b) => b.importanceScore - a.importanceScore)[0];
-    return { ...region, matched, top };
-  });
+    const topTitle = top ? await localizedHeadline(top, lang) : null;
+    return { ...region, matched, topTitle };
+  }));
 
   return (
     <section className="regionPulse">
@@ -200,13 +210,13 @@ export function RegionPulse({ events, lang }: { events: NewsEvent[]; lang: Langu
           <small>{lang === "ko" ? "누락 가능성을 투명하게 보여줍니다" : "See possible coverage gaps"}</small>
         </summary>
         <div className="regionPulseBody">
-          <p>{lang === "ko" ? "0은 ‘아무 일도 없음’이 아니라 현재 수집된 주요 사건에서 포착되지 않았다는 뜻입니다." : "A zero does not mean nothing happened; it means no major event was captured in the current collection."}</p>
+          <p>{lang === "ko" ? "0은 ‘아무 일도 없음’이 아니라 오늘 KST 기준 수집에서 주요 사건을 포착하지 못했다는 뜻입니다." : "A zero means no major event was captured in today's KST collection, not that nothing happened."}</p>
           <div className="regionPulseGrid">
             {rows.map((row) => (
               <div className={`regionPulseItem ${row.matched.length === 0 ? "regionEmpty" : ""}`} key={row.code}>
                 <span>{lang === "ko" ? row.ko : row.en}</span>
                 <b>{row.matched.length}</b>
-                <small>{row.top ? getDisplayArticle(row.top, lang).title : (lang === "ko" ? "현재 주요 사건 미포착" : "No major event captured")}</small>
+                <small>{row.topTitle ?? (lang === "ko" ? "현재 주요 사건 미포착" : "No major event captured")}</small>
               </div>
             ))}
           </div>
