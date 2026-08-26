@@ -1,0 +1,5 @@
+.sourceCheck-neutral .sourceCheckDot{background:#6f7d9b!important}
+.translationNote{width:max-content;max-width:100%;margin:-6px 0 12px;padding:5px 8px;border-radius:999px;background:#eef2fb;color:#4f638e;font-size:10px;font-weight:700;line-height:1.3}
+.sourceOnlyDetails>p{line-height:1.6}
+.sourceOnlyList a span{line-height:1.5}
+@media(max-width:760px){.translationNote{font-size:9px}}
