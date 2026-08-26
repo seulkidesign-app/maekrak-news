@@ -1,6 +1,7 @@
 import { getDisplayArticle, type NewsEvent } from "@/lib/news";
 import type { Language } from "@/lib/i18n";
 import { dailyMemoryLine, koreaImpact, type WorldFlow } from "@/lib/world-briefing";
+import { TrustLegend } from "./trust-panel";
 
 type SignalRule = {
   pattern: RegExp;
@@ -96,6 +97,20 @@ function flowKoreaImpact(flow: WorldFlow, events: NewsEvent[], lang: Language) {
   return null;
 }
 
+function flowSources(flow: WorldFlow, events: NewsEvent[]) {
+  const seen = new Set<string>();
+  const links: Array<{ source: string; link: string }> = [];
+  flowEvents(flow, events).forEach((event) => {
+    event.articles.forEach((article) => {
+      if (!seen.has(article.source)) {
+        seen.add(article.source);
+        links.push({ source: article.source, link: article.link });
+      }
+    });
+  });
+  return links;
+}
+
 function todayLabel(lang: Language) {
   const formatter = new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
     timeZone: "Asia/Seoul",
@@ -127,11 +142,14 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
         <strong>{memoryLine}</strong>
       </div>
 
+      <TrustLegend lang={lang} />
+
       <div className="worldFlowGrid">
         {flows.map((flow, index) => {
           const matchedEvents = flowEvents(flow, events);
           const signals = flowSignals(flow, events, lang);
           const impact = flowKoreaImpact(flow, events, lang);
+          const sources = flowSources(flow, events);
           const eventSpecificTitle = signals.length >= 2 ? signals.slice(0, 2).join(" · ") : flow.title;
 
           return (
@@ -142,6 +160,17 @@ export function WorldFlowBoard({ flows, events, lang }: { flows: WorldFlow[]; ev
                 <h3>{eventSpecificTitle}</h3>
                 {eventSpecificTitle !== flow.title && <div className="flowTheme">{flow.title}</div>}
                 <p>{flow.summary}</p>
+
+                <div className="flowSourceProof">
+                  <span>SOURCE</span>
+                  <div>
+                    {sources.slice(0, 4).map((source) => (
+                      <a href={source.link} target="_blank" rel="noreferrer" key={`${flow.code}-${source.source}`}>{source.source} ↗</a>
+                    ))}
+                    {sources.length > 4 && <small>+{sources.length - 4}</small>}
+                  </div>
+                  <em>{lang === "ko" ? `${sources.length}개 출처에서 연결` : `linked from ${sources.length} sources`}</em>
+                </div>
 
                 {signals.length > 0 && (
                   <div className="signalBlock">
