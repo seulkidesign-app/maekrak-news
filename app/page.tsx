@@ -11,7 +11,8 @@ import { detectContext } from "@/lib/context";
 import { classifyEvidence, eventEvidenceSummary, eventTimeline } from "@/lib/signals";
 import { categoryLabel, copy, localizedContext, type Language } from "@/lib/i18n";
 import { buildWorldFlows, dailyMemoryLine, historicalOneLiner, koreaImpact } from "@/lib/world-briefing";
-import { BriefingComplete, WorldFlowBoard } from "./world-flow";
+import { BriefingComplete, RegionPulse, WorldFlowBoard } from "./world-flow";
+import ReturningBrief from "./returning-brief";
 
 export const revalidate = 900;
 
@@ -359,6 +360,11 @@ export default async function Home({ searchParams }: PageProps) {
   const worldFlows = buildWorldFlows(readyEvents, lang);
   const memoryLine = dailyMemoryLine(worldFlows, lang);
   const updatedAt = new Date().toLocaleString(lang === "ko" ? "ko-KR" : "en-US", { timeZone: "Asia/Seoul" });
+  const visitEvents = readyEvents.map((event) => ({
+    title: getDisplayArticle(event, lang).title || event.title,
+    publishedAt: event.publishedAt,
+    priority: priorityIds.has(event.id),
+  }));
 
   return (
     <main>
@@ -386,10 +392,15 @@ export default async function Home({ searchParams }: PageProps) {
           <a href="#world-flow">{lang === "ko" ? "오늘 흐름 보기 ↓" : "See today's flow ↓"}</a>
         </div>
         <div className="status"><span className={`dot ${briefing.healthySources < briefing.totalSources ? "warningDot" : ""}`} /> {t.updated} {updatedAt} · {t.cache}</div>
-        <SourceStatus health={briefing.sourceHealth} lang={lang} />
       </section>
 
+      <ReturningBrief events={visitEvents} lang={lang} />
       <WorldFlowBoard flows={worldFlows} events={readyEvents} lang={lang} />
+      <RegionPulse events={readyEvents} lang={lang} />
+
+      <div className="sourceStatusWrap">
+        <SourceStatus health={briefing.sourceHealth} lang={lang} />
+      </div>
 
       <section className="section mustKnowSection" id="events">
         <div className="sectionHead">
@@ -443,19 +454,19 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="principleGrid">
           {lang === "ko" ? (
             <>
+              <p><strong>지난 방문과 비교합니다.</strong> 이 기기에서 마지막으로 본 브리핑과 비교해 새 핵심 사건을 표시합니다.</p>
               <p><strong>흐름과 인과를 구분합니다.</strong> 같은 흐름에 묶인 사건이 서로의 원인이라는 뜻은 아닙니다.</p>
               <p><strong>한국 영향도 확실한 연결고리만 표시합니다.</strong> 억지로 ‘나와 무슨 상관’을 만들지 않습니다.</p>
-              <p><strong>한국어 화면에는 한국어 보도를 우선합니다.</strong> 영어 원문만 확인된 사건은 별도 영역으로 분리합니다.</p>
-              <p><strong>빠진 영역을 숨기지 않습니다.</strong> 수집 소스와 카테고리 커버리지를 함께 보여줍니다.</p>
+              <p><strong>지역별 빈칸도 숨기지 않습니다.</strong> 0은 아무 일도 없다는 뜻이 아니라 현재 수집에서 주요 사건을 잡지 못했다는 뜻입니다.</p>
               <p><strong>같은 사건을 보수적으로 묶습니다.</strong> 제목뿐 아니라 대상·행동·시간 간격이 함께 맞아야 합니다.</p>
               <p><strong>모르면 비워둡니다.</strong> 맥락도 한 기사에 우연히 등장한 단어만으로 연결하지 않습니다.</p>
             </>
           ) : (
             <>
+              <p><strong>We compare with your last visit.</strong> This device highlights new key events since the briefing you last saw.</p>
               <p><strong>We separate thematic flow from causality.</strong> Stories grouped together are not automatically presented as causing one another.</p>
               <p><strong>Korea impact appears only with a plausible connection.</strong> We avoid forcing relevance where it is not supported.</p>
-              <p><strong>Headline language follows the selected view.</strong> Stories without a matching-language report are kept out of the main briefing.</p>
-              <p><strong>Coverage gaps stay visible.</strong> Source health and category coverage are shown alongside the briefing.</p>
+              <p><strong>Regional gaps stay visible.</strong> Zero means no major event was captured in the current collection, not that nothing happened.</p>
               <p><strong>Events are grouped conservatively.</strong> Headlines, entities, actions and time distance must align.</p>
               <p><strong>Unknowns stay unknown.</strong> Context is not attached from a single stray keyword in a secondary report.</p>
             </>
