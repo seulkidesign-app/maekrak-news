@@ -11,9 +11,13 @@ function roleLabel(role: NewsItem["sourceRole"], lang: Language) {
 }
 
 function coverageState(event: NewsEvent, lang: Language) {
-  if (event.sourceCount >= 3) return { tone: "strong", label: lang === "ko" ? "복수 출처" : "Multiple sources" };
-  if (event.sourceCount === 2) return { tone: "medium", label: lang === "ko" ? "2개 출처" : "Two sources" };
-  return { tone: "caution", label: lang === "ko" ? "단일 출처" : "Single source" };
+  if (event.sourceCount >= 2) {
+    return {
+      tone: "neutral",
+      label: lang === "ko" ? `${event.sourceCount}개 매체에서 보도 중` : `Covered by ${event.sourceCount} outlets`,
+    };
+  }
+  return { tone: "caution", label: lang === "ko" ? "현재 단일 매체 보도" : "Currently single-outlet coverage" };
 }
 
 export function TrustLegend({ lang }: { lang: Language }) {
@@ -24,9 +28,9 @@ export function TrustLegend({ lang }: { lang: Language }) {
         <small>{lang === "ko" ? "보도 · 맥락 · 불확실성을 분리합니다" : "Reporting, context and uncertainty are separated"}</small>
       </summary>
       <div className="readingGuideBody">
-        <p><b>{lang === "ko" ? "보도" : "Reporting"}</b>{lang === "ko" ? " · 기사에서 직접 가져온 내용이며 원문으로 바로 이동할 수 있습니다." : " · Source-derived information with direct links to the reporting."}</p>
-        <p><b>{lang === "ko" ? "맥락" : "Context"}</b>{lang === "ko" ? " · 원문 인용이 아니라 이해를 돕기 위한 별도 설명입니다. 특히 ‘왜 중요한가’와 흐름 묶기는 편집적 판단이 포함될 수 있습니다." : " · Separate explanatory material, not a quote. ‘Why it matters’ and story grouping can involve editorial judgment."}</p>
-        <p><b>{lang === "ko" ? "정치·외교" : "Politics & diplomacy"}</b>{lang === "ko" ? " · 특정 진영을 평가하지 않고 제도·정책·경제·안보 영향 중심으로 설명하며, 원문 비교를 권장합니다." : " · We avoid judging political camps and focus on institutional, policy, economic and security effects; comparing originals is encouraged."}</p>
+        <p><b>{lang === "ko" ? "보도" : "Reporting"}</b>{lang === "ko" ? " · 기사에서 가져온 내용이며 출처 링크로 확인할 수 있습니다." : " · Source-derived information with links to the reporting."}</p>
+        <p><b>{lang === "ko" ? "맥락" : "Context"}</b>{lang === "ko" ? " · 원문 인용이 아니라 이해를 돕는 별도 설명입니다. 흐름 묶기와 볼 포인트에는 편집적 판단이 포함될 수 있습니다." : " · Separate explanatory material, not a quote. Story grouping and reading points can involve editorial judgment."}</p>
+        <p><b>{lang === "ko" ? "출처 수" : "Source count"}</b>{lang === "ko" ? " · 여러 매체의 보도 여부를 보여줄 뿐 사실 검증 점수가 아닙니다." : " · Shows breadth of coverage, not a fact-check or truth score."}</p>
       </div>
     </details>
   );
@@ -75,7 +79,7 @@ export function SourceCheck({
         )}
 
         <a className="primarySourceLink" href={representative.link} target="_blank" rel="noreferrer">
-          {lang === "ko" ? "대표 원문 ↗" : "Primary report ↗"}
+          {lang === "ko" ? "대표 기사 ↗" : "Representative report ↗"}
         </a>
       </div>
 
@@ -88,18 +92,18 @@ export function SourceCheck({
           {political && (
             <p className="politicalSourceNote">
               {lang === "ko"
-                ? "정치·외교 이슈는 같은 사실도 매체별 강조점과 표현이 달라질 수 있습니다. 아래 원문을 함께 비교해 판단하세요."
-                : "Political and diplomatic stories can be framed differently even when reporting the same event. Compare the originals below."}
+                ? "정치·외교 이슈는 같은 사실도 매체별 강조점과 표현이 달라질 수 있습니다. 아래 기사들을 함께 비교해 판단하세요."
+                : "Political and diplomatic stories can be framed differently even when reporting the same event. Compare the reports below."}
             </p>
           )}
           <div className="collectionPath">
             <div><b>{directCount}</b><span>{lang === "ko" ? "직접 피드" : "direct feed"}</span></div>
-            <div><b>{aggregatedCount}</b><span>{lang === "ko" ? "집계 피드" : "aggregated feed"}</span></div>
+            <div><b>{aggregatedCount}</b><span>{lang === "ko" ? "집계 경로" : "aggregated path"}</span></div>
           </div>
           <p className="sourceMethodNote">
             {lang === "ko"
-              ? "출처 수는 ‘진실 점수’가 아닙니다. 여러 매체가 보도 중이라는 신호이며, 세부 내용은 서로 다를 수 있습니다."
-              : "Source count is not a truth score. It indicates breadth of coverage; details can still differ between reports."}
+              ? "출처 수는 사실 여부를 판정하지 않습니다. 여러 매체가 같은 사건을 다루고 있다는 신호이며, 세부 내용은 서로 다를 수 있습니다."
+              : "Source count does not determine truth. It only indicates that multiple outlets cover the event; details can still differ."}
           </p>
           <div className="sourceMiniList">
             {event.articles.slice(0, 8).map((article, index) => (
