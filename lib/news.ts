@@ -256,12 +256,34 @@ function sameEvent(a: NewsItem, b: NewsItem) {
   return false;
 }
 
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function stableEventId(articles: NewsItem[]) {
+  const earliest = [...articles].sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())[0];
+  const titles = articles.map((article) => article.title).join(" ");
+  const entities = [...normalizedEntities(titles)].sort();
+  const actions = [...normalizedActions(titles)].sort();
+  const anchorTokens = [...tokens(earliest?.title ?? titles)].sort().slice(0, 10);
+  const fingerprint = [entities.join(","), actions.join(","), anchorTokens.join(",")].filter(Boolean).join("|") || normalizePhrase(earliest?.title ?? titles);
+  return `evt_${stableHash(fingerprint)}`;
+}
+
 async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: SourceHealth }> {
   const checkedAt = new Date().toISOString();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/4.0" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/5.0" },
+      signal: controller.signal,
     });
     if (!response.ok) {
       return { items: [], health: { name: feed.name, ok: false, itemCount: 0, sourceType: feed.sourceType, role: feed.role, status: "http-error", checkedAt } };
@@ -306,6 +328,8 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     };
   } catch {
     return { items: [], health: { name: feed.name, ok: false, itemCount: 0, sourceType: feed.sourceType, role: feed.role, status: "fetch-error", checkedAt } };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -420,7 +444,7 @@ export async function getBriefing(): Promise<Briefing> {
     else clusters.push([item]);
   }
 
-  const events = clusters.map((articles, index) => {
+  const events = clusters.map((articles) => {
     const sorted = [...articles].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
     const primary = sorted.find((article) => article.sourceRole === "wire")
       ?? sorted.find((article) => article.sourceType === "direct")
@@ -430,7 +454,7 @@ export async function getBriefing(): Promise<Briefing> {
     const scope = majority(sorted.map((article) => article.scope), primary.scope);
     const importanceScore = importanceFor(sorted);
     return {
-      id: `${index}-${primary.title.slice(0, 36)}`,
+      id: stableEventId(sorted),
       title: primary.title,
       category,
       scope,
