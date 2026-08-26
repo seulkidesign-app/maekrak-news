@@ -139,7 +139,7 @@ const actionAliases: Record<string, string[]> = {
 
 const topicRules: Array<{ category: NewsCategory; pattern: RegExp }> = [
   { category: "재난", pattern: /태풍|호우|폭우|홍수|산불|지진|폭염|한파|재난|typhoon|flood|wildfire|earthquake|storm|heatwave/i },
-  { category: "기술", pattern: /인공지능|반도체|칩|ai\b|artificial intelligence|semiconductor|chip|openai|nvidia|apple|google|microsoft/i },
+  { category: "기술", pattern: /인공지능|반도체|칩|\bai\b|artificial intelligence|semiconductor|chip|openai|nvidia|apple|google|microsoft/i },
   { category: "경제", pattern: /금리|환율|물가|증시|주가|관세|무역|경제|은행|재정|예산|임금|inflation|interest rate|rate cut|rate hike|tariff|market|stocks|economy|bank|budget|wage/i },
   { category: "정치", pattern: /대통령|총리|국회|의회|선거|탄핵|정당|장관|외교|개혁|president|prime minister|parliament|congress|election|impeachment|minister|diplomacy|reform/i },
   { category: "사회", pattern: /사건|사고|범죄|수사|검찰|경찰|교육|의료|병원|노동|주거|주택|crime|police|prosecut|education|healthcare|hospital|labor|housing/i },
@@ -152,8 +152,24 @@ const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|�
 const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|united states|china|japan|russia|ukraine|iran|israel|palestin|gaza|canada|europe|nato|hormuz/i;
 const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|korea|seoul|busan|jeju|lee jae myung|kospi/i;
 
+function decodeEntities(value: string) {
+  return value
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
+}
+
 function clean(value: unknown) {
-  return String(value ?? "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  return decodeEntities(String(value ?? ""))
+    .replace(/<[^>]*>/g, " ")
+    .replace(/^[▲△▶►◆■●]\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function asArray<T>(value: T | T[] | undefined): T[] {
@@ -172,6 +188,14 @@ function stripSourceSuffix(title: string, source: string, feedName: string) {
     result = result.replace(new RegExp(`\\s+-\\s+${escapeRegExp(label)}\\s*$`, "i"), "").trim();
   }
   return result;
+}
+
+function inferSourceRole(source: string, fallback: SourceRole): SourceRole {
+  const value = source.toLowerCase();
+  if (/reuters|associated press|\bap news\b|연합뉴스|yonhap|afp|agence france/i.test(value)) return "wire";
+  if (/kbs|mbc|sbs|jtbc|ytn|채널a|tv조선/i.test(value)) return "broadcaster";
+  if (/bbc|cnn|dw|al jazeera|nhk|guardian|new york times|washington post|financial times|bloomberg/i.test(value)) return "international";
+  return fallback;
 }
 
 function inferScope(title: string, description: string, fallback: NewsScope): NewsScope {
@@ -248,11 +272,11 @@ function sameEvent(a: NewsItem, b: NewsItem) {
   const actions = actionSimilarity(a.title, b.title);
   const hours = timeDistanceHours(a.publishedAt, b.publishedAt);
 
-  if (hours > 48) return false;
-  if (lexical >= 0.68 && hours <= 36) return true;
-  if (lexical >= 0.5 && entities > 0 && actions > 0 && hours <= 24) return true;
-  if (entities >= 0.67 && actions >= 0.5 && hours <= 24) return true;
-  if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && hours <= 12) return true;
+  if (hours > 36) return false;
+  if (lexical >= 0.74 && hours <= 24) return true;
+  if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
+  if (entities >= 0.67 && actions >= 0.5 && hours <= 18) return true;
+  if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && hours <= 8) return true;
   return false;
 }
 
@@ -267,12 +291,27 @@ function stableHash(value: string) {
 
 function stableEventId(articles: NewsItem[]) {
   const earliest = [...articles].sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())[0];
-  const titles = articles.map((article) => article.title).join(" ");
-  const entities = [...normalizedEntities(titles)].sort();
-  const actions = [...normalizedActions(titles)].sort();
-  const anchorTokens = [...tokens(earliest?.title ?? titles)].sort().slice(0, 10);
-  const fingerprint = [entities.join(","), actions.join(","), anchorTokens.join(",")].filter(Boolean).join("|") || normalizePhrase(earliest?.title ?? titles);
+  const anchor = earliest?.title ?? articles[0]?.title ?? "event";
+  const entities = [...normalizedEntities(anchor)].sort();
+  const actions = [...normalizedActions(anchor)].sort();
+  const anchorTokens = [...tokens(anchor)].sort().slice(0, 12);
+  const fingerprint = [entities.join(","), actions.join(","), anchorTokens.join(",")].filter(Boolean).join("|") || normalizePhrase(anchor);
   return `evt_${stableHash(fingerprint)}`;
+}
+
+function kstDateKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isTodayKst(value: string) {
+  return kstDateKey(value) === kstDateKey(new Date());
 }
 
 async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: SourceHealth }> {
@@ -282,7 +321,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/5.0" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/6.0" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -310,7 +349,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
         scope,
         description,
         sourceType: feed.sourceType,
-        sourceRole: feed.role,
+        sourceRole: inferSourceRole(source, feed.role),
       } satisfies NewsItem;
     }).filter((item: NewsItem) => item.title && item.link !== "#");
 
@@ -395,17 +434,12 @@ function majority<T extends string>(values: T[], fallback: T): T {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
 }
 
-function hasKoreanHeadline(event: NewsEvent) {
-  return event.articles.some((article) => /[가-힣]/.test(article.title));
-}
-
 function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
   const selected: NewsEvent[] = [];
   const add = (event?: NewsEvent) => {
     if (event && !selected.some((item) => item.id === event.id) && selected.length < limit) selected.push(event);
   };
-  const koreanReady = events.filter(hasKoreanHeadline);
-  const pool = koreanReady.length >= limit ? koreanReady : events;
+  const pool = events;
 
   add(pool[0]);
   add(pool.find((event) => event.scope === "domestic"));
@@ -420,10 +454,10 @@ export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
   const wantsKorean = lang === "ko";
   const scored = event.articles.map((article) => {
     const titleHasHangul = /[가-힣]/.test(article.title);
-    const languageScore = wantsKorean ? (titleHasHangul ? 12 : 0) : (!titleHasHangul ? 12 : 0);
+    const languageScore = wantsKorean ? (titleHasHangul ? 4 : 0) : (!titleHasHangul ? 4 : 0);
     const roleScore = article.sourceRole === "wire" ? 1.4 : article.sourceType === "direct" ? 1 : 0.4;
     const ageHours = Math.max(0, (Date.now() - new Date(article.publishedAt).getTime()) / 3_600_000);
-    const recencyScore = Number.isFinite(ageHours) ? Math.max(0, 1 - ageHours / 48) : 0;
+    const recencyScore = Number.isFinite(ageHours) ? Math.max(0, 3 - ageHours / 8) : 0;
     const descriptionScore = article.description.length >= 60 ? 0.5 : 0;
     return { article, score: languageScore + roleScore + recencyScore + descriptionScore };
   });
@@ -433,13 +467,13 @@ export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
 export async function getBriefing(): Promise<Briefing> {
   const loaded = await Promise.all(feeds.map(loadFeed));
   const sourceHealth = loaded.map((result) => result.health);
-  const news = loaded.flatMap((result) => result.items)
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .slice(0, 240);
+  const allNews = loaded.flatMap((result) => result.items)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const news = allNews.filter((item) => isTodayKst(item.publishedAt)).slice(0, 240);
 
   const clusters: NewsItem[][] = [];
   for (const item of news) {
-    const match = clusters.find((cluster) => cluster.some((existing) => sameEvent(existing, item)));
+    const match = clusters.find((cluster) => cluster.length > 0 && sameEvent(cluster[0], item));
     if (match) match.push(item);
     else clusters.push([item]);
   }
@@ -459,7 +493,7 @@ export async function getBriefing(): Promise<Briefing> {
       category,
       scope,
       summary: primary.description,
-      publishedAt: primary.publishedAt,
+      publishedAt: sorted[0].publishedAt,
       articles: sorted,
       sourceCount: sources.size,
       importanceScore,
@@ -495,6 +529,7 @@ export async function getBriefing(): Promise<Briefing> {
 export async function getNews(): Promise<NewsItem[]> {
   const loaded = await Promise.all(feeds.map(loadFeed));
   return loaded.flatMap((result) => result.items)
+    .filter((item) => isTodayKst(item.publishedAt))
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     .slice(0, 240);
 }
