@@ -38,12 +38,15 @@ const signalRules: SignalRule[] = [
 
 const regionRules = [
   { code: "korea", ko: "한국", en: "Korea", pattern: /한국|대한민국|서울|부산|제주|국회|이재명|south korea|seoul|busan|jeju|lee jae myung/i },
-  { code: "north-america", ko: "미국·북미", en: "U.S. · N. America", pattern: /미국|캐나다|트럼프|연준|united states|america|canada|trump|federal reserve|\bfed\b/i },
+  { code: "north-america", ko: "미국·북미", en: "U.S. · N. America", pattern: /미국|캐나다|멕시코|트럼프|연준|united states|america|canada|mexico|trump|federal reserve|\bfed\b/i },
   { code: "china", ko: "중국", en: "China", pattern: /중국|홍콩|대만|china|chinese|hong kong|taiwan/i },
-  { code: "europe", ko: "유럽", en: "Europe", pattern: /유럽|\beu\b|나토|영국|프랑스|독일|이탈리아|europe|european union|nato|britain|\buk\b|france|germany|italy/i },
-  { code: "middle-east", ko: "중동", en: "Middle East", pattern: /중동|이란|이스라엘|가자|팔레스타인|호르무즈|시리아|오만|iran|israel|gaza|palestin|hormuz|syria|oman|middle east/i },
+  { code: "europe", ko: "유럽", en: "Europe", pattern: /유럽|\beu\b|나토|영국|프랑스|독일|이탈리아|스페인|폴란드|europe|european union|nato|britain|\buk\b|france|germany|italy|spain|poland/i },
+  { code: "middle-east", ko: "중동", en: "Middle East", pattern: /중동|이란|이스라엘|가자|팔레스타인|호르무즈|시리아|오만|사우디|이라크|레바논|iran|israel|gaza|palestin|hormuz|syria|oman|saudi|iraq|lebanon|middle east/i },
   { code: "russia-ukraine", ko: "러시아·우크라이나", en: "Russia · Ukraine", pattern: /러시아|우크라이나|russia|russian|ukraine|ukrainian/i },
-  { code: "asia", ko: "일본·아시아", en: "Japan · Asia", pattern: /일본|인도|인도네시아|베트남|태국|필리핀|싱가포르|japan|india|indonesia|vietnam|thailand|philippines|singapore/i },
+  { code: "asia", ko: "일본·아시아", en: "Japan · Asia", pattern: /일본|인도|인도네시아|베트남|태국|필리핀|싱가포르|말레이시아|파키스탄|방글라데시|japan|india|indonesia|vietnam|thailand|philippines|singapore|malaysia|pakistan|bangladesh/i },
+  { code: "africa", ko: "아프리카", en: "Africa", pattern: /아프리카|남아공|이집트|에티오피아|수단|케냐|나이지리아|콩고|소말리아|리비아|africa|south africa|egypt|ethiopia|sudan|kenya|nigeria|congo|somalia|libya/i },
+  { code: "latin-america", ko: "중남미", en: "Latin America", pattern: /중남미|남미|브라질|아르헨티나|칠레|콜롬비아|베네수엘라|페루|쿠바|브라질리아|latin america|south america|brazil|argentina|chile|colombia|venezuela|peru|cuba/i },
+  { code: "oceania", ko: "오세아니아", en: "Oceania", pattern: /오세아니아|호주|뉴질랜드|피지|파푸아뉴기니|australia|australian|new zealand|fiji|papua new guinea|oceania/i },
 ] as const;
 
 function flowEvents(flow: WorldFlow, events: NewsEvent[]) {
