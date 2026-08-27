@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { auditEventAccuracy } from "@/lib/accuracy";
-import { getBriefing, getDisplayArticle, getNews, type NewsEvent, type NewsItem } from "@/lib/news";
+import { getBriefing, getDisplayArticle, type NewsEvent, type NewsItem } from "@/lib/news";
 import "./qa.css";
 
 export const revalidate = 900;
 export const metadata: Metadata = { title: "맥락 QA", robots: { index: false, follow: false } };
 
-const REFERENCE_SOURCE = /^(SBS|KBS|MBC|연합뉴스|Reuters|AP|AP News|Associated Press|BBC)$/i;
+const REFERENCE_SOURCE = /^(SBS|KBS|MBC|연합뉴스|Reuters|AP|BBC)$/i;
 
 function isReference(article: NewsItem) {
   return REFERENCE_SOURCE.test(article.source.trim());
@@ -35,7 +35,8 @@ function qaStatus(value: boolean, good: string, bad: string) {
 }
 
 export default async function QaPage() {
-  const [briefing, news] = await Promise.all([getBriefing(), getNews()]);
+  const briefing = await getBriefing();
+  const news = briefing.news;
   const events = briefing.events;
   const priorityIds = new Set(briefing.priorityEventIds);
   const linkToEvent = new Map<string, NewsEvent>();
@@ -120,7 +121,7 @@ export default async function QaPage() {
       </section>
 
       <section className="qaBlock">
-        <div className="qaBlockHead"><div><span>CHECK 02</span><h2>기준 매체에서 많이 겹친 오늘의 사건</h2></div><p>기준: SBS·KBS·MBC·연합뉴스·Reuters·AP·BBC. 외부 독립 벤치마크가 아니라 내부 수집 기준집합입니다.</p></div>
+        <div className="qaBlockHead"><div><span>CHECK 02</span><h2>기준 매체에서 많이 겹친 오늘의 사건</h2></div><p>기준: SBS·KBS·MBC·연합뉴스·Reuters·AP·BBC. 외부 독립 벤치마크가 아니라 동일 수집 스냅샷의 내부 기준집합입니다.</p></div>
         <div className="qaReferenceList">
           {referenceTop.map((event, index) => {
             const article = getDisplayArticle(event, "ko");
