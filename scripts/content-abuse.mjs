@@ -10,6 +10,7 @@ function check(name, condition, detail = "") {
 const { canonicalSourceName, canonicalOutletCount, normalizeExternalText } = await import("../lib/source-normalize.ts");
 const { buildWorldFlows, koreaImpact, dailyMemoryLine } = await import("../lib/world-briefing.ts");
 const { auditEventAccuracy } = await import("../lib/accuracy.ts");
+const { __test: newsTest } = await import("../lib/news.ts");
 
 check("AP aliases canonicalize to one publisher",
   ["AP", "AP News", "Associated Press", "The Associated Press"].every((name) => canonicalSourceName(name) === "AP"));
@@ -115,6 +116,17 @@ const europeGas = event("europe-gas", "Natural gas prices rise in Europe", { cat
 check("Madagascar text does not impersonate gas energy signature",
   buildWorldFlows([madagascarMarket, europeGas], "ko").length === 0);
 
+const strikeTime = new Date().toISOString();
+const laborStrike = {
+  ...article("Canada workers strike disrupts port after wage dispute", "Canada workers strike disrupts port after wage dispute", "Reuters"),
+  publishedAt: strikeTime,
+};
+const militaryStrike = {
+  ...article("Canada military strike disrupts port after drone attack", "Canada military strike disrupts port after drone attack", "BBC"),
+  publishedAt: strikeTime,
+};
+check("labor strike and military strike are not clustered as one event", !newsTest.sameEvent(laborStrike, militaryStrike));
+
 const unrelatedWorld = event("world-other", "Election debate opens in a distant country", { briefWhy: "politics" });
 check("Korea impact stays blank without a reviewed mechanism", koreaImpact(unrelatedWorld, "ko") === null);
 const energyImpact = event("energy", "Iran tensions disrupt Hormuz oil shipping routes");
@@ -188,6 +200,8 @@ check("unknown publishers do not inherit aggregate feed roles", !newsSource.incl
 check("unknown publisher role is explicitly low-trust", /return "other";/.test(newsSource) && /return 0\.72;/.test(newsSource));
 check("briefing exposes the exact raw-news snapshot used for clustering", newsSource.includes("news: NewsItem[]") && /return \{\s*news,/m.test(newsSource));
 check("QA does not perform a second news collection", !qaSource.includes("getNews") && qaSource.includes("const news = briefing.news"));
+check("bare strike is not a shared labor and attack alias", !newsSource.includes('attack: ["attack", "strike"') && !newsSource.includes('labor: ["wage", "labor", "strike"'));
+check("strike ambiguity requires contextual disambiguation", newsSource.includes("laborContext") && newsSource.includes("militaryContext"));
 
 console.log(`\nContent abuse regression: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
