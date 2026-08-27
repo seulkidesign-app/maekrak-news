@@ -87,11 +87,23 @@ const germanyElection = event("germany-election", "Germany election enters final
 const taiwanElection = event("taiwan-election", "Taiwan election campaign opens with televised debate", { briefWhy: "politics", importanceScore: 8 });
 check("generic election wording does not connect unrelated regions",
   buildWorldFlows([germanyElection, taiwanElection], "ko").length === 0);
+const womanElection = event("woman-election", "Woman elected mayor after local vote", { briefWhy: "politics", importanceScore: 8.1 });
+const omanElection = event("oman-election", "Oman election commission opens voting", { briefWhy: "politics", importanceScore: 8 });
+check("woman text does not impersonate Oman regional signature",
+  buildWorldFlows([womanElection, omanElection], "ko").length === 0);
+const madagascarMarket = event("madagascar", "Madagascar market reform debate continues", { category: "경제", briefWhy: "economy", importanceScore: 8.1 });
+const europeGas = event("europe-gas", "Natural gas prices rise in Europe", { category: "경제", briefWhy: "economy", importanceScore: 8 });
+check("Madagascar text does not impersonate gas energy signature",
+  buildWorldFlows([madagascarMarket, europeGas], "ko").length === 0);
 
 const unrelatedWorld = event("world-other", "Election debate opens in a distant country", { briefWhy: "politics" });
 check("Korea impact stays blank without a reviewed mechanism", koreaImpact(unrelatedWorld, "ko") === null);
 const energyImpact = event("energy", "Iran tensions disrupt Hormuz oil shipping routes");
 check("Korea impact appears only with region plus transmission mechanism", Boolean(koreaImpact(energyImpact, "ko")));
+const iranLeadership = event("iran-leadership", "Iran leadership transition becomes a major election issue", { briefWhy: "politics" });
+check("leadership suffix does not fake shipping mechanism", koreaImpact(iranLeadership, "ko") === null);
+const usImportantElection = event("us-important", "United States calls election an important democratic moment", { briefWhy: "politics" });
+check("important prefix does not fake import trade mechanism", koreaImpact(usImportantElection, "ko") === null);
 check("empty flow state does not claim a complete big picture", /충분한 사건 흐름/.test(dailyMemoryLine([], "ko")));
 
 const newsSource = await readFile(new URL("../lib/news.ts", import.meta.url), "utf8");
@@ -102,6 +114,12 @@ check("feed body has an explicit size ceiling", newsSource.includes("readRespons
 check("feed title length is bounded", /clean\(item\?\.title, 320\)/.test(newsSource));
 check("feed description length is bounded", /, 2400\)/.test(newsSource));
 check("unsafe link protocols are filtered", newsSource.includes("safeHttpUrl(rawLink)"));
+check("credential-style deceptive article URLs are rejected", newsSource.includes("url.username || url.password"));
+check("article display text uses external Unicode normalization", newsSource.includes("normalizeExternalText(withoutMarkup)"));
+check("technology classifier has non-tech chip exclusions", newsSource.includes("nonTechChipPattern"));
+check("uncertainty English terms use word boundaries", newsSource.includes("\\b(?:reportedly|unconfirmed|appears?|likely|estimated|may|might|could)\\b"));
+check("high-impact English terms use word boundaries", newsSource.includes("\\b(?:war|attack|missiles?|nuclear|ceasefire|election"));
+check("source roles use anchored exact-name matching", newsSource.includes("^(?:reuters|ap|연합뉴스|afp|agence france-presse)$"));
 check("unknown publishers do not inherit aggregate feed roles", !newsSource.includes("inferSourceRole(source, feed.role)"));
 check("unknown publisher role is explicitly low-trust", /return "other";/.test(newsSource) && /return 0\.72;/.test(newsSource));
 
