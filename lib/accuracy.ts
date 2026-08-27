@@ -1,19 +1,26 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
 import { canonicalSourceName } from "@/lib/source-normalize";
 
-const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|reportedly|unconfirmed|alleged|appears?|likely|estimated|\bmay\b|\bmight\b|\bcould\b/i;
+const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|might|could)\b/i;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
 function headlineNumbers(title: string): string[] {
-  const raw = title.match(/\d+(?:[.,]\d+)*(?:\s*%|\s*percent|\s*퍼센트|\s*명)?/gi) ?? [];
-  const cleaned = raw
-    .map((value) => value.replace(/\s+/g, "").toLowerCase())
-    .filter((value) => {
-      const plainText = value.replace(/[^\d.]/g, "");
-      const plain = Number(plainText);
-      const looksLikeYear = /^\d{4}$/.test(value) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
-      return !looksLikeYear;
-    });
+  const matcher = /\d+(?:[.,]\d+)*(?:\s*%|\s*percent|\s*퍼센트|\s*명)?/gi;
+  const cleaned: string[] = [];
+  for (const match of title.matchAll(matcher)) {
+    const value = match[0];
+    const index = match.index ?? 0;
+    const before = title.slice(Math.max(0, index - 3), index);
+    const after = title.slice(index + value.length, index + value.length + 2);
+    const attachedToIdentifier = /[A-Za-z]$/.test(before) || /[A-Za-z]-$/.test(before) || /^[A-Za-z]/.test(after);
+    if (attachedToIdentifier) continue;
+
+    const normalized = value.replace(/\s+/g, "").toLowerCase();
+    const plainText = normalized.replace(/[^\d.]/g, "");
+    const plain = Number(plainText);
+    const looksLikeYear = /^\d{4}$/.test(normalized) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
+    if (!looksLikeYear) cleaned.push(normalized);
+  }
   return Array.from(new Set(cleaned));
 }
 
