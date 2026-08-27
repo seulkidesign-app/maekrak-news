@@ -76,6 +76,8 @@ check("feed body has an explicit size ceiling", newsSource.includes("readRespons
 check("feed title length is bounded", /clean\(item\?\.title, 320\)/.test(newsSource));
 check("feed description length is bounded", /, 2400\)/.test(newsSource));
 check("unsafe link protocols are filtered", newsSource.includes("safeHttpUrl(rawLink)"));
+check("unknown publishers do not inherit aggregate feed roles", !newsSource.includes("inferSourceRole(source, feed.role)"));
+check("unknown publisher role is explicitly low-trust", /return "other";/.test(newsSource) && /return 0\.72;/.test(newsSource));
 
 console.log(`\nContent abuse regression: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
