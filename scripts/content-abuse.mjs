@@ -26,6 +26,12 @@ check("invisible alias variants still count as one outlet",
   canonicalOutletCount([{ source: "Reuters" }, { source: "Reu\u200Bters" }, { source: "\u202EReuters" }]) === 1);
 check("external text strips bidi and zero-width controls",
   !/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/.test(normalizeExternalText("A\u202EB\u200BC")));
+check("trusted brand substring spoof is downgraded",
+  canonicalSourceName("Reuters Scam Daily") === "Unverified source");
+check("prefixed trusted brand spoof is downgraded",
+  canonicalSourceName("Fake BBC World") === "Unverified source");
+check("trusted Korean brand substring spoof is downgraded",
+  canonicalSourceName("연합뉴스 사칭 채널") === "Unverified source");
 
 function article(title, description = title, source = "Reuters") {
   return {
