@@ -343,6 +343,23 @@ function tokens(text: string) {
   );
 }
 
+const genericTitleCaseWords = new Set([
+  "A", "An", "As", "At", "After", "Before", "Company", "Government", "President", "Prime", "Minister", "Officials", "Police", "Court", "Bank", "Central", "New", "Latest", "Breaking",
+]);
+
+function properNameTokens(text: string) {
+  const matches = clean(text).match(/\b[A-Z][A-Za-z0-9&.-]{1,}\b/g) ?? [];
+  return new Set(matches.filter((word) => !genericTitleCaseWords.has(word)).map((word) => word.toLowerCase()));
+}
+
+function hasProperNameConflict(a: string, b: string) {
+  const left = properNameTokens(a);
+  const right = properNameTokens(b);
+  if (!left.size || !right.size) return false;
+  for (const value of left) if (right.has(value)) return false;
+  return true;
+}
+
 function setSimilarity(left: Set<string>, right: Set<string>) {
   if (!left.size || !right.size) return 0;
   let overlap = 0;
@@ -374,10 +391,11 @@ function sameEvent(a: NewsItem, b: NewsItem) {
   const entities = entitySimilarity(a.title, b.title);
   const actions = actionSimilarity(a.title, b.title);
   const hours = timeDistanceHours(a.publishedAt, b.publishedAt);
+  const properNameConflict = hasProperNameConflict(a.title, b.title);
 
   if (hours > 30) return false;
-  if (lexical >= 0.9 && hours <= 24) return true;
-  if (lexical >= 0.74 && (entities > 0 || actions > 0) && hours <= 18) return true;
+  if (lexical >= 0.9 && hours <= 24 && !properNameConflict) return true;
+  if (lexical >= 0.74 && (entities > 0 || actions > 0) && hours <= 18 && !(properNameConflict && entities === 0)) return true;
   if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
   if (entities >= 0.67 && actions >= 0.5 && lexical >= 0.42 && hours <= 12) return true;
   if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && lexical >= 0.5 && hours <= 6) return true;
@@ -695,5 +713,7 @@ export const __test = {
   inferSourceRole,
   isHighImpact,
   briefWatchFor,
+  properNameTokens,
+  hasProperNameConflict,
   sameEvent,
 };
