@@ -73,44 +73,44 @@ function signatures(event: NewsEvent, code: WorldFlowCode) {
   const add = (id: string, pattern: RegExp) => { if (pattern.test(text)) found.add(id); };
 
   if (code === "security") {
-    add("middle-east", /iran|이란|israel|이스라엘|gaza|가자|palestin|팔레스타인|hormuz|호르무즈|syria|시리아|oman|오만|middle east|중동/);
-    add("russia-ukraine", /russia|러시아|ukraine|우크라이나/);
-    add("korea-security", /north korea|북한|south korea|대한민국|korean peninsula|한반도/);
-    add("sanctions", /sanction|제재/);
-    add("ceasefire", /ceasefire|truce|휴전/);
-    add("election", /election|선거|vote|투표/);
+    add("middle-east", /\b(?:iran|israel|gaza|hormuz|syria|oman)\b|이란|이스라엘|가자|palestin|팔레스타인|호르무즈|시리아|오만|\bmiddle east\b|중동/);
+    add("russia-ukraine", /\b(?:russia|ukraine)\b|러시아|우크라이나/);
+    add("korea-security", /\b(?:north korea|south korea|korean peninsula)\b|북한|대한민국|한반도/);
+    add("sanctions", /\bsanctions?\b|제재/);
+    add("ceasefire", /\b(?:ceasefire|truce)\b|휴전/);
+    add("election", /\b(?:election|vote)\b|선거|투표/);
   }
 
   if (code === "economy") {
-    add("rates", /federal reserve|\bfed\b|fomc|연준|interest rate|금리|bond|채권/);
-    add("inflation", /inflation|물가|consumer price|소비자물가/);
-    add("trade", /tariff|관세|trade|무역|export|수출|import|수입|supply chain|공급망/);
-    add("energy", /oil|crude|유가|원유|gas|가스|hormuz|호르무즈/);
-    add("currency", /dollar|달러|exchange rate|환율|yuan|위안|yen|엔화/);
-    add("markets", /stock|증시|주가|market|시장|treasury|국채/);
+    add("rates", /\b(?:federal reserve|fed|fomc|interest rates?|bonds?)\b|연준|금리|채권/);
+    add("inflation", /\b(?:inflation|consumer prices?)\b|물가|소비자물가/);
+    add("trade", /\b(?:tariffs?|trade|exports?|imports?)\b|\bsupply chain\b|관세|무역|수출|수입|공급망/);
+    add("energy", /\b(?:oil|crude|gas|hormuz)\b|유가|원유|가스|호르무즈/);
+    add("currency", /\b(?:dollar|yuan|yen|exchange rate)\b|달러|환율|위안|엔화/);
+    add("markets", /\b(?:stocks?|markets?|treasur(?:y|ies))\b|증시|주가|시장|국채/);
   }
 
   if (code === "korea") {
-    add("police-justice", /경찰|검찰|수사|법원|police|prosecut|court|사법/);
-    add("housing", /주택|주거|부동산|용산|탄천|housing|real estate/);
-    add("party-politics", /정당|대표|국민의힘|민주당|개혁신당|국회|party|parliament/);
-    add("labor", /노동|임금|고용|labor|wage|employment/);
-    add("health", /의료|병원|건강|health|hospital/);
+    add("police-justice", /\b(?:police|prosecut(?:or|ors|ion)?|court)\b|경찰|검찰|수사|법원|사법/);
+    add("housing", /\b(?:housing|real estate)\b|주택|주거|부동산|용산|탄천/);
+    add("party-politics", /\b(?:party|parliament)\b|정당|대표|국민의힘|민주당|개혁신당|국회/);
+    add("labor", /\b(?:labor|wage|employment)\b|노동|임금|고용/);
+    add("health", /\b(?:health|hospital)\b|의료|병원|건강/);
   }
 
   if (code === "technology") {
-    add("ai", /artificial intelligence|\bai\b|인공지능|openai|nvidia/);
-    add("chips", /semiconductor|chip|반도체/);
-    add("platform", /platform|플랫폼|google|apple|microsoft|meta/);
-    add("supply-chain", /supply chain|공급망|export control|수출 통제/);
+    add("ai", /\b(?:artificial intelligence|ai|openai|nvidia)\b|인공지능/);
+    add("chips", /\b(?:semiconductors?|chips?)\b|반도체/);
+    add("platform", /\b(?:platform|google|apple|microsoft|meta)\b|플랫폼/);
+    add("supply-chain", /\b(?:supply chain|export controls?)\b|공급망|수출 통제/);
   }
 
   if (code === "climate") {
-    add("heat", /heatwave|폭염|더위/);
-    add("flood", /flood|홍수|폭우|호우|heavy rain/);
-    add("wildfire", /wildfire|산불/);
-    add("storm", /typhoon|태풍|tornado|토네이도|storm|폭풍/);
-    add("earthquake", /earthquake|지진/);
+    add("heat", /\bheatwave\b|폭염|더위/);
+    add("flood", /\b(?:flood|heavy rain)\b|홍수|폭우|호우/);
+    add("wildfire", /\bwildfire\b|산불/);
+    add("storm", /\b(?:typhoon|tornado|storm)\b|태풍|토네이도|폭풍/);
+    add("earthquake", /\bearthquake\b|지진/);
   }
 
   return found;
@@ -170,40 +170,40 @@ export function koreaImpact(event: NewsEvent, lang: Language): string | null {
   const text = eventText(event);
   const has = (pattern: RegExp) => pattern.test(text);
 
-  const energyRegion = has(/hormuz|호르무즈|middle east|중동|iran|이란|gulf|걸프/);
-  const energyMechanism = has(/oil|crude|원유|유가|shipping|ship|운송|해운|supply|공급|export|수출|sanction|제재/);
+  const energyRegion = has(/\b(?:hormuz|middle east|iran|gulf)\b|호르무즈|중동|이란|걸프/);
+  const energyMechanism = has(/\b(?:oil|crude|shipping|ship|ships|supply|export|exports|sanction|sanctions)\b|원유|유가|운송|해운|공급|수출|제재/);
   if (energyRegion && energyMechanism) {
     return lang === "ko"
       ? "중동의 에너지 공급·운송 변화는 한국의 원유 도입 비용, 운임, 수입물가에 연결될 수 있습니다. 실제 유가·운송 지표가 움직이는지 함께 확인할 필요가 있습니다."
       : "Middle East energy-supply or shipping changes can reach Korea through crude-import costs, freight and import prices. Check whether oil and shipping indicators actually move.";
   }
 
-  const monetaryActor = has(/federal reserve|\bfed\b|fomc|연준/);
-  const monetaryMechanism = has(/interest rate|rate cut|rate hike|금리|dollar|달러|inflation|물가|bond|채권/);
+  const monetaryActor = has(/\b(?:federal reserve|fed|fomc)\b|연준/);
+  const monetaryMechanism = has(/\b(?:interest rates?|rate cut|rate hike|dollar|inflation|bonds?)\b|금리|달러|물가|채권/);
   if (monetaryActor && monetaryMechanism) {
     return lang === "ko"
       ? "미 연준의 금리·달러 관련 변화는 원·달러 환율과 자금 흐름을 통해 한국 금융시장에 연결될 수 있습니다. 실제 환율과 한국은행의 후속 판단을 확인해야 합니다."
       : "Fed rate and dollar developments can reach Korean markets through the won-dollar rate and capital flows. Check the actual FX move and Bank of Korea response.";
   }
 
-  const tradeActor = has(/united states|\bu\.s\.?\b|미국|china|중국|european union|\beu\b|유럽연합|canada|캐나다/);
-  const tradeMechanism = has(/tariff|관세|trade|무역|supply chain|공급망|export control|수출 통제|import|수입|export|수출/);
+  const tradeActor = has(/\b(?:united states|u\.s\.?|china|european union|eu|canada)\b|미국|중국|유럽연합|캐나다/);
+  const tradeMechanism = has(/\b(?:tariffs?|trade|imports?|exports?|supply chain|export controls?)\b|관세|무역|공급망|수출 통제|수입|수출/);
   if (tradeActor && tradeMechanism) {
     return lang === "ko"
       ? "주요국의 관세·무역 규칙 변화는 한국의 수출기업과 공급망에 영향을 줄 수 있습니다. 자동차·반도체·배터리 등 실제 적용 품목과 시행 시점을 확인해야 합니다."
       : "Tariff and trade-rule changes in major economies can affect Korean exporters and supply chains. Check the products actually covered and the implementation date.";
   }
 
-  const techCore = has(/semiconductor|chip|반도체|artificial intelligence|\bai\b|인공지능|nvidia/);
-  const techMechanism = has(/supply chain|공급망|export|수출|investment|투자|regulation|규제|manufactur|생산|fab|공장/);
+  const techCore = has(/\b(?:semiconductors?|chips?|artificial intelligence|ai|nvidia)\b|반도체|인공지능/);
+  const techMechanism = has(/\b(?:supply chain|exports?|investments?|regulations?|manufacturing|manufacture|production|fabs?)\b|공급망|수출|투자|규제|생산|공장/);
   if (techCore && techMechanism) {
     return lang === "ko"
       ? "반도체·AI 관련 공급망, 투자, 규제 변화는 한국의 주요 기술기업과 수출 산업에 연결될 수 있습니다. 어떤 기업·품목에 실제 적용되는지 확인이 필요합니다."
       : "Chip and AI supply-chain, investment or regulatory changes can reach Korea's major technology companies and exports. Check which firms and products are actually affected.";
   }
 
-  const koreaSecurityMention = has(/north korea|북한|south korea|대한민국|한국|korean peninsula|한반도/);
-  const securityMechanism = has(/nuclear|핵|missile|미사일|military|군사|defen[cs]e|방위|sanction|제재|exercise|훈련/);
+  const koreaSecurityMention = has(/\b(?:north korea|south korea|korean peninsula)\b|북한|대한민국|한국|한반도/);
+  const securityMechanism = has(/\b(?:nuclear|missiles?|military|defen[cs]e|sanctions?|exercises?)\b|핵|미사일|군사|방위|제재|훈련/);
   if (koreaSecurityMention && securityMechanism) {
     return lang === "ko"
       ? "한반도 안보와 직접 관련된 요소가 포함된 사건입니다. 정부의 공식 대응과 실제 군사·외교 조치가 이어지는지 확인해야 합니다."
