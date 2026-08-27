@@ -1,4 +1,5 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
+import { canonicalSourceName } from "@/lib/source-normalize";
 
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|reportedly|unconfirmed|alleged|appears?|likely|estimated|\bmay\b|\bmight\b|\bcould\b/i;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
@@ -22,7 +23,7 @@ function articleText(article: NewsItem): string {
 
 function hasSyndicationHint(article: NewsItem): boolean {
   const text = ` ${articleText(article).toLowerCase()} `;
-  const source = article.source.toLowerCase();
+  const source = canonicalSourceName(article.source).toLowerCase();
   return SYNDICATION_TERMS.some((term) => {
     const normalized = term.trim();
     if (!text.includes(term)) return false;
@@ -42,7 +43,8 @@ export type AccuracyAudit = {
 export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
   const bySource = new Map<string, NewsItem>();
   event.articles.forEach((article) => {
-    if (!bySource.has(article.source)) bySource.set(article.source, article);
+    const canonical = canonicalSourceName(article.source);
+    if (!bySource.has(canonical)) bySource.set(canonical, { ...article, source: canonical });
   });
   const uniqueArticles = Array.from(bySource.values());
 
