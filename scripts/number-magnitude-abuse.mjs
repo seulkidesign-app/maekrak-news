@@ -54,6 +54,24 @@ const koreanMagnitude = auditEventAccuracy(event([
 ]));
 check("Korean 억 magnitude and raw number normalize to the same value", !koreanMagnitude.headlineNumberDifference);
 
+const signedDirection = auditEventAccuracy(event([
+  article("Factory output falls -3% in July", "Reuters"),
+  article("Factory output rises +3% in July", "BBC"),
+]));
+check("negative versus positive values are detected as a disagreement", signedDirection.headlineNumberDifference);
+
+const unicodeMinus = auditEventAccuracy(event([
+  article("Factory output changes -3% in July", "Reuters"),
+  article("Factory output changes −3% in July", "BBC"),
+]));
+check("ASCII and Unicode minus signs normalize to the same negative value", !unicodeMinus.headlineNumberDifference);
+
+const explicitPositive = auditEventAccuracy(event([
+  article("Factory output changes +3% in July", "Reuters"),
+  article("Factory output changes 3% in July", "BBC"),
+]));
+check("explicit plus and unsigned positive values normalize to the same value", !explicitPositive.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
