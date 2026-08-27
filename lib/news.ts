@@ -439,7 +439,8 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.7" },
+      redirect: "error",
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.8" },
       signal: controller.signal,
     });
     if (!response.ok) {
