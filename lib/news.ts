@@ -137,7 +137,7 @@ const entityAliases: Record<string, string[]> = {
 };
 
 const actionAliases: Record<string, string[]> = {
-  attack: ["attack", "strike", "bomb", "missile", "공격", "공습", "폭격", "미사일"],
+  attack: ["attack", "bomb", "missile", "공격", "공습", "폭격", "미사일"],
   threat: ["threat", "threaten", "위협", "협박"],
   ceasefire: ["ceasefire", "truce", "휴전"],
   tariff: ["tariff", "trade duty", "관세"],
@@ -148,7 +148,7 @@ const actionAliases: Record<string, string[]> = {
   law: ["law", "bill", "court", "법안", "법원", "판결"],
   reform: ["reform", "개혁", "개편"],
   housing: ["housing", "home", "주택", "주거", "부동산"],
-  labor: ["wage", "labor", "strike", "임금", "노동", "파업"],
+  labor: ["wage", "labor", "임금", "노동", "파업"],
   visa: ["visa", "h-1b", "h1b", "비자"],
   disaster: ["earthquake", "flood", "wildfire", "typhoon", "지진", "홍수", "산불", "태풍", "호우"],
   death: ["dies", "dead", "killed", "death", "사망", "숨져"],
@@ -325,7 +325,15 @@ function normalizedEntities(text: string) {
 }
 
 function normalizedActions(text: string) {
-  return normalizedConcepts(text, actionAliases);
+  const found = normalizedConcepts(text, actionAliases);
+  const normalized = normalizeExternalText(text).toLowerCase();
+  if (/\bstrike\b/.test(normalized)) {
+    const laborContext = /\b(?:worker|workers|union|unions|employee|employees|labor|labour|wage|wages|walkout|picket|industrial action)\b/.test(normalized);
+    const militaryContext = /\b(?:air strike|airstrike|military|missile|bomb|bombing|drone|attack|attacks|militant|militants|forces|target|targets|war)\b/.test(normalized);
+    if (laborContext && !militaryContext) found.add("labor");
+    if (militaryContext && !laborContext) found.add("attack");
+  }
+  return found;
 }
 
 function tokens(text: string) {
