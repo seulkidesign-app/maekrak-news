@@ -149,6 +149,24 @@ const identifierAudit = auditEventAccuracy(multiSourceEvent("identifiers", [
 ]));
 check("embedded identifier numbers do not create numeric conflict", !identifierAudit.headlineNumberDifference);
 
+const formattingAudit = auditEventAccuracy(multiSourceEvent("number-format", [
+  article("Company plans 1,000 jobs as margin reaches 3.0%", "Company plans 1,000 jobs as margin reaches 3.0%", "Reuters"),
+  article("Company plans 1000 jobs as margin reaches 3 percent", "Company plans 1000 jobs as margin reaches 3 percent", "BBC"),
+]));
+check("equivalent comma decimal and percent formats do not create numeric conflict", !formattingAudit.headlineNumberDifference);
+
+const reorderedAudit = auditEventAccuracy(multiSourceEvent("number-order", [
+  article("Inflation 3% and growth 2% reported", "Inflation 3% and growth 2% reported", "Reuters"),
+  article("Growth 2 percent while inflation is 3.0%", "Growth 2 percent while inflation is 3.0%", "BBC"),
+]));
+check("same numeric value set in different order does not create conflict", !reorderedAudit.headlineNumberDifference);
+
+const realNumberDifferenceAudit = auditEventAccuracy(multiSourceEvent("number-real-difference", [
+  article("Inflation rises 3%", "Inflation rises 3%", "Reuters"),
+  article("Inflation rises 4%", "Inflation rises 4%", "BBC"),
+]));
+check("real headline numeric disagreement still raises a warning", realNumberDifferenceAudit.headlineNumberDifference);
+
 const newsSource = await readFile(new URL("../lib/news.ts", import.meta.url), "utf8");
 const qaSource = await readFile(new URL("../app/qa/page.tsx", import.meta.url), "utf8");
 check("missing publication time is not replaced with now", !/publishedAt\s*=.*new Date\(\)\.toISOString\(\)/.test(newsSource));
