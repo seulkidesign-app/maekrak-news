@@ -147,7 +147,7 @@ export function buildWorldFlows(events: NewsEvent[], lang: Language, limit = 3):
       eventIds: matched.map((event) => event.id),
       score,
     } satisfies WorldFlow;
-  }).filter((flow) => flow.eventIds.length > 0);
+  }).filter((flow) => flow.eventIds.length >= 2);
 
   return candidates.sort((a, b) => b.score - a.score).slice(0, limit);
 }
