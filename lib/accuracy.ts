@@ -6,10 +6,11 @@ const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agen
 
 const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
   [/\btrillion\b|조/i, 1_000_000_000_000],
-  [/\bbillion\b|억/i, 1_000_000_000],
+  [/\bbillion\b/i, 1_000_000_000],
+  [/억/i, 100_000_000],
   [/\bmillion\b|백만/i, 1_000_000],
-  [/\bthousand\b|천/i, 1_000],
   [/만/i, 10_000],
+  [/\bthousand\b|천/i, 1_000],
 ];
 
 function canonicalNumber(value: string) {
