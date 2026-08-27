@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { canonicalSourceName } from "@/lib/source-normalize";
+import { canonicalSourceName, normalizeExternalText } from "@/lib/source-normalize";
 
 export type NewsCategory = "국내" | "세계" | "정치" | "사회" | "경제" | "기술" | "재난";
 export type NewsScope = "domestic" | "world";
@@ -94,8 +94,6 @@ const feeds: Feed[] = [
 const feedByName = new Map(feeds.map((feed) => [feed.name, feed]));
 const sourceWeights: Record<string, number> = {
   Reuters: 1.35,
-  "Associated Press": 1.3,
-  "AP News": 1.3,
   AP: 1.3,
   연합뉴스: 1.25,
   BBC: 1.15,
@@ -156,22 +154,24 @@ const actionAliases: Record<string, string[]> = {
   launch: ["launch", "release", "발표", "출시", "공개"],
 };
 
+const disasterPattern = /태풍|호우|폭우|홍수|산불|지진|폭염|한파|재난|\b(?:typhoon|flood|wildfire|earthquake|storm|heatwave)\b/i;
+const strongTechPattern = /인공지능|반도체|\b(?:ai|artificial intelligence|semiconductors?|openai|nvidia|apple|google|microsoft)\b/i;
+const chipPattern = /\bchips?\b/i;
+const nonTechChipPattern = /\b(?:potato|snack|food|crisps?|tortilla|chocolate|cookie|wood)\b/i;
 const topicRules: Array<{ category: NewsCategory; pattern: RegExp }> = [
-  { category: "재난", pattern: /태풍|호우|폭우|홍수|산불|지진|폭염|한파|재난|typhoon|flood|wildfire|earthquake|storm|heatwave/i },
-  { category: "기술", pattern: /인공지능|반도체|칩|\bai\b|artificial intelligence|semiconductor|chip|openai|nvidia|apple|google|microsoft/i },
-  { category: "경제", pattern: /금리|환율|물가|증시|주가|관세|무역|경제|은행|재정|예산|임금|inflation|interest rate|rate cut|rate hike|tariff|market|stocks|economy|bank|budget|wage/i },
-  { category: "정치", pattern: /대통령|총리|국회|의회|선거|탄핵|정당|장관|외교|개혁|president|prime minister|parliament|congress|election|impeachment|minister|diplomacy|reform/i },
-  { category: "사회", pattern: /사건|사고|범죄|수사|검찰|경찰|교육|의료|병원|노동|주거|주택|crime|police|prosecut|education|healthcare|hospital|labor|housing/i },
+  { category: "경제", pattern: /금리|환율|물가|증시|주가|관세|무역|경제|은행|재정|예산|임금|\b(?:inflation|interest rates?|rate cut|rate hike|tariffs?|markets?|stocks?|economy|banks?|budget|wages?)\b/i },
+  { category: "정치", pattern: /대통령|총리|국회|의회|선거|탄핵|정당|장관|외교|개혁|\b(?:president|prime minister|parliament|congress|election|impeachment|minister|diplomacy|reform)\b/i },
+  { category: "사회", pattern: /사건|사고|범죄|수사|검찰|경찰|교육|의료|병원|노동|주거|주택|\b(?:crime|police|prosecut(?:or|ors|ion)?|education|healthcare|hospital|labor|housing)\b/i },
 ];
 
-const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선거|대통령|총리|붕괴|지진|태풍|홍수|산불|금리|관세|제재|war|attack|missile|nuclear|ceasefire|election|president|prime minister|earthquake|typhoon|flood|wildfire|interest rate|tariff|sanction/i;
-const leaderDeathPattern = /(?:대통령|총리|국왕|교황).{0,35}(?:사망|숨져)|(?:사망|숨져).{0,35}(?:대통령|총리|국왕|교황)|(?:president|prime minister|king|pope).{0,35}(?:dies|dead|death)|(?:dies|dead|death).{0,35}(?:president|prime minister|king|pope)/i;
-const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|야구|농구|celebrity|singer|actor|actress|concert|album|country music|football|baseball|basketball/i;
-const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|police reform|prosecution reform|budget|housing supply|birth|population|semiconductor/i;
-const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|reportedly|unconfirmed|appears?|likely|estimated|may|might|could/i;
-const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|says?|said|claims?|alleges?|warns?|expects?|plans?/i;
-const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|united states|china|japan|russia|ukraine|iran|israel|palestin|gaza|canada|europe|nato|hormuz/i;
-const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|korea|seoul|busan|jeju|lee jae myung|kospi/i;
+const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선거|대통령|총리|붕괴|지진|태풍|홍수|산불|금리|관세|제재|\b(?:war|attack|missiles?|nuclear|ceasefire|election|president|prime minister|earthquake|typhoon|flood|wildfire|interest rates?|tariffs?|sanctions?)\b/i;
+const leaderDeathPattern = /(?:대통령|총리|국왕|교황).{0,35}(?:사망|숨져)|(?:사망|숨져).{0,35}(?:대통령|총리|국왕|교황)|\b(?:president|prime minister|king|pope)\b.{0,35}\b(?:dies|dead|death)\b|\b(?:dies|dead|death)\b.{0,35}\b(?:president|prime minister|king|pope)\b/i;
+const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|야구|농구|\b(?:celebrity|singer|actor|actress|concert|album|country music|football|baseball|basketball)\b/i;
+const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|\b(?:police reform|prosecution reform|budget|housing supply|birth|population|semiconductor)\b/i;
+const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|\b(?:reportedly|unconfirmed|appears?|likely|estimated|may|might|could)\b/i;
+const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|\b(?:says?|said|claims?|alleges?|warns?|expects?|plans?)\b/i;
+const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
+const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
 
 function isHighImpact(text: string) {
   return highImpactPattern.test(text) || leaderDeathPattern.test(text);
@@ -195,12 +195,10 @@ function decodeEntities(value: string) {
 }
 
 function clean(value: unknown, maxLength = 4000) {
-  return decodeEntities(String(value ?? ""))
+  const withoutMarkup = decodeEntities(String(value ?? ""))
     .replace(/<[^>]*>/g, " ")
-    .replace(/^[▲△▶►◆■●]\s*/, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+    .replace(/^[▲△▶►◆■●]\s*/, "");
+  return normalizeExternalText(withoutMarkup).slice(0, maxLength);
 }
 
 function asArray<T>(value: T | T[] | undefined): T[] {
@@ -217,7 +215,9 @@ function safeHttpUrl(value: unknown) {
   if (!raw) return "";
   try {
     const url = new URL(raw);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    if (url.username || url.password) return "";
+    return url.toString();
   } catch {
     return "";
   }
@@ -270,10 +270,10 @@ function stripSourceSuffix(title: string, source: string, feedName: string) {
 }
 
 function inferSourceRole(source: string): SourceRole {
-  const value = source.toLowerCase();
-  if (/reuters|associated press|\bap news\b|^ap$|연합뉴스|yonhap|afp|agence france/i.test(value)) return "wire";
-  if (/kbs|mbc|sbs|jtbc|ytn|채널a|tv조선/i.test(value)) return "broadcaster";
-  if (/bbc|cnn|dw|al jazeera|nhk|guardian|new york times|washington post|financial times|bloomberg/i.test(value)) return "international";
+  const value = source.toLowerCase().trim();
+  if (/^(?:reuters|ap|연합뉴스|afp|agence france-presse)$/.test(value)) return "wire";
+  if (/^(?:kbs|mbc|sbs|jtbc|ytn|채널a|tv조선)$/.test(value)) return "broadcaster";
+  if (/^(?:bbc|cnn|dw|al jazeera|nhk|guardian|the guardian|new york times|the new york times|washington post|the washington post|financial times|bloomberg)$/.test(value)) return "international";
   return "other";
 }
 
@@ -288,11 +288,13 @@ function inferScope(title: string, description: string, fallback: NewsScope): Ne
 
 function inferCategory(title: string, description: string, fallback: NewsCategory): NewsCategory {
   const text = `${title} ${description}`;
+  if (disasterPattern.test(text)) return "재난";
+  if (strongTechPattern.test(text) || (chipPattern.test(text) && !nonTechChipPattern.test(text))) return "기술";
   return topicRules.find((rule) => rule.pattern.test(text))?.category ?? fallback;
 }
 
 function normalizePhrase(text: string) {
-  return ` ${text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim()} `;
+  return ` ${normalizeExternalText(text).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim()} `;
 }
 
 function normalizedConcepts(text: string, aliases: Record<string, string[]>) {
@@ -422,7 +424,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.4" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.5" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -525,8 +527,8 @@ function selectionReasons(articles: NewsItem[], score: number) {
 
 function briefWhyFor(category: NewsCategory, articles: NewsItem[]): BriefWhyCode {
   const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
-  if (/전쟁|공격|미사일|핵|휴전|제재|war|attack|missile|nuclear|ceasefire|sanction/i.test(text)) return "security";
-  if (category === "정치" || /선거|대통령|총리|국회|개혁|election|president|prime minister|parliament|reform/i.test(text)) return "politics";
+  if (/전쟁|공격|미사일|핵|휴전|제재|\b(?:war|attack|missiles?|nuclear|ceasefire|sanctions?)\b/i.test(text)) return "security";
+  if (category === "정치" || /선거|대통령|총리|국회|개혁|\b(?:election|president|prime minister|parliament|reform)\b/i.test(text)) return "politics";
   if (category === "경제") return "economy";
   if (category === "재난") return "disaster";
   if (category === "기술") return "technology";
