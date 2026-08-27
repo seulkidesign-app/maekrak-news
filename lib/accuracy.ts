@@ -13,21 +13,35 @@ const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
   [/\bthousand\b|천/i, 1_000],
 ];
 
+function currencyUnit(value: string) {
+  const lower = value.toLowerCase();
+  if (/\$|\busd\b|\bdollars?\b|달러/.test(lower)) return "USD";
+  if (/€|\beur\b|\beuros?\b|유로/.test(lower)) return "EUR";
+  if (/£|\bgbp\b|\bpounds?\b/.test(lower)) return "GBP";
+  if (/₩|\bkrw\b|원/.test(lower)) return "KRW";
+  if (/¥|\bjpy\b|\byen\b|엔/.test(lower)) return "JPY";
+  return "";
+}
+
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
-  const unit = /%|percent|퍼센트/.test(lower) ? "%" : /명/.test(lower) ? "명" : "";
+  const unit = /%|percent|퍼센트/.test(lower)
+    ? "%"
+    : /명/.test(lower)
+      ? "명"
+      : currencyUnit(lower);
   const numericText = lower.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
   let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
   const multiplier = MAGNITUDE_MULTIPLIERS.find(([pattern]) => pattern.test(lower))?.[1] ?? 1;
   number *= multiplier;
-  if (/^[\-−]/.test(lower)) number *= -1;
+  if (/^(?:[$€£₩¥]|(?:usd|eur|gbp|krw|jpy)\s*)?[\s]*[\-−]/i.test(lower)) number *= -1;
   if (!Number.isFinite(number)) return "";
   return `${String(number)}${unit}`;
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|pounds?|won|yen|원|달러|유로|엔))?/gi;
   const cleaned: string[] = [];
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
