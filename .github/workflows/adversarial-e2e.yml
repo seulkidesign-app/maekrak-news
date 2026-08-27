@@ -19,6 +19,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Adversarial content pipeline
+        run: node scripts/content-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
