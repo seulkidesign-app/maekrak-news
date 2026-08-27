@@ -49,6 +49,7 @@ export type NewsEvent = {
 };
 
 export type Briefing = {
+  news: NewsItem[];
   events: NewsEvent[];
   priorityEventIds: string[];
   sourceHealth: SourceHealth[];
@@ -105,7 +106,7 @@ const sourceWeights: Record<string, number> = {
   DW: 0.95,
   NHK: 0.95,
 };
-const parser = new XMLParser({ ignoreAttributes: false });
+const parser = new XMLParser({ ignoreAttributes: false, processEntities: false });
 const stopwords = new Set([
   "속보", "단독", "영상", "뉴스", "today", "live", "says", "said", "after", "with", "from", "that", "this", "대한", "관련", "오늘", "정부",
   "new", "latest", "breaking", "report", "reports", "update", "업데이트", "reuters", "ap", "bbc", "cnn", "dw", "kbs", "sbs", "mbc", "yonhap", "연합뉴스",
@@ -168,7 +169,7 @@ const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선�
 const leaderDeathPattern = /(?:대통령|총리|국왕|교황).{0,35}(?:사망|숨져)|(?:사망|숨져).{0,35}(?:대통령|총리|국왕|교황)|\b(?:president|prime minister|king|pope)\b.{0,35}\b(?:dies|dead|death)\b|\b(?:dies|dead|death)\b.{0,35}\b(?:president|prime minister|king|pope)\b/i;
 const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|야구|농구|\b(?:celebrity|singer|actor|actress|concert|album|country music|football|baseball|basketball)\b/i;
 const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|\b(?:police reform|prosecution reform|budget|housing supply|birth|population|semiconductor)\b/i;
-const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|\b(?:reportedly|unconfirmed|appears?|likely|estimated|may|might|could)\b/i;
+const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|\b(?:reportedly|unconfirmed|appears?|likely|estimated|might|could)\b/i;
 const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|\b(?:says?|said|claims?|alleges?|warns?|expects?|plans?)\b/i;
 const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
 const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
@@ -210,13 +211,26 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function isPrivateHostname(hostname: string) {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (!host) return true;
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+  if (host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89ab][0-9a-f]:/i.test(host)) return true;
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) return false;
+  const parts = ipv4.slice(1).map(Number);
+  if (parts.some((part) => part > 255)) return true;
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
+}
+
 function safeHttpUrl(value: unknown) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
   try {
     const url = new URL(raw);
     if (url.protocol !== "http:" && url.protocol !== "https:") return "";
-    if (url.username || url.password) return "";
+    if (url.username || url.password || isPrivateHostname(url.hostname)) return "";
     return url.toString();
   } catch {
     return "";
@@ -424,7 +438,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.5" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.6" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -643,6 +657,7 @@ export async function getBriefing(): Promise<Briefing> {
   };
 
   return {
+    news,
     events,
     priorityEventIds: selectPriorityEventIds(events),
     sourceHealth,
@@ -653,11 +668,7 @@ export async function getBriefing(): Promise<Briefing> {
 }
 
 export async function getNews(): Promise<NewsItem[]> {
-  const loaded = await Promise.all(feeds.map(loadFeed));
-  return dedupeNews(loaded.flatMap((result) => result.items))
-    .filter((item) => isTodayKst(item.publishedAt) || isOngoingCandidate(item))
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .slice(0, 260);
+  return (await getBriefing()).news;
 }
 
 export async function getEvents(): Promise<NewsEvent[]> {
