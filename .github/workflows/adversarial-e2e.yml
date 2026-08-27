@@ -21,6 +21,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Adversarial content pipeline
         run: node scripts/content-abuse.mjs
+      - name: Feed boundary abuse
+        run: node scripts/feed-boundary-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
