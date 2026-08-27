@@ -32,6 +32,8 @@ check("prefixed trusted brand spoof is downgraded",
   canonicalSourceName("Fake BBC World") === "Unverified source");
 check("trusted Korean brand substring spoof is downgraded",
   canonicalSourceName("연합뉴스 사칭 채널") === "Unverified source");
+check("mixed Latin-Cyrillic publisher homograph is downgraded",
+  canonicalSourceName("Rеuters") === "Unverified source");
 
 function article(title, description = title, source = "Reuters") {
   return {
@@ -67,6 +69,7 @@ function event(id, title, { category = "세계", scope = "world", briefWhy = "se
 
 const singleIran = event("iran-1", "Iran and Israel discuss ceasefire after regional attacks");
 check("one event is never marketed as a world flow", buildWorldFlows([singleIran], "ko").length === 0);
+check("duplicated event id is not enough to manufacture a world flow", buildWorldFlows([singleIran, { ...singleIran }], "ko").length === 0);
 
 const iranA = event("iran-a", "Iran and Israel discuss ceasefire after regional attacks", { importanceScore: 9 });
 const iranB = event("iran-b", "Hormuz shipping risk rises as Iran tensions continue", { importanceScore: 8 });
@@ -77,6 +80,13 @@ check("two events sharing a real thread can form a flow",
 const ukraine = event("ukraine", "Ukraine reports new Russian missile attack", { importanceScore: 8.5 });
 check("unrelated security regions are not forced into one flow",
   buildWorldFlows([iranA, ukraine], "ko").length === 0);
+const yemenMissile = event("yemen", "Yemen militia reports another missile launch in Red Sea tensions", { importanceScore: 8.2 });
+check("generic missile wording does not connect unrelated regions",
+  buildWorldFlows([ukraine, yemenMissile], "ko").length === 0);
+const germanyElection = event("germany-election", "Germany election enters final voting day", { briefWhy: "politics", importanceScore: 8.1 });
+const taiwanElection = event("taiwan-election", "Taiwan election campaign opens with televised debate", { briefWhy: "politics", importanceScore: 8 });
+check("generic election wording does not connect unrelated regions",
+  buildWorldFlows([germanyElection, taiwanElection], "ko").length === 0);
 
 const unrelatedWorld = event("world-other", "Election debate opens in a distant country", { briefWhy: "politics" });
 check("Korea impact stays blank without a reviewed mechanism", koreaImpact(unrelatedWorld, "ko") === null);
