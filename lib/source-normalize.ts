@@ -1,7 +1,14 @@
-import type { NewsItem } from "@/lib/news";
+export function normalizeExternalText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function canonicalSourceName(value: string) {
-  const raw = String(value ?? "").replace(/\s+/g, " ").trim();
+  const raw = normalizeExternalText(value);
   const lower = raw.toLowerCase();
   if (!raw) return "Unknown";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
@@ -17,6 +24,6 @@ export function canonicalSourceName(value: string) {
   return raw;
 }
 
-export function canonicalOutletCount(articles: Pick<NewsItem, "source">[]) {
+export function canonicalOutletCount(articles: Array<{ source: string }>) {
   return new Set(articles.map((article) => canonicalSourceName(article.source))).size;
 }
