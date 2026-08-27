@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { canonicalSourceName } from "@/lib/source-normalize";
 
 export type NewsCategory = "국내" | "세계" | "정치" | "사회" | "경제" | "기술" | "재난";
 export type NewsScope = "domestic" | "world";
@@ -176,10 +177,15 @@ function isHighImpact(text: string) {
   return highImpactPattern.test(text) || leaderDeathPattern.test(text);
 }
 
+function safeCodePoint(raw: string, radix: number) {
+  const value = Number.parseInt(raw, radix);
+  return Number.isInteger(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "�";
+}
+
 function decodeEntities(value: string) {
   return value
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code) => safeCodePoint(code, 10))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => safeCodePoint(code, 16))
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&amp;/g, "&")
@@ -188,12 +194,13 @@ function decodeEntities(value: string) {
     .replace(/&nbsp;/g, " ");
 }
 
-function clean(value: unknown) {
+function clean(value: unknown, maxLength = 4000) {
   return decodeEntities(String(value ?? ""))
     .replace(/<[^>]*>/g, " ")
     .replace(/^[▲△▶►◆■●]\s*/, "")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .slice(0, maxLength);
 }
 
 function asArray<T>(value: T | T[] | undefined): T[] {
@@ -216,8 +223,45 @@ function safeHttpUrl(value: unknown) {
   }
 }
 
+function safePublishedAt(value: unknown, now = Date.now()) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  const time = parsed.getTime();
+  if (!Number.isFinite(time)) return "";
+  if (time > now + 20 * 60_000) return "";
+  return parsed.toISOString();
+}
+
+async function readResponseTextLimited(response: Response, maxBytes = 2_000_000) {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error("feed-too-large");
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) throw new Error("feed-too-large");
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel();
+      throw new Error("feed-too-large");
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 function stripSourceSuffix(title: string, source: string, feedName: string) {
-  let result = clean(title);
+  let result = clean(title, 320);
   for (const label of [source, feedName, "Reuters", "Associated Press", "AP", "BBC", "CNN", "연합뉴스"]) {
     if (!label) continue;
     result = result.replace(new RegExp(`\\s+-\\s+${escapeRegExp(label)}\\s*$`, "i"), "").trim();
@@ -227,7 +271,7 @@ function stripSourceSuffix(title: string, source: string, feedName: string) {
 
 function inferSourceRole(source: string, fallback: SourceRole): SourceRole {
   const value = source.toLowerCase();
-  if (/reuters|associated press|\bap news\b|연합뉴스|yonhap|afp|agence france/i.test(value)) return "wire";
+  if (/reuters|associated press|\bap news\b|^ap$|연합뉴스|yonhap|afp|agence france/i.test(value)) return "wire";
   if (/kbs|mbc|sbs|jtbc|ytn|채널a|tv조선/i.test(value)) return "broadcaster";
   if (/bbc|cnn|dw|al jazeera|nhk|guardian|new york times|washington post|financial times|bloomberg/i.test(value)) return "international";
   return fallback;
@@ -364,7 +408,7 @@ function isOngoingCandidate(item: NewsItem) {
 function dedupeNews(items: NewsItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
-    const key = `${item.source.toLowerCase()}|${normalizePhrase(item.title)}`;
+    const key = `${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -378,38 +422,39 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.2" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.3" },
       signal: controller.signal,
     });
     if (!response.ok) {
       return { items: [], health: { name: feed.name, ok: false, itemCount: 0, sourceType: feed.sourceType, role: feed.role, status: "http-error", checkedAt } };
     }
 
-    const xml = await response.text();
+    const xml = await readResponseTextLimited(response);
     const data = parser.parse(xml);
     const rawItems = asArray<any>(data?.rss?.channel?.item ?? data?.feed?.entry);
     const items = rawItems.slice(0, 28).map((item: any) => {
-      const source = clean(item?.source?.["#text"] ?? item?.source ?? feed.name) || feed.name;
-      const rawTitle = clean(item?.title);
+      const sourceRaw = clean(item?.source?.["#text"] ?? item?.source ?? feed.name, 100) || feed.name;
+      const source = canonicalSourceName(sourceRaw);
+      const rawTitle = clean(item?.title, 320);
       const title = stripSourceSuffix(rawTitle, source, feed.name);
       const rawLink = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "";
       const link = safeHttpUrl(rawLink);
-      const publishedAt = item?.pubDate ?? item?.published ?? item?.updated ?? new Date().toISOString();
-      const description = clean(item?.description ?? item?.summary ?? item?.content);
+      const publishedAt = safePublishedAt(item?.pubDate ?? item?.published ?? item?.updated);
+      const description = clean(item?.description ?? item?.summary ?? item?.content, 2400);
       const scope = inferScope(title, description, feed.scope);
       const category = inferCategory(title, description, scope === "world" ? "세계" : feed.defaultCategory);
       return {
         title,
         link,
         source,
-        publishedAt: String(publishedAt),
+        publishedAt,
         category,
         scope,
         description,
         sourceType: feed.sourceType,
         sourceRole: inferSourceRole(source, feed.role),
       } satisfies NewsItem;
-    }).filter((item: NewsItem) => item.title && item.link);
+    }).filter((item: NewsItem) => item.title && item.link && item.publishedAt);
 
     const latestPublishedAt = [...items]
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())[0]?.publishedAt;
@@ -440,7 +485,7 @@ function sourceAuthorityWeight(article: NewsItem) {
 
 function importanceFor(articles: NewsItem[]) {
   const now = Date.now();
-  const sources = new Set(articles.map((article) => article.source));
+  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
   const roles = new Set(articles.map((article) => article.sourceRole));
   const validTimes = articles.map((article) => new Date(article.publishedAt).getTime()).filter(Number.isFinite);
   const newest = validTimes.length ? Math.max(...validTimes) : now - 86_400_000;
@@ -462,7 +507,7 @@ function importanceFor(articles: NewsItem[]) {
 
 function selectionReasons(articles: NewsItem[], score: number) {
   const reasons: string[] = [];
-  const sources = new Set(articles.map((article) => article.source));
+  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
   const roles = new Set(articles.map((article) => article.sourceRole));
   const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
   if (sources.size >= 3) reasons.push("여러 매체에서 동시 보도");
@@ -487,7 +532,7 @@ function briefWhyFor(category: NewsCategory, articles: NewsItem[]): BriefWhyCode
 
 function briefWatchFor(articles: NewsItem[]): BriefWatchCode {
   const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
-  const sources = new Set(articles.map((article) => article.source));
+  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
   if (sources.size <= 1) return "single-source";
   if (uncertaintyPattern.test(text)) return "uncertain";
   if (claimPattern.test(text)) return "claim-heavy";
@@ -557,7 +602,7 @@ export async function getBriefing(): Promise<Briefing> {
     const primary = sorted.find((article) => article.sourceRole === "wire")
       ?? sorted.find((article) => article.sourceType === "direct")
       ?? sorted[0];
-    const sources = new Set(sorted.map((article) => article.source));
+    const sources = new Set(sorted.map((article) => canonicalSourceName(article.source)));
     const category = majority(sorted.map((article) => article.category), primary.category);
     const scope = majority(sorted.map((article) => article.scope), primary.scope);
     const importanceScore = importanceFor(sorted);
@@ -612,3 +657,12 @@ export async function getNews(): Promise<NewsItem[]> {
 export async function getEvents(): Promise<NewsEvent[]> {
   return (await getBriefing()).events;
 }
+
+export const __test = {
+  canonicalSourceName,
+  clean,
+  decodeEntities,
+  safeHttpUrl,
+  safePublishedAt,
+  sameEvent,
+};
