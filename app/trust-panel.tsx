@@ -7,8 +7,8 @@ import { canonicalSourceName } from "@/lib/source-normalize";
 type EvidenceCounts = Record<EvidenceLabel, number>;
 
 function roleLabel(role: NewsItem["sourceRole"], lang: Language) {
-  const ko = { wire: "통신사", broadcaster: "방송·종합", international: "국제매체" } as const;
-  const en = { wire: "Wire", broadcaster: "Broadcaster", international: "International" } as const;
+  const ko = { wire: "통신사", broadcaster: "방송·종합", international: "국제매체", other: "기타 매체" } as const;
+  const en = { wire: "Wire", broadcaster: "Broadcaster", international: "International", other: "Other outlet" } as const;
   return (lang === "ko" ? ko : en)[role];
 }
 
