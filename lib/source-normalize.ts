@@ -1,5 +1,11 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
 
+function hasSuspiciousMixedScripts(value: string) {
+  const hasLatin = /\p{Script=Latin}/u.test(value);
+  const hasCyrillicOrGreek = /[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value);
+  return hasLatin && hasCyrillicOrGreek;
+}
+
 export function normalizeExternalText(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -23,7 +29,7 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  if (TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
+  if (hasSuspiciousMixedScripts(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return raw;
 }
 
