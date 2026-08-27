@@ -31,7 +31,7 @@ function headlineNumbers(title: string): string[] {
     const canonical = canonicalNumber(value);
     if (!looksLikeYear && canonical) cleaned.push(canonical);
   }
-  return Array.from(new Set(cleaned));
+  return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 }
 
 function articleText(article: NewsItem): string {
