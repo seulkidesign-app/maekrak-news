@@ -205,6 +205,17 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function safeHttpUrl(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
 function stripSourceSuffix(title: string, source: string, feedName: string) {
   let result = clean(title);
   for (const label of [source, feedName, "Reuters", "Associated Press", "AP", "BBC", "CNN", "연합뉴스"]) {
@@ -367,7 +378,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.1" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.2" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -381,14 +392,15 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
       const source = clean(item?.source?.["#text"] ?? item?.source ?? feed.name) || feed.name;
       const rawTitle = clean(item?.title);
       const title = stripSourceSuffix(rawTitle, source, feed.name);
-      const link = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "#";
+      const rawLink = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "";
+      const link = safeHttpUrl(rawLink);
       const publishedAt = item?.pubDate ?? item?.published ?? item?.updated ?? new Date().toISOString();
       const description = clean(item?.description ?? item?.summary ?? item?.content);
       const scope = inferScope(title, description, feed.scope);
       const category = inferCategory(title, description, scope === "world" ? "세계" : feed.defaultCategory);
       return {
         title,
-        link: String(link),
+        link,
         source,
         publishedAt: String(publishedAt),
         category,
@@ -397,7 +409,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
         sourceType: feed.sourceType,
         sourceRole: inferSourceRole(source, feed.role),
       } satisfies NewsItem;
-    }).filter((item: NewsItem) => item.title && item.link !== "#");
+    }).filter((item: NewsItem) => item.title && item.link);
 
     const latestPublishedAt = [...items]
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())[0]?.publishedAt;
