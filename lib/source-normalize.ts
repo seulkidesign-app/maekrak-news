@@ -1,3 +1,5 @@
+const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
+
 export function normalizeExternalText(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -21,6 +23,7 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
+  if (TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return raw;
 }
 
