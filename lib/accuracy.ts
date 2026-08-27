@@ -1,5 +1,5 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
-import { canonicalSourceName } from "@/lib/source-normalize";
+import { canonicalSourceName } from "./source-normalize";
 
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|might|could)\b/i;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
