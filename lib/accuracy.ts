@@ -4,17 +4,28 @@ import { canonicalSourceName } from "./source-normalize.ts";
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|might|could)\b/i;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
+const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
+  [/\btrillion\b|조/i, 1_000_000_000_000],
+  [/\bbillion\b|억/i, 1_000_000_000],
+  [/\bmillion\b|백만/i, 1_000_000],
+  [/\bthousand\b|천/i, 1_000],
+  [/만/i, 10_000],
+];
+
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase();
   const unit = /%|percent|퍼센트/.test(lower) ? "%" : /명/.test(lower) ? "명" : "";
   const numericText = lower.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
-  const number = Number(numericText);
+  let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
+  const multiplier = MAGNITUDE_MULTIPLIERS.find(([pattern]) => pattern.test(lower))?.[1] ?? 1;
+  number *= multiplier;
+  if (!Number.isFinite(number)) return "";
   return `${String(number)}${unit}`;
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /\d+(?:[.,]\d+)*(?:\s*%|\s*percent|\s*퍼센트|\s*명)?/gi;
+  const matcher = /\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?/gi;
   const cleaned: string[] = [];
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
@@ -25,9 +36,10 @@ function headlineNumbers(title: string): string[] {
     if (attachedToIdentifier) continue;
 
     const compact = value.replace(/\s+/g, "").toLowerCase();
-    const plainText = compact.replace(/,/g, "").replace(/[^\d.]/g, "");
+    const plainText = compact.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
     const plain = Number(plainText);
-    const looksLikeYear = /^\d{4}$/.test(compact) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
+    const hasMagnitude = MAGNITUDE_MULTIPLIERS.some(([pattern]) => pattern.test(value));
+    const looksLikeYear = !hasMagnitude && /^\d{4}$/.test(compact) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
     const canonical = canonicalNumber(value);
     if (!looksLikeYear && canonical) cleaned.push(canonical);
   }
