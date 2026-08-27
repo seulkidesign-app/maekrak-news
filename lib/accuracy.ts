@@ -14,19 +14,20 @@ const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
 ];
 
 function canonicalNumber(value: string) {
-  const lower = value.toLowerCase();
+  const lower = value.toLowerCase().trim();
   const unit = /%|percent|퍼센트/.test(lower) ? "%" : /명/.test(lower) ? "명" : "";
   const numericText = lower.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
   let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
   const multiplier = MAGNITUDE_MULTIPLIERS.find(([pattern]) => pattern.test(lower))?.[1] ?? 1;
   number *= multiplier;
+  if (/^[\-−]/.test(lower)) number *= -1;
   if (!Number.isFinite(number)) return "";
   return `${String(number)}${unit}`;
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?/gi;
+  const matcher = /[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?/gi;
   const cleaned: string[] = [];
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
@@ -40,7 +41,7 @@ function headlineNumbers(title: string): string[] {
     const plainText = compact.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
     const plain = Number(plainText);
     const hasMagnitude = MAGNITUDE_MULTIPLIERS.some(([pattern]) => pattern.test(value));
-    const looksLikeYear = !hasMagnitude && /^\d{4}$/.test(compact) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
+    const looksLikeYear = !hasMagnitude && /^[+]?\d{4}$/.test(compact) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
     const canonical = canonicalNumber(value);
     if (!looksLikeYear && canonical) cleaned.push(canonical);
   }
