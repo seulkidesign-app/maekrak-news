@@ -72,6 +72,24 @@ const explicitPositive = auditEventAccuracy(event([
 ]));
 check("explicit plus and unsigned positive values normalize to the same value", !explicitPositive.headlineNumberDifference);
 
+const currencyMismatch = auditEventAccuracy(event([
+  article("Aid package reaches $3 billion", "Reuters"),
+  article("Aid package reaches €3 billion", "BBC"),
+]));
+check("same magnitude in different currencies is detected as a disagreement", currencyMismatch.headlineNumberDifference);
+
+const currencyAliases = auditEventAccuracy(event([
+  article("Aid package reaches $3 billion", "Reuters"),
+  article("Aid package reaches USD 3 billion", "BBC"),
+]));
+check("currency symbol and ISO code normalize to the same currency", !currencyAliases.headlineNumberDifference);
+
+const koreanCurrencyAliases = auditEventAccuracy(event([
+  article("지원 규모 3억 원 발표", "Reuters"),
+  article("지원 규모 KRW 300000000 발표", "BBC"),
+]));
+check("Korean won label and KRW code normalize to the same currency", !koreanCurrencyAliases.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
