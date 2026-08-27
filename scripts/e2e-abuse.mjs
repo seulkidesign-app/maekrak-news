@@ -48,6 +48,15 @@ async function run() {
   ok("CSP blocks objects", csp.includes("object-src 'none'"));
   ok("CSP blocks framing", csp.includes("frame-ancestors 'none'"));
 
+  const head = await request("/", { method: "HEAD" });
+  ok("HEAD on home returns 200", head?.status === 200, `status=${head?.status}`);
+  const headText = await textOf(head);
+  ok("HEAD on home has empty body", headText.length === 0, `bytes=${headText.length}`);
+
+  const options = await request("/", { method: "OPTIONS" });
+  ok("OPTIONS on page is rejected", options?.status === 405, `status=${options?.status}`);
+  ok("OPTIONS advertises allowed methods", (options?.headers.get("allow") ?? "").includes("GET"));
+
   const en = await request("/?lang=en");
   const enText = await textOf(en);
   ok("english route returns 200", en?.status === 200, `status=${en?.status}`);
