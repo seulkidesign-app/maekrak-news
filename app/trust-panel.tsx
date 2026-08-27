@@ -2,6 +2,7 @@ import type { NewsEvent, NewsItem } from "@/lib/news";
 import type { EvidenceLabel } from "@/lib/signals";
 import type { Language } from "@/lib/i18n";
 import { auditEventAccuracy } from "@/lib/accuracy";
+import { canonicalSourceName } from "@/lib/source-normalize";
 
 type EvidenceCounts = Record<EvidenceLabel, number>;
 
@@ -11,11 +12,11 @@ function roleLabel(role: NewsItem["sourceRole"], lang: Language) {
   return (lang === "ko" ? ko : en)[role];
 }
 
-function coverageState(event: NewsEvent, lang: Language) {
-  if (event.sourceCount >= 2) {
+function coverageState(outletCount: number, lang: Language) {
+  if (outletCount >= 2) {
     return {
       tone: "neutral",
-      label: lang === "ko" ? `${event.sourceCount}개 매체에서 보도 중` : `Covered by ${event.sourceCount} outlets`,
+      label: lang === "ko" ? `${outletCount}개 매체에서 보도 중` : `Covered by ${outletCount} outlets`,
     };
   }
   return { tone: "caution", label: lang === "ko" ? "현재 단일 매체 보도" : "Currently single-outlet coverage" };
@@ -31,7 +32,7 @@ export function TrustLegend({ lang }: { lang: Language }) {
       <div className="readingGuideBody">
         <p><b>{lang === "ko" ? "보도" : "Reporting"}</b>{lang === "ko" ? " · 기사에서 가져온 내용이며 출처 링크로 확인할 수 있습니다." : " · Source-derived information with links to the reporting."}</p>
         <p><b>{lang === "ko" ? "맥락" : "Context"}</b>{lang === "ko" ? " · 원문 인용이 아니라 이해를 돕는 별도 설명입니다. 흐름 묶기와 볼 포인트에는 편집적 판단이 포함될 수 있습니다." : " · Separate explanatory material, not a quote. Story grouping and reading points can involve editorial judgment."}</p>
-        <p><b>{lang === "ko" ? "매체 수" : "Outlet count"}</b>{lang === "ko" ? " · 여러 매체의 보도 여부일 뿐 독립 취재원 수나 사실 검증 점수가 아닙니다." : " · Shows breadth of coverage, not the number of independent reporting chains or a truth score."}</p>
+        <p><b>{lang === "ko" ? "매체 수" : "Outlet count"}</b>{lang === "ko" ? " · 같은 매체의 이름 표기는 하나로 정규화해 세며, 독립 취재원 수나 사실 검증 점수는 아닙니다." : " · Publisher aliases are normalized before counting. This is not the number of independent reporting chains or a truth score."}</p>
       </div>
     </details>
   );
@@ -48,14 +49,14 @@ export function SourceCheck({
   evidence: EvidenceCounts;
   lang: Language;
 }) {
-  const state = coverageState(event, lang);
   const audit = auditEventAccuracy(event);
+  const state = coverageState(audit.outletCount, lang);
   const roles = [...new Set(event.articles.map((article) => article.sourceRole))];
   const directCount = event.articles.filter((article) => article.sourceType === "direct").length;
   const aggregatedCount = event.articles.filter((article) => article.sourceType === "aggregated").length;
   const uncertain = evidence["전망·추정"];
   const claims = evidence["발언·주장"];
-  const sourceNames = [...new Set(event.articles.map((article) => article.source))];
+  const sourceNames = [...new Set(event.articles.map((article) => canonicalSourceName(article.source)))];
   const political = event.category === "정치" || event.briefWhy === "politics" || event.briefWhy === "security";
   const hasDifference = audit.headlineNumberDifference || audit.certaintyDifference;
 
@@ -140,7 +141,7 @@ export function SourceCheck({
           <div className="sourceMiniList">
             {event.articles.slice(0, 8).map((article, index) => (
               <a href={article.link} target="_blank" rel="noreferrer" key={`${article.link}-${index}`}>
-                <span><b>{article.source}</b><em>{roleLabel(article.sourceRole, lang)}</em></span>
+                <span><b>{canonicalSourceName(article.source)}</b><em>{roleLabel(article.sourceRole, lang)}</em></span>
                 <small>{article.sourceType === "direct" ? (lang === "ko" ? "직접" : "Direct") : (lang === "ko" ? "집계" : "Aggregated")}</small>
               </a>
             ))}
