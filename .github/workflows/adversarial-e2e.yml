@@ -23,6 +23,8 @@ jobs:
         run: node scripts/content-abuse.mjs
       - name: Feed boundary abuse
         run: node scripts/feed-boundary-abuse.mjs
+      - name: Number magnitude abuse
+        run: node scripts/number-magnitude-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
