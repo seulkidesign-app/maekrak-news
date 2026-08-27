@@ -36,6 +36,8 @@ jobs:
           exit 1
       - name: Adversarial E2E
         run: npm run test:e2e
+      - name: Browser visual abuse
+        run: npm run test:visual
       - name: Print server log on failure
         if: failure()
         run: cat /tmp/maekrak-next.log || true
