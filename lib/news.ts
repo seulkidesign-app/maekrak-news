@@ -3,7 +3,7 @@ import { canonicalSourceName } from "@/lib/source-normalize";
 
 export type NewsCategory = "국내" | "세계" | "정치" | "사회" | "경제" | "기술" | "재난";
 export type NewsScope = "domestic" | "world";
-export type SourceRole = "broadcaster" | "wire" | "international";
+export type SourceRole = "broadcaster" | "wire" | "international" | "other";
 export type HealthStatus = "ok" | "http-error" | "empty" | "fetch-error";
 export type BriefWhyCode = "security" | "politics" | "economy" | "disaster" | "technology" | "society" | "broad-impact";
 export type BriefWatchCode = "single-source" | "uncertain" | "claim-heavy" | "multi-source" | "follow-up";
@@ -269,12 +269,12 @@ function stripSourceSuffix(title: string, source: string, feedName: string) {
   return result;
 }
 
-function inferSourceRole(source: string, fallback: SourceRole): SourceRole {
+function inferSourceRole(source: string): SourceRole {
   const value = source.toLowerCase();
   if (/reuters|associated press|\bap news\b|^ap$|연합뉴스|yonhap|afp|agence france/i.test(value)) return "wire";
   if (/kbs|mbc|sbs|jtbc|ytn|채널a|tv조선/i.test(value)) return "broadcaster";
   if (/bbc|cnn|dw|al jazeera|nhk|guardian|new york times|washington post|financial times|bloomberg/i.test(value)) return "international";
-  return fallback;
+  return "other";
 }
 
 function inferScope(title: string, description: string, fallback: NewsScope): NewsScope {
@@ -422,7 +422,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.3" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.4" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -452,7 +452,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
         scope,
         description,
         sourceType: feed.sourceType,
-        sourceRole: inferSourceRole(source, feed.role),
+        sourceRole: inferSourceRole(source),
       } satisfies NewsItem;
     }).filter((item: NewsItem) => item.title && item.link && item.publishedAt);
 
@@ -480,7 +480,11 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
 }
 
 function sourceAuthorityWeight(article: NewsItem) {
-  return sourceWeights[article.source] ?? feedByName.get(article.source)?.weight ?? (article.sourceRole === "wire" ? 1.2 : 0.9);
+  const known = sourceWeights[article.source] ?? feedByName.get(article.source)?.weight;
+  if (known !== undefined) return known;
+  if (article.sourceRole === "wire") return 1.2;
+  if (article.sourceRole === "broadcaster" || article.sourceRole === "international") return 0.9;
+  return 0.72;
 }
 
 function importanceFor(articles: NewsItem[]) {
