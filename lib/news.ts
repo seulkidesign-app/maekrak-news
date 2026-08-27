@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { canonicalSourceName, normalizeExternalText } from "@/lib/source-normalize";
+import { canonicalSourceName, normalizeExternalText } from "./source-normalize.ts";
 
 export type NewsCategory = "국내" | "세계" | "정치" | "사회" | "경제" | "기술" | "재난";
 export type NewsScope = "domestic" | "world";
@@ -368,7 +368,8 @@ function sameEvent(a: NewsItem, b: NewsItem) {
   const hours = timeDistanceHours(a.publishedAt, b.publishedAt);
 
   if (hours > 30) return false;
-  if (lexical >= 0.74 && hours <= 24) return true;
+  if (lexical >= 0.9 && hours <= 24) return true;
+  if (lexical >= 0.74 && (entities > 0 || actions > 0) && hours <= 18) return true;
   if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
   if (entities >= 0.67 && actions >= 0.5 && lexical >= 0.42 && hours <= 12) return true;
   if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && lexical >= 0.5 && hours <= 6) return true;
@@ -438,7 +439,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
   try {
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.6" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.7" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -681,5 +682,9 @@ export const __test = {
   decodeEntities,
   safeHttpUrl,
   safePublishedAt,
+  inferCategory,
+  inferSourceRole,
+  isHighImpact,
+  briefWatchFor,
   sameEvent,
 };
