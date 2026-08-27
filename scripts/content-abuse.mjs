@@ -7,7 +7,7 @@ function check(name, condition, detail = "") {
   else failures.push(`${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-const { canonicalSourceName, canonicalOutletCount } = await import("../lib/source-normalize.ts");
+const { canonicalSourceName, canonicalOutletCount, normalizeExternalText } = await import("../lib/source-normalize.ts");
 const { buildWorldFlows, koreaImpact, dailyMemoryLine } = await import("../lib/world-briefing.ts");
 
 check("AP aliases canonicalize to one publisher",
@@ -16,6 +16,16 @@ check("Yonhap aliases canonicalize to one publisher",
   ["연합뉴스", "Yonhap", "Yonhap News Agency"].every((name) => canonicalSourceName(name) === "연합뉴스"));
 check("publisher aliases count as one outlet",
   canonicalOutletCount([{ source: "AP" }, { source: "AP News" }, { source: "Associated Press" }]) === 1);
+check("zero-width publisher spoof collapses to canonical Reuters",
+  canonicalSourceName("Reu\u200Bters") === "Reuters");
+check("bidi publisher spoof collapses to canonical Reuters",
+  canonicalSourceName("\u202EReuters\u202C") === "Reuters");
+check("full-width publisher spoof is normalized",
+  canonicalSourceName("ＡＰ") === "AP");
+check("invisible alias variants still count as one outlet",
+  canonicalOutletCount([{ source: "Reuters" }, { source: "Reu\u200Bters" }, { source: "\u202EReuters" }]) === 1);
+check("external text strips bidi and zero-width controls",
+  !/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/.test(normalizeExternalText("A\u202EB\u200BC")));
 
 function article(title, description = title, source = "Reuters") {
   return {
