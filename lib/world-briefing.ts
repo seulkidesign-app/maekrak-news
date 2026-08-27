@@ -75,7 +75,7 @@ function signatures(event: NewsEvent, code: WorldFlowCode) {
   if (code === "security") {
     add("middle-east", /iran|이란|israel|이스라엘|gaza|가자|palestin|팔레스타인|hormuz|호르무즈|syria|시리아|oman|오만|middle east|중동/);
     add("russia-ukraine", /russia|러시아|ukraine|우크라이나/);
-    add("korea-security", /north korea|북한|korean peninsula|한반도|missile|미사일/);
+    add("korea-security", /north korea|북한|south korea|대한민국|korean peninsula|한반도/);
     add("sanctions", /sanction|제재/);
     add("ceasefire", /ceasefire|truce|휴전/);
     add("election", /election|선거|vote|투표/);
@@ -120,12 +120,20 @@ function shareSignature(seed: NewsEvent, candidate: NewsEvent, code: WorldFlowCo
   const a = signatures(seed, code);
   const b = signatures(candidate, code);
   if (!a.size || !b.size) return false;
-  for (const value of a) if (b.has(value)) return true;
-  return false;
+  const shared = [...a].filter((value) => b.has(value));
+  if (!shared.length) return false;
+
+  if (code === "security") {
+    const regionalThreads = new Set(["middle-east", "russia-ukraine", "korea-security"]);
+    return shared.some((value) => regionalThreads.has(value));
+  }
+
+  return true;
 }
 
 function coherentMatches(rule: FlowRule, events: NewsEvent[]) {
-  const candidates = events.filter(rule.matches).sort((a, b) => b.importanceScore - a.importanceScore);
+  const uniqueEvents = [...new Map(events.map((event) => [event.id, event])).values()];
+  const candidates = uniqueEvents.filter(rule.matches).sort((a, b) => b.importanceScore - a.importanceScore);
   const seed = candidates[0];
   if (!seed) return [];
   const result = [seed];
