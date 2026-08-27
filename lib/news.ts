@@ -243,7 +243,7 @@ function safePublishedAt(value: unknown, now = Date.now()) {
   const parsed = new Date(raw);
   const time = parsed.getTime();
   if (!Number.isFinite(time)) return "";
-  if (time > now + 20 * 60_000) return "";
+  if (time > now + 2 * 60_000) return "";
   return parsed.toISOString();
 }
 
