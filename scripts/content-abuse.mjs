@@ -171,7 +171,7 @@ const newsSource = await readFile(new URL("../lib/news.ts", import.meta.url), "u
 const qaSource = await readFile(new URL("../app/qa/page.tsx", import.meta.url), "utf8");
 check("missing publication time is not replaced with now", !/publishedAt\s*=.*new Date\(\)\.toISOString\(\)/.test(newsSource));
 check("publication timestamps pass a sanity validator", newsSource.includes("safePublishedAt("));
-check("future timestamps are rejected", /time > now \+ 20 \* 60_000/.test(newsSource));
+check("future timestamp tolerance is capped at two minutes", /time > now \+ 2 \* 60_000/.test(newsSource));
 check("feed body has an explicit size ceiling", newsSource.includes("readResponseTextLimited(response)"));
 check("XML custom entity processing is disabled", newsSource.includes("processEntities: false"));
 check("feed title length is bounded", /clean\(item\?\.title, 320\)/.test(newsSource));
