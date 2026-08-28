@@ -90,6 +90,12 @@ const koreanCurrencyAliases = auditEventAccuracy(event([
 ]));
 check("Korean won label and KRW code normalize to the same currency", !koreanCurrencyAliases.headlineNumberDifference);
 
+const englishWonAlias = auditEventAccuracy(event([
+  article("Support package reaches 3 billion won", "Reuters"),
+  article("Support package reaches KRW 3 billion", "BBC"),
+]));
+check("English won label and KRW code normalize to the same currency", !englishWonAlias.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
