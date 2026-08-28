@@ -1,4 +1,5 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
+import { canonicalSourceName } from "@/lib/source-normalize";
 
 export type EvidenceLabel = "일반 보도" | "발언·주장" | "전망·추정";
 
@@ -16,13 +17,30 @@ export function classifyEvidence(article: NewsItem): EvidenceLabel {
   return "일반 보도";
 }
 
+const evidenceRank: Record<EvidenceLabel, number> = {
+  "일반 보도": 0,
+  "발언·주장": 1,
+  "전망·추정": 2,
+};
+
 export function eventEvidenceSummary(event: NewsEvent) {
   const counts: Record<EvidenceLabel, number> = {
     "일반 보도": 0,
     "발언·주장": 0,
     "전망·추정": 0,
   };
-  event.articles.forEach((article) => { counts[classifyEvidence(article)] += 1; });
+
+  // Count each canonical publisher once. A single outlet can publish many updates
+  // to the same story; treating every update as independent evidence inflates the
+  // trust UI. When one publisher has mixed wording, keep its most cautious label.
+  const labelBySource = new Map<string, EvidenceLabel>();
+  event.articles.forEach((article) => {
+    const source = canonicalSourceName(article.source);
+    const label = classifyEvidence(article);
+    const previous = labelBySource.get(source);
+    if (!previous || evidenceRank[label] > evidenceRank[previous]) labelBySource.set(source, label);
+  });
+  labelBySource.forEach((label) => { counts[label] += 1; });
   return counts;
 }
 
@@ -33,7 +51,7 @@ export function eventTimeline(event: NewsEvent) {
     .filter((article) => {
       const parsed = new Date(article.publishedAt);
       const hour = Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 13) : article.publishedAt;
-      const key = `${article.source}-${hour}`;
+      const key = `${canonicalSourceName(article.source)}-${hour}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
