@@ -22,4 +22,16 @@ User-agent: PerplexityBot
 Allow: /
 Disallow: /qa
 
+User-agent: DeepSeekBot
+Allow: /
+Disallow: /qa
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /qa
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /qa
+
 Sitemap: https://maekrak-news-rrrb-gamma.vercel.app/sitemap.xml
