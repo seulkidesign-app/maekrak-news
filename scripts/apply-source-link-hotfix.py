@@ -104,7 +104,7 @@ workflow = workflow_path.read_text()
 patch_step = '''      - name: Apply tested source-link trust patch
         run: python scripts/apply-source-link-hotfix.py
 '''
-commit_step = '''      - name: Commit source-link trust hardening after full CI
+old_commit_step = '''      - name: Commit source-link trust hardening after full CI
         run: |
           git config user.name "seulkidesign-app"
           git config user.email "seulki.design@gmail.com"
@@ -112,8 +112,24 @@ commit_step = '''      - name: Commit source-link trust hardening after full CI
           git commit -m "Harden trusted source labels against link-domain spoofing"
           git push origin HEAD:main
 '''
+pr_publish_step = '''      - name: Publish tested source-link hardening PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "seulkidesign-app"
+          git config user.email "seulki.design@gmail.com"
+          git add -A
+          git commit -m "Harden trusted source labels against link-domain spoofing"
+          BRANCH="redteam/source-link-trust-${GITHUB_RUN_ID}"
+          git branch "$BRANCH"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "Harden trusted source labels against link-domain spoofing" --body "Red-team fix: bind trusted outlet labels to official article domains while allowing Google News wrappers only for aggregated feeds. Full adversarial CI passed before publication."
+'''
 workflow = workflow.replace(patch_step, "", 1)
-workflow = workflow.replace(commit_step, "", 1)
+workflow = workflow.replace(old_commit_step, "", 1)
+workflow = workflow.replace(pr_publish_step, "", 1)
+workflow = workflow.replace("permissions:\n  contents: write\n  pull-requests: write\n\n", "", 1)
+workflow = workflow.replace("permissions:\n  contents: write\n\n", "", 1)
 workflow_path.write_text(workflow)
 
 Path(__file__).unlink()
