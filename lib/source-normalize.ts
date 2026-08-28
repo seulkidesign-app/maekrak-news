@@ -6,6 +6,13 @@ function hasSuspiciousMixedScripts(value: string) {
   return hasLatin && hasCyrillicOrGreek;
 }
 
+function canonicalUnknownOutletCase(value: string) {
+  if (!/[A-Za-z]/.test(value)) return value;
+  return value
+    .toLocaleLowerCase("en-US")
+    .replace(/(^|[\s/._&()'\-])([a-z])/g, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
+}
+
 export function normalizeExternalText(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -30,7 +37,7 @@ export function canonicalSourceName(value: string) {
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
   if (hasSuspiciousMixedScripts(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
-  return raw;
+  return canonicalUnknownOutletCase(raw);
 }
 
 export function canonicalOutletCount(articles: Array<{ source: string }>) {
