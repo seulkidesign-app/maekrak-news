@@ -37,6 +37,8 @@ jobs:
         run: node scripts/template-collision-abuse.mjs
       - name: IPv6 URL boundary abuse
         run: node scripts/ipv6-boundary-abuse.mjs
+      - name: Outlet case inflation abuse
+        run: node scripts/outlet-case-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
