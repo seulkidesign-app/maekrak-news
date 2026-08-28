@@ -25,6 +25,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          from textwrap import dedent
 
           news = Path("lib/news.ts")
           text = news.read_text()
@@ -34,33 +35,30 @@ jobs:
               assert old_import in text
               text = text.replace(old_import, new_import, 1)
 
-          old_hash = '''function stableHash(value: string) {
+          old_hash = dedent('''\
+          function stableHash(value: string) {
             let hash = 2166136261;
             for (let index = 0; index < value.length; index += 1) {
               hash ^= value.charCodeAt(index);
               hash = Math.imul(hash, 16777619);
             }
             return (hash >>> 0).toString(36);
-          }'''
-          new_hash = '''function stableHash(value: string) {
+          }''')
+          new_hash = dedent('''\
+          function stableHash(value: string) {
             return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 24);
-          }'''
+          }''')
           assert old_hash in text
           text = text.replace(old_hash, new_hash, 1)
 
-          old_export = '''  hasProperNameConflict,
-            sameEvent,
-          };'''
-          new_export = '''  hasProperNameConflict,
-            sameEvent,
-            stableEventId,
-          };'''
+          old_export = "  hasProperNameConflict,\n  sameEvent,\n};"
+          new_export = "  hasProperNameConflict,\n  sameEvent,\n  stableEventId,\n};"
           assert old_export in text
           text = text.replace(old_export, new_export, 1)
           news.write_text(text)
 
-          regression = Path("scripts/event-id-collision-abuse.mjs")
-          regression.write_text(r'''const failures = [];
+          regression = dedent(r'''\
+          const failures = [];
           const passes = [];
           function check(name, condition) {
             if (condition) passes.push(name);
@@ -97,16 +95,13 @@ jobs:
           passes.forEach((name) => console.log(`PASS  ${name}`));
           failures.forEach((name) => console.error(`FAIL  ${name}`));
           if (failures.length) process.exit(1);
-          '''.replace(/^          /gm, ""))
+          ''')
+          Path("scripts/event-id-collision-abuse.mjs").write_text(regression)
 
           ci = Path(".github/workflows/adversarial-e2e.yml")
           ci_text = ci.read_text()
-          marker = '''      - name: Source-link trust abuse
-                run: node scripts/source-link-abuse.mjs
-          '''
-          addition = marker + '''      - name: Event ID collision abuse
-                run: node scripts/event-id-collision-abuse.mjs
-          '''
+          marker = "      - name: Source-link trust abuse\n        run: node scripts/source-link-abuse.mjs\n"
+          addition = marker + "      - name: Event ID collision abuse\n        run: node scripts/event-id-collision-abuse.mjs\n"
           assert marker in ci_text
           ci.write_text(ci_text.replace(marker, addition, 1))
 
@@ -122,7 +117,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/news.ts scripts/event-id-collision-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/event-id-collision-fix.yml
+          git add -A
           git commit -m "Harden event IDs against hash collisions"
           git push origin HEAD:main
       - name: Dispatch full adversarial CI
