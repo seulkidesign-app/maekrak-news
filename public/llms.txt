@@ -1,0 +1,47 @@
+# 맥락 (Maekrak)
+
+> A context-first daily news briefing for Korean-speaking readers.
+
+Canonical URL: https://maekrak-news-rrrb-gamma.vercel.app/
+Agent-readable overview: https://maekrak-news-rrrb-gamma.vercel.app/agent-info
+
+## What it does
+맥락 helps readers understand the major developments in Korea and the world in about 10 minutes. It groups the day into major currents and key events, then separates source-derived reporting from explanatory context.
+
+Core experience:
+- major currents for the day
+- key events selected from collected reporting
+- visible reporting sources and links
+- warnings when coverage is single-source or wording differs across outlets
+- a Korea connection only when a reviewed transmission mechanism is detected
+- background concepts and historical context when reviewed material exists
+- ongoing important events from the previous night when they remain relevant
+
+## Who it is for
+The primary audience is Korean-speaking readers, especially commuters and professionals who want a concise daily overview without opening many news apps or repeatedly searching for unfamiliar terms and historical background.
+
+## What it is not
+- not a fact-checking authority
+- not a claim that every important world event is captured
+- not a replacement for original reporting
+- not a personalized infinite news feed
+- source count is not a truth score
+
+## Pricing and status
+The service is currently a free public prototype. There is no paid plan at this time.
+
+## Product position
+맥락 emphasizes context, visible sourcing, uncertainty, and a sense of completion for a daily briefing. The goal is to reduce the amount of searching required to understand news, rather than maximize the number of articles shown.
+
+## Languages
+Primary: Korean
+Secondary UI: English
+
+## Public machine-readable resources
+- /robots.txt
+- /sitemap.xml
+- /llms.txt
+- /agent-info
+
+## Editorial principle
+맥락 does not claim political neutrality as a score. It aims for transparency: reporting, claims, uncertainty, and explanatory context are visually and semantically separated. Context should help a reader judge, not make the judgment for them.
