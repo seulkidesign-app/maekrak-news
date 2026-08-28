@@ -8,8 +8,7 @@ on:
     - cron: "30 0 * * *"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   e2e:
@@ -20,8 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Apply tested source-link trust patch
-        run: python scripts/apply-source-link-hotfix.py
       - run: npm install --no-audit --no-fund
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -66,13 +63,6 @@ jobs:
         run: npm run test:e2e
       - name: Browser visual abuse
         run: npm run test:visual
-      - name: Publish tested source-link hardening branch
-        run: |
-          git config user.name "seulkidesign-app"
-          git config user.email "seulki.design@gmail.com"
-          git add -A
-          git commit -m "Harden trusted source labels against link-domain spoofing"
-          git push origin HEAD:redteam/source-link-trust
       - name: Print server log on failure
         if: failure()
         run: cat /tmp/maekrak-next.log || true
