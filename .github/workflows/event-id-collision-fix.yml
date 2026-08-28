@@ -57,7 +57,7 @@ jobs:
           text = text.replace(old_export, new_export, 1)
           news.write_text(text)
 
-          regression = dedent(r'''\
+          regression = dedent(r'''
           const failures = [];
           const passes = [];
           function check(name, condition) {
@@ -95,7 +95,7 @@ jobs:
           passes.forEach((name) => console.log(`PASS  ${name}`));
           failures.forEach((name) => console.error(`FAIL  ${name}`));
           if (failures.length) process.exit(1);
-          ''')
+          ''').lstrip()
           Path("scripts/event-id-collision-abuse.mjs").write_text(regression)
 
           ci = Path(".github/workflows/adversarial-e2e.yml")
