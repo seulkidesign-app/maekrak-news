@@ -211,17 +211,26 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function isPrivateIpv4Parts(parts: number[]) {
+  if (parts.length != 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
+  const [a, b] = parts;
+  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
+}
+
 function isPrivateHostname(hostname: string) {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (!host) return true;
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
-  if (host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89ab][0-9a-f]:/i.test(host)) return true;
+  if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89ab][0-9a-f]:/i.test(host)) return true;
+  const mapped = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (mapped) {
+    const high = Number.parseInt(mapped[1], 16);
+    const low = Number.parseInt(mapped[2], 16);
+    return isPrivateIpv4Parts([high >> 8, high & 255, low >> 8, low & 255]);
+  }
   const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (!ipv4) return false;
-  const parts = ipv4.slice(1).map(Number);
-  if (parts.some((part) => part > 255)) return true;
-  const [a, b] = parts;
-  return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
+  return isPrivateIpv4Parts(ipv4.slice(1).map(Number));
 }
 
 function safeHttpUrl(value: unknown) {
