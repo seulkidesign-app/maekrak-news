@@ -6,23 +6,19 @@ function check(name, condition) {
 }
 
 const { __test } = await import("../lib/news.ts");
-const safeArticleUrl = __test.safeArticleUrl;
+const { sourceForLink } = __test;
 
-check("source-aware article URL validator is exported for regression tests", typeof safeArticleUrl === "function");
+check("source-aware article URL validator is exported for regression tests", typeof sourceForLink === "function");
 
-if (typeof safeArticleUrl === "function") {
-  check("trusted Reuters label rejects unrelated public domain",
-    safeArticleUrl("https://evil.example/story", "Reuters", "aggregated") === "");
-  check("trusted Reuters label accepts official Reuters domain",
-    safeArticleUrl("https://www.reuters.com/world/example", "Reuters", "aggregated").startsWith("https://www.reuters.com/"));
-  check("aggregated trusted publisher may use Google News wrapper",
-    safeArticleUrl("https://news.google.com/rss/articles/example", "Reuters", "aggregated").startsWith("https://news.google.com/"));
-  check("direct trusted publisher cannot hide behind Google News wrapper",
-    safeArticleUrl("https://news.google.com/rss/articles/example", "BBC", "direct") === "");
-  check("trusted BBC label accepts BBC official domain",
-    safeArticleUrl("https://www.bbc.com/news/example", "BBC", "direct").startsWith("https://www.bbc.com/"));
-  check("unknown publisher may keep an otherwise safe public URL",
-    safeArticleUrl("https://example.com/story", "Example Daily", "aggregated").startsWith("https://example.com/"));
+if (typeof sourceForLink === "function") {
+  check("Reuters on official root domain stays trusted", sourceForLink("Reuters", "https://reuters.com/world/story", "direct") === "Reuters");
+  check("Reuters on official subdomain stays trusted", sourceForLink("Reuters", "https://www.reuters.com/world/story", "direct") === "Reuters");
+  check("trusted Reuters label on unrelated domain is downgraded", sourceForLink("Reuters", "https://evil.example/reuters/story", "direct") === "Unverified source");
+  check("suffix trap reuters.com.evil.example is downgraded", sourceForLink("Reuters", "https://reuters.com.evil.example/story", "direct") === "Unverified source");
+  check("Google News wrapper is allowed for aggregated trusted sources", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated") === "Reuters");
+  check("Google News wrapper is not accepted for a direct-feed claim", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "direct") === "Unverified source");
+  check("BBC official UK domain stays trusted", sourceForLink("BBC", "https://www.bbc.co.uk/news/world-1", "direct") === "BBC");
+  check("unknown outlets keep safe public links without invented authority", sourceForLink("Example News", "https://example.com/story", "aggregated") === "Example News");
 }
 
 console.log(`\nSource-link trust abuse: ${passes.length} passed / ${failures.length} failed`);
