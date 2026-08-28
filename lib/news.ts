@@ -106,6 +106,20 @@ const sourceWeights: Record<string, number> = {
   DW: 0.95,
   NHK: 0.95,
 };
+const trustedSourceDomains: Record<string, string[]> = {
+  Reuters: ["reuters.com"],
+  AP: ["apnews.com"],
+  연합뉴스: ["yna.co.kr"],
+  BBC: ["bbc.com", "bbc.co.uk"],
+  KBS: ["kbs.co.kr"],
+  SBS: ["sbs.co.kr"],
+  MBC: ["imbc.com"],
+  CNN: ["cnn.com"],
+  "Al Jazeera": ["aljazeera.com"],
+  DW: ["dw.com"],
+  NHK: ["nhk.or.jp"],
+};
+const allowedAggregatorDomains = ["news.google.com"];
 const parser = new XMLParser({ ignoreAttributes: false, processEntities: false });
 const stopwords = new Set([
   "속보", "단독", "영상", "뉴스", "today", "live", "says", "said", "after", "with", "from", "that", "this", "대한", "관련", "오늘", "정부",
@@ -243,6 +257,25 @@ function safeHttpUrl(value: unknown) {
     return url.toString();
   } catch {
     return "";
+  }
+}
+
+function hostMatches(hostname: string, domain: string) {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  const normalizedDomain = domain.toLowerCase().replace(/\.$/, "");
+  return host === normalizedDomain || host.endsWith(`.${normalizedDomain}`);
+}
+
+function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"]) {
+  const trustedDomains = trustedSourceDomains[source];
+  if (!trustedDomains) return source;
+  try {
+    const hostname = new URL(link).hostname;
+    const official = trustedDomains.some((domain) => hostMatches(hostname, domain));
+    const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain));
+    return official || allowedAggregator ? source : "Unverified source";
+  } catch {
+    return "Unverified source";
   }
 }
 
@@ -390,7 +423,7 @@ function actionSimilarity(a: string, b: string) {
 
 function timeDistanceHours(a: string, b: string) {
   const left = new Date(a).getTime();
-  const right = new Date(b).getTime();
+  const right = new Date(b.publishedAt).getTime();
   if (!Number.isFinite(left) || !Number.isFinite(right)) return 999;
   return Math.abs(left - right) / 3_600_000;
 }
@@ -481,7 +514,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     const response = await fetch(feed.url, {
       next: { revalidate: 900 },
       redirect: "error",
-      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.8" },
+      headers: { "User-Agent": "Mozilla/5.0 MaekrakNews/7.9" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -493,11 +526,12 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     const rawItems = asArray<any>(data?.rss?.channel?.item ?? data?.feed?.entry);
     const items = rawItems.slice(0, 28).map((item: any) => {
       const sourceRaw = item?.source?.["#text"] ?? item?.source;
-      const source = sourceForFeed(sourceRaw, feed);
+      const claimedSource = sourceForFeed(sourceRaw, feed);
       const rawTitle = clean(item?.title, 320);
-      const title = stripSourceSuffix(rawTitle, source, feed.name);
+      const title = stripSourceSuffix(rawTitle, claimedSource, feed.name);
       const rawLink = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "";
       const link = safeHttpUrl(rawLink);
+      const source = link ? sourceForLink(claimedSource, link, feed.sourceType) : claimedSource;
       const publishedAt = safePublishedAt(item?.pubDate ?? item?.published ?? item?.updated);
       const description = clean(item?.description ?? item?.summary ?? item?.content, 2400);
       const scope = inferScope(title, description, feed.scope);
@@ -725,6 +759,7 @@ export const __test = {
   safeHttpUrl,
   safePublishedAt,
   sourceForFeed,
+  sourceForLink,
   inferCategory,
   inferSourceRole,
   isHighImpact,
