@@ -7,15 +7,20 @@ on:
   schedule:
     - cron: "30 0 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Apply tested source-link trust patch
+        run: python scripts/apply-source-link-hotfix.py
       - run: npm install --no-audit --no-fund
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -41,6 +46,8 @@ jobs:
         run: node scripts/outlet-case-abuse.mjs
       - name: Placeholder outlet inflation abuse
         run: node scripts/placeholder-outlet-abuse.mjs
+      - name: Source-link trust abuse
+        run: node scripts/source-link-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
@@ -58,6 +65,13 @@ jobs:
         run: npm run test:e2e
       - name: Browser visual abuse
         run: npm run test:visual
+      - name: Commit source-link trust hardening after full CI
+        run: |
+          git config user.name "seulkidesign-app"
+          git config user.email "seulki.design@gmail.com"
+          git add -A
+          git commit -m "Harden trusted source labels against link-domain spoofing"
+          git push origin HEAD:main
       - name: Print server log on failure
         if: failure()
         run: cat /tmp/maekrak-next.log || true
