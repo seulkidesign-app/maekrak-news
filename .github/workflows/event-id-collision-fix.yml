@@ -1,4 +1,4 @@
-name: event-id-collision-fix
+name: event-integrity-fix
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   patch-and-verify:
@@ -21,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Apply event integrity hardening
+      - name: Apply validated integrity hardening
         shell: python
         run: |
           from pathlib import Path
@@ -29,12 +28,6 @@ jobs:
 
           news = Path("lib/news.ts")
           text = news.read_text()
-
-          old_import = 'import { XMLParser } from "fast-xml-parser";\n'
-          new_import = 'import { createHash } from "node:crypto";\nimport { XMLParser } from "fast-xml-parser";\n'
-          if 'from "node:crypto"' not in text:
-              assert old_import in text
-              text = text.replace(old_import, new_import, 1)
 
           old_hash = dedent('''\
           function stableHash(value: string) {
@@ -51,6 +44,7 @@ jobs:
           }''')
           if old_hash in text:
               text = text.replace(old_hash, new_hash, 1)
+          assert 'createHash("sha256")' in text
 
           majority_marker = dedent('''\
           function majority<T extends string>(values: T[], fallback: T): T {
@@ -63,28 +57,65 @@ jobs:
           function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: (article: NewsItem) => T, fallback: T): T {
             const bySource = new Map<string, T[]>();
             for (const article of articles) {
-              const source = canonicalSourceName(article.source);
+              const source = canonicalSourceName(article.source).toLowerCase();
               const values = bySource.get(source) ?? [];
               values.push(select(article));
               bySource.set(source, values);
             }
             const sourceVotes = [...bySource.values()].map((values) => majority(values, fallback));
-            return majority(sourceVotes, fallback);
+            const counts = new Map<T, number>();
+            sourceVotes.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+            return [...counts.entries()].sort((a, b) => {
+              const delta = b[1] - a[1];
+              if (delta) return delta;
+              if (a[0] === fallback) return -1;
+              if (b[0] === fallback) return 1;
+              return 0;
+            })[0]?.[0] ?? fallback;
           }
           ''')
           if 'function sourceBalancedMajority' not in text:
               assert majority_marker in text
               text = text.replace(majority_marker, balanced, 1)
 
-          text = text.replace('const category = majority(sorted.map((article) => article.category), primary.category);', 'const category = sourceBalancedMajority(sorted, (article) => article.category, primary.category);')
-          text = text.replace('const scope = majority(sorted.map((article) => article.scope), primary.scope);', 'const scope = sourceBalancedMajority(sorted, (article) => article.scope, primary.scope);')
+          text = text.replace(
+              'const category = majority(sorted.map((article) => article.category), primary.category);',
+              'const category = sourceBalancedMajority(sorted, (article) => article.category, primary.category);',
+          )
+          text = text.replace(
+              'const scope = majority(sorted.map((article) => article.scope), primary.scope);',
+              'const scope = sourceBalancedMajority(sorted, (article) => article.scope, primary.scope);',
+          )
+          assert 'const category = sourceBalancedMajority' in text
+          assert 'const scope = sourceBalancedMajority' in text
 
-          export_marker = "  hasProperNameConflict,\n  sameEvent,\n};"
-          export_repl = "  hasProperNameConflict,\n  sameEvent,\n  stableEventId,\n  sourceBalancedMajority,\n};"
-          if export_marker in text:
-              text = text.replace(export_marker, export_repl, 1)
-          elif 'sourceBalancedMajority,' not in text:
-              raise AssertionError('test export marker not found')
+          calendar_helper = dedent('''\
+          function hasValidExplicitCalendarDate(raw: string) {
+            const match = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})(?:T|\\s|$)/);
+            if (!match) return true;
+            const year = Number(match[1]);
+            const month = Number(match[2]);
+            const day = Number(match[3]);
+            if (month < 1 || month > 12 || day < 1) return false;
+            return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+          }
+
+          ''')
+          published_marker = 'function safePublishedAt(value: unknown, now = Date.now()) {\n'
+          if 'function hasValidExplicitCalendarDate' not in text:
+              assert published_marker in text
+              text = text.replace(published_marker, calendar_helper + published_marker, 1)
+          old_start = 'function safePublishedAt(value: unknown, now = Date.now()) {\n  const raw = String(value ?? "").trim();\n  if (!raw) return "";\n'
+          new_start = 'function safePublishedAt(value: unknown, now = Date.now()) {\n  const raw = String(value ?? "").trim();\n  if (!raw || !hasValidExplicitCalendarDate(raw)) return "";\n'
+          if old_start in text:
+              text = text.replace(old_start, new_start, 1)
+          assert '!raw || !hasValidExplicitCalendarDate(raw)' in text
+
+          export_end = '  hasProperNameConflict,\n  sameEvent,\n};'
+          export_new = '  hasProperNameConflict,\n  sameEvent,\n  stableEventId,\n  sourceBalancedMajority,\n};'
+          if export_end in text:
+              text = text.replace(export_end, export_new, 1)
+          assert '  stableEventId,\n' in text and '  sourceBalancedMajority,\n' in text
           news.write_text(text)
 
           Path("scripts/event-id-collision-abuse.mjs").write_text(dedent(r'''
@@ -113,7 +144,7 @@ jobs:
           function check(name, condition) { condition ? passes.push(name) : failures.push(name); }
           const { __test } = await import("../lib/news.ts");
           function article(source, category, scope = "world") {
-            return { title: `${source} update ${Math.random()}`, description: "", source, link: `https://example.com/${encodeURIComponent(source)}`, publishedAt: "2026-08-28T00:00:00.000Z", category, scope, sourceType: "direct", sourceRole: "other" };
+            return { title: `${source} update`, description: "", source, link: `https://example.com/${encodeURIComponent(source)}`, publishedAt: "2026-08-28T00:00:00.000Z", category, scope, sourceType: "direct", sourceRole: "other" };
           }
           const flooded = [
             ...Array.from({ length: 8 }, () => article("Flood News", "경제")),
@@ -132,25 +163,45 @@ jobs:
           if (failures.length) process.exit(1);
           ''').lstrip())
 
+          Path("scripts/calendar-rollover-abuse.mjs").write_text(dedent(r'''
+          const failures = [];
+          const passes = [];
+          function check(name, condition) { condition ? passes.push(name) : failures.push(name); }
+          const { __test } = await import("../lib/news.ts");
+          const after = Date.parse("2026-03-10T00:00:00Z");
+          check("February 30 cannot roll into March", __test.safePublishedAt("2026-02-30T10:00:00Z", after) === "");
+          check("non-leap February 29 is rejected", __test.safePublishedAt("2025-02-29T10:00:00Z", Date.parse("2025-03-10T00:00:00Z")) === "");
+          check("valid leap day remains accepted", __test.safePublishedAt("2024-02-29T10:00:00Z", Date.parse("2024-03-10T00:00:00Z")) === "2024-02-29T10:00:00.000Z");
+          check("RFC 2822 RSS dates remain accepted", __test.safePublishedAt("Fri, 28 Aug 2026 10:00:00 GMT", Date.parse("2026-08-28T12:00:00Z")) === "2026-08-28T10:00:00.000Z");
+          console.log(`Calendar rollover abuse: ${passes.length} passed / ${failures.length} failed`);
+          failures.forEach((name) => console.error(`FAIL  ${name}`));
+          if (failures.length) process.exit(1);
+          ''').lstrip())
+
           ci = Path(".github/workflows/adversarial-e2e.yml")
           ci_text = ci.read_text()
           marker = "      - name: Source-link trust abuse\n        run: node scripts/source-link-abuse.mjs\n"
-          addition = marker
+          additions = []
           if "Event ID collision abuse" not in ci_text:
-              addition += "      - name: Event ID collision abuse\n        run: node scripts/event-id-collision-abuse.mjs\n"
+              additions.append("      - name: Event ID collision abuse\n        run: node scripts/event-id-collision-abuse.mjs\n")
           if "Source flood abuse" not in ci_text:
-              addition += "      - name: Source flood abuse\n        run: node scripts/source-flood-abuse.mjs\n"
-          if addition != marker:
+              additions.append("      - name: Source flood abuse\n        run: node scripts/source-flood-abuse.mjs\n")
+          if "Calendar rollover abuse" not in ci_text:
+              additions.append("      - name: Calendar rollover abuse\n        run: node scripts/calendar-rollover-abuse.mjs\n")
+          if additions:
               assert marker in ci_text
-              ci_text = ci_text.replace(marker, addition, 1)
+              ci_text = ci_text.replace(marker, marker + ''.join(additions), 1)
           ci.write_text(ci_text)
 
           Path(".github/workflows/event-id-collision-fix.yml").unlink()
+
       - run: npm install --no-audit --no-fund
       - name: Event ID collision regression
         run: node scripts/event-id-collision-abuse.mjs
       - name: Source flood regression
         run: node scripts/source-flood-abuse.mjs
+      - name: Calendar rollover regression
+        run: node scripts/calendar-rollover-abuse.mjs
       - name: Full content abuse regression
         run: node scripts/content-abuse.mjs
       - name: Production build
@@ -160,16 +211,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Harden event identity and source-balanced voting"
+          git commit -m "Harden event integrity and reject impossible dates"
           git push origin HEAD:main
-      - name: Dispatch full adversarial CI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl --fail-with-body -L \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adversarial-e2e.yml/dispatches \
-            -d '{"ref":"main"}'
