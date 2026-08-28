@@ -8,7 +8,7 @@ on:
     - cron: "30 0 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   e2e:
@@ -19,8 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Apply source-link trust hardening
-        run: python scripts/apply-source-link-hotfix.py
       - run: npm install --no-audit --no-fund
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -65,17 +63,6 @@ jobs:
         run: npm run test:e2e
       - name: Browser visual abuse
         run: npm run test:visual
-      - name: Publish fully tested hardening artifact
-        run: |
-          if git diff --quiet; then
-            echo "No generated hardening diff to publish"
-            exit 0
-          fi
-          git config user.name "seulkidesign-app"
-          git config user.email "seulki.design@gmail.com"
-          git add -A
-          git commit -m "Harden trusted source labels against link-domain spoofing"
-          git push origin HEAD:redteam/source-link-tested-${GITHUB_RUN_ID}
       - name: Print server log on failure
         if: failure()
         run: cat /tmp/maekrak-next.log || true
