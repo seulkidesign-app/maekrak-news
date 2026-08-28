@@ -37,6 +37,31 @@ check("trusted Korean brand substring spoof is downgraded",
 check("mixed Latin-Cyrillic publisher homograph is downgraded",
   canonicalSourceName("Rеuters") === "Unverified source");
 
+const aggregatedReutersFeed = {
+  name: "Reuters",
+  sourceType: "aggregated",
+  role: "wire",
+  defaultCategory: "세계",
+  scope: "world",
+  url: "https://example.com/rss",
+  weight: 1.35,
+};
+const directSbsFeed = {
+  name: "SBS",
+  sourceType: "direct",
+  role: "broadcaster",
+  defaultCategory: "국내",
+  scope: "domestic",
+  url: "https://example.com/rss",
+  weight: 1,
+};
+check("aggregated item without publisher metadata is not attributed to trusted feed name",
+  newsTest.sourceForFeed(undefined, aggregatedReutersFeed) === "Unverified source");
+check("direct publisher feed may fall back to its own publisher name",
+  newsTest.sourceForFeed(undefined, directSbsFeed) === "SBS");
+check("aggregated item with explicit publisher metadata still keeps verified publisher label",
+  newsTest.sourceForFeed("Reuters", aggregatedReutersFeed) === "Reuters");
+
 function article(title, description = title, source = "Reuters") {
   return {
     title,

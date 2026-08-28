@@ -467,6 +467,12 @@ function dedupeNews(items: NewsItem[]) {
   });
 }
 
+function sourceForFeed(value: unknown, feed: Feed) {
+  const cleaned = clean(value, 100);
+  if (cleaned) return canonicalSourceName(cleaned);
+  return feed.sourceType === "direct" ? canonicalSourceName(feed.name) : "Unverified source";
+}
+
 async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: SourceHealth }> {
   const checkedAt = new Date().toISOString();
   const controller = new AbortController();
@@ -486,8 +492,8 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     const data = parser.parse(xml);
     const rawItems = asArray<any>(data?.rss?.channel?.item ?? data?.feed?.entry);
     const items = rawItems.slice(0, 28).map((item: any) => {
-      const sourceRaw = clean(item?.source?.["#text"] ?? item?.source ?? feed.name, 100) || feed.name;
-      const source = canonicalSourceName(sourceRaw);
+      const sourceRaw = item?.source?.["#text"] ?? item?.source;
+      const source = sourceForFeed(sourceRaw, feed);
       const rawTitle = clean(item?.title, 320);
       const title = stripSourceSuffix(rawTitle, source, feed.name);
       const rawLink = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "";
@@ -718,6 +724,7 @@ export const __test = {
   decodeEntities,
   safeHttpUrl,
   safePublishedAt,
+  sourceForFeed,
   inferCategory,
   inferSourceRole,
   isHighImpact,
