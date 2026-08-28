@@ -1,4 +1,5 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
+const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n\/?a|na|none|null|-)$/i;
 
 function hasSuspiciousMixedScripts(value: string) {
   const hasLatin = /\p{Script=Latin}/u.test(value);
@@ -25,7 +26,7 @@ export function normalizeExternalText(value: unknown) {
 export function canonicalSourceName(value: string) {
   const raw = normalizeExternalText(value);
   const lower = raw.toLowerCase();
-  if (!raw) return "Unknown";
+  if (!raw || PLACEHOLDER_OUTLET.test(raw)) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
   if (/^(연합뉴스|yonhap|yonhap news|yonhap news agency)$/.test(lower)) return "연합뉴스";
