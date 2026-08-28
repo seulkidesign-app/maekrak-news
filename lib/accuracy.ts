@@ -13,6 +13,8 @@ const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
   [/\bthousand\b|천/i, 1_000],
 ];
 
+const BASIS_POINT = /\b(?:basis\s+points?|bps?|bp)\b|베이시스\s*포인트/i;
+
 function currencyUnit(value: string) {
   const lower = value.toLowerCase();
   if (/\$|\busd\b|\bdollars?\b|달러/.test(lower)) return "USD";
@@ -46,7 +48,8 @@ function normalizedNumericText(value: string) {
 
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
-  const unit = /%|percent|퍼센트/.test(lower)
+  const isBasisPoint = BASIS_POINT.test(lower);
+  const unit = /%|percent|퍼센트/.test(lower) || isBasisPoint
     ? "%"
     : /명/.test(lower)
       ? "명"
@@ -56,6 +59,7 @@ function canonicalNumber(value: string) {
   if (!numericText || !Number.isFinite(number)) return "";
   const multiplier = MAGNITUDE_MULTIPLIERS.find(([pattern]) => pattern.test(lower))?.[1] ?? 1;
   number *= multiplier;
+  if (isBasisPoint) number /= 100;
   if (/^(?:[$€£₩¥]|(?:usd|eur|gbp|krw|jpy)\s*)?[\s]*[\-−]/i.test(lower)) number *= -1;
   if (!Number.isFinite(number)) return "";
   return `${String(number)}${unit}`;
@@ -91,7 +95,7 @@ function calendarDateRanges(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
   const cleaned: string[] = [];
   const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
   for (const match of title.matchAll(matcher)) {
