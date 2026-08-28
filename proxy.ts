@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const ALLOWED = new Set(["GET", "HEAD"]);
+const AGENT_UA = /GPTBot|ChatGPT-User|ClaudeBot|Claude-SearchBot|PerplexityBot|DeepSeekBot|Google-Extended|Applebot-Extended/i;
 
 export function proxy(request: NextRequest) {
   if (!ALLOWED.has(request.method)) {
@@ -8,6 +9,23 @@ export function proxy(request: NextRequest) {
       status: 405,
       headers: { Allow: "GET, HEAD" },
     });
+  }
+
+  if (request.nextUrl.pathname === "/") {
+    const accept = request.headers.get("accept") ?? "";
+    if (accept.includes("text/markdown")) {
+      const response = NextResponse.rewrite(new URL("/agent-info.md", request.url));
+      response.headers.set("Vary", "Accept, Accept-Encoding");
+      response.headers.set("X-Agent-Representation", "markdown");
+      return response;
+    }
+
+    const userAgent = request.headers.get("user-agent") ?? "";
+    if (AGENT_UA.test(userAgent)) {
+      const response = NextResponse.rewrite(new URL("/agent-info", request.url));
+      response.headers.set("X-Agent-Representation", "static-html");
+      return response;
+    }
   }
 
   return NextResponse.next();
