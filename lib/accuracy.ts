@@ -40,12 +40,30 @@ function canonicalNumber(value: string) {
   return `${String(number)}${unit}`;
 }
 
+function clockTimeRanges(title: string) {
+  const ranges: Array<[number, number]> = [];
+  const clock = /\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*(?:a\.?m\.?|p\.?m\.?))?\b/gi;
+  for (const match of title.matchAll(clock)) {
+    const start = match.index ?? 0;
+    ranges.push([start, start + match[0].length]);
+  }
+  const dottedClock = /\b(?:0?\d|1[0-2])\.[0-5]\d\s*(?:a\.?m\.?|p\.?m\.?)\b/gi;
+  for (const match of title.matchAll(dottedClock)) {
+    const start = match.index ?? 0;
+    ranges.push([start, start + match[0].length]);
+  }
+  return ranges;
+}
+
 function headlineNumbers(title: string): string[] {
   const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔))?/gi;
   const cleaned: string[] = [];
+  const clocks = clockTimeRanges(title);
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
     const index = match.index ?? 0;
+    const end = index + value.length;
+    if (clocks.some(([start, finish]) => index < finish && end > start)) continue;
     const before = title.slice(Math.max(0, index - 3), index);
     const after = title.slice(index + value.length, index + value.length + 2);
     const attachedToIdentifier = /[A-Za-z]$/.test(before) || /[A-Za-z]-$/.test(before) || /^[A-Za-z]/.test(after);
