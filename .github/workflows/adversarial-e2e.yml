@@ -58,6 +58,8 @@ jobs:
         run: node scripts/calendar-rollover-abuse.mjs
       - name: Mobile unbroken source-text abuse
         run: node scripts/mobile-unbroken-text-abuse.mjs
+      - name: Korea impact poisoning abuse
+        run: node scripts/korea-impact-poisoning-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
