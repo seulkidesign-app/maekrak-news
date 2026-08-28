@@ -19,19 +19,27 @@ const placeholders = [
   "None",
   "null",
   "-",
+  "Unknown.",
+  "[N/A]",
+  "Source unavailable!",
+  "—",
+  "(none)",
 ];
 
 check("all source placeholders collapse to one unverified identity",
   placeholders.every((value) => canonicalSourceName(value) === "Unverified source"));
 
-check("placeholder aliases cannot inflate outlet count",
+check("punctuated placeholder aliases cannot inflate outlet count",
   canonicalOutletCount(placeholders.map((source) => ({ source }))) === 1);
+
+check("placeholder-looking real outlet name is not erased",
+  canonicalSourceName("N/A News") === "N/A News");
 
 check("real unknown outlets remain distinguishable",
   canonicalOutletCount([{ source: "Example Daily" }, { source: "Another Journal" }]) === 2);
 
 check("trusted publisher remains distinct from placeholders",
-  canonicalOutletCount([{ source: "Reuters" }, { source: "Unknown" }, { source: "N/A" }]) === 2);
+  canonicalOutletCount([{ source: "Reuters" }, { source: "Unknown." }, { source: "[N/A]" }]) === 2);
 
 console.log(`\nPlaceholder outlet abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
