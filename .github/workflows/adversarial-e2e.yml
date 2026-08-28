@@ -66,18 +66,13 @@ jobs:
         run: npm run test:e2e
       - name: Browser visual abuse
         run: npm run test:visual
-      - name: Publish tested source-link hardening PR
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Publish tested source-link hardening branch
         run: |
           git config user.name "seulkidesign-app"
           git config user.email "seulki.design@gmail.com"
           git add -A
           git commit -m "Harden trusted source labels against link-domain spoofing"
-          BRANCH="redteam/source-link-trust-${GITHUB_RUN_ID}"
-          git branch "$BRANCH"
-          git push origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" --title "Harden trusted source labels against link-domain spoofing" --body "Red-team fix: bind trusted outlet labels to official article domains while allowing Google News wrappers only for aggregated feeds. Full adversarial CI passed before publication."
+          git push --force origin HEAD:redteam/source-link-trust
       - name: Print server log on failure
         if: failure()
         run: cat /tmp/maekrak-next.log || true
