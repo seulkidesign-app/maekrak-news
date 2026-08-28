@@ -34,6 +34,16 @@ function measurementUnit(value: string) {
   return "";
 }
 
+function normalizedNumericText(value: string) {
+  const raw = value.match(/\d+(?:[.,]\d+)*/)?.[0] ?? "";
+  if (!raw) return "";
+  if (raw.includes(".")) return raw.replace(/,/g, "");
+  if (!raw.includes(",")) return raw;
+  const parts = raw.split(",");
+  if (parts.length === 2 && /^\d{1,2}$/.test(parts[1])) return `${parts[0]}.${parts[1]}`;
+  return raw.replace(/,/g, "");
+}
+
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
   const unit = /%|percent|퍼센트/.test(lower)
@@ -41,7 +51,7 @@ function canonicalNumber(value: string) {
     : /명/.test(lower)
       ? "명"
       : currencyUnit(lower) || measurementUnit(lower);
-  const numericText = lower.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
+  const numericText = normalizedNumericText(lower);
   let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
   const multiplier = MAGNITUDE_MULTIPLIERS.find(([pattern]) => pattern.test(lower))?.[1] ?? 1;
@@ -81,7 +91,7 @@ function headlineNumbers(title: string): string[] {
     if (attachedToIdentifier) continue;
 
     const compact = value.replace(/\s+/g, "").toLowerCase();
-    const plainText = compact.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
+    const plainText = normalizedNumericText(compact);
     const plain = Number(plainText);
     const hasMagnitude = MAGNITUDE_MULTIPLIERS.some(([pattern]) => pattern.test(value));
     const looksLikeYear = !hasMagnitude && /^[+]?\d{4}$/.test(compact) && Number.isInteger(plain) && plain >= 1900 && plain <= 2100;
