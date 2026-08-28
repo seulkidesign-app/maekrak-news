@@ -120,6 +120,24 @@ const realDecimalDifference = auditEventAccuracy(event([
 ]));
 check("real decimal disagreement still raises a warning", realDecimalDifference.headlineNumberDifference);
 
+const basisPointAlias = auditEventAccuracy(event([
+  article("Central bank cuts rates by 50 basis points", "Reuters"),
+  article("Central bank cuts rates by 0.5%", "BBC"),
+]));
+check("50 basis points and 0.5 percent normalize to the same change", !basisPointAlias.headlineNumberDifference);
+
+const bpsAlias = auditEventAccuracy(event([
+  article("Central bank cuts rates by 25 bps", "Reuters"),
+  article("Central bank cuts rates by 0.25 percent", "BBC"),
+]));
+check("bps abbreviation and percent normalize to the same change", !bpsAlias.headlineNumberDifference);
+
+const realBasisPointDifference = auditEventAccuracy(event([
+  article("Central bank cuts rates by 50 basis points", "Reuters"),
+  article("Central bank cuts rates by 0.25%", "BBC"),
+]));
+check("real basis-point disagreement still raises a warning", realBasisPointDifference.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
