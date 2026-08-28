@@ -49,6 +49,14 @@ export function canonicalSourceName(value: string) {
   return canonicalUnknownOutletCase(raw);
 }
 
+export function outletIdentityKey(value: string) {
+  return normalizeExternalText(canonicalSourceName(value))
+    .toLocaleLowerCase("en-US")
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function canonicalOutletCount(articles: Array<{ source: string }>) {
-  return new Set(articles.map((article) => canonicalSourceName(article.source))).size;
+  return new Set(articles.map((article) => outletIdentityKey(article.source))).size;
 }
