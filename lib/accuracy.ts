@@ -91,7 +91,7 @@ function calendarDateRanges(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*°\s*[CF]\b))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
   const cleaned: string[] = [];
   const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
   for (const match of title.matchAll(matcher)) {
