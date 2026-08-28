@@ -18,7 +18,7 @@ function currencyUnit(value: string) {
   if (/\$|\busd\b|\bdollars?\b|달러/.test(lower)) return "USD";
   if (/€|\beur\b|\beuros?\b|유로/.test(lower)) return "EUR";
   if (/£|\bgbp\b|\bpounds?\b/.test(lower)) return "GBP";
-  if (/₩|\bkrw\b|원/.test(lower)) return "KRW";
+  if (/₩|\bkrw\b|\bwon\b|원/.test(lower)) return "KRW";
   if (/¥|\bjpy\b|\byen\b|엔/.test(lower)) return "JPY";
   return "";
 }
