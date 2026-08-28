@@ -64,6 +64,8 @@ jobs:
         run: node scripts/localstorage-snapshot-abuse.mjs
       - name: Visit snapshot time poisoning abuse
         run: node scripts/visit-snapshot-time-abuse.mjs
+      - name: Stale visit snapshot replay abuse
+        run: node scripts/stale-visit-snapshot-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
