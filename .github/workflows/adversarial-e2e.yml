@@ -27,6 +27,8 @@ jobs:
         run: node scripts/number-magnitude-abuse.mjs
       - name: Unit ambiguity abuse
         run: node scripts/unit-ambiguity-abuse.mjs
+      - name: Clock-time number abuse
+        run: node scripts/clock-time-number-abuse.mjs
       - name: Timestamp poisoning abuse
         run: node scripts/timestamp-abuse.mjs
       - name: Template headline collision abuse
