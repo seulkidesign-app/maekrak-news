@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { parseVisitSnapshot, type VisitSnapshot } from "@/lib/visit-snapshot";
 
 export type VisitEvent = {
   id: string;
   title: string;
   publishedAt: string;
   priority: boolean;
-};
-
-type Snapshot = {
-  savedAt: string;
-  eventIds: string[];
-  priorityEventIds: string[];
 };
 
 const STORAGE_KEY = "maekrak:last-briefing:v2";
@@ -30,17 +25,17 @@ function formatPrevious(date: string, lang: "ko" | "en") {
 }
 
 export default function ReturningBrief({ events, lang }: { events: VisitEvent[]; lang: "ko" | "en" }) {
-  const [previous, setPrevious] = useState<Snapshot | null | undefined>(undefined);
+  const [previous, setPrevious] = useState<VisitSnapshot | null | undefined>(undefined);
   const current = useMemo(() => ({
     savedAt: new Date().toISOString(),
     eventIds: events.map((event) => event.id),
     priorityEventIds: events.filter((event) => event.priority).map((event) => event.id),
-  } satisfies Snapshot), [events]);
+  } satisfies VisitSnapshot), [events]);
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      setPrevious(raw ? JSON.parse(raw) as Snapshot : null);
+      setPrevious(parseVisitSnapshot(raw));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
     } catch {
       setPrevious(null);
@@ -61,9 +56,9 @@ export default function ReturningBrief({ events, lang }: { events: VisitEvent[];
     );
   }
 
-  const previousPriority = new Set(previous.priorityEventIds ?? []);
+  const previousPriority = new Set(previous.priorityEventIds);
   const newPriority = events.filter((event) => event.priority && !previousPriority.has(event.id));
-  const previousAll = new Set(previous.eventIds ?? []);
+  const previousAll = new Set(previous.eventIds);
   const newAll = events.filter((event) => !previousAll.has(event.id));
 
   return (
