@@ -46,6 +46,12 @@ jobs:
         run: node scripts/placeholder-outlet-abuse.mjs
       - name: Source-link trust abuse
         run: node scripts/source-link-abuse.mjs
+      - name: Event ID collision abuse
+        run: node scripts/event-id-collision-abuse.mjs
+      - name: Source flood abuse
+        run: node scripts/source-flood-abuse.mjs
+      - name: Calendar rollover abuse
+        run: node scripts/calendar-rollover-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
