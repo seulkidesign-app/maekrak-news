@@ -1,0 +1,138 @@
+name: event-id-collision-fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/event-id-collision-fix.yml
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply collision-resistant event IDs and regression
+        shell: python
+        run: |
+          from pathlib import Path
+
+          news = Path("lib/news.ts")
+          text = news.read_text()
+          old_import = 'import { XMLParser } from "fast-xml-parser";\n'
+          new_import = 'import { createHash } from "node:crypto";\nimport { XMLParser } from "fast-xml-parser";\n'
+          if 'from "node:crypto"' not in text:
+              assert old_import in text
+              text = text.replace(old_import, new_import, 1)
+
+          old_hash = '''function stableHash(value: string) {
+            let hash = 2166136261;
+            for (let index = 0; index < value.length; index += 1) {
+              hash ^= value.charCodeAt(index);
+              hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(36);
+          }'''
+          new_hash = '''function stableHash(value: string) {
+            return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 24);
+          }'''
+          assert old_hash in text
+          text = text.replace(old_hash, new_hash, 1)
+
+          old_export = '''  hasProperNameConflict,
+            sameEvent,
+          };'''
+          new_export = '''  hasProperNameConflict,
+            sameEvent,
+            stableEventId,
+          };'''
+          assert old_export in text
+          text = text.replace(old_export, new_export, 1)
+          news.write_text(text)
+
+          regression = Path("scripts/event-id-collision-abuse.mjs")
+          regression.write_text(r'''const failures = [];
+          const passes = [];
+          function check(name, condition) {
+            if (condition) passes.push(name);
+            else failures.push(name);
+          }
+
+          const { __test } = await import("../lib/news.ts");
+
+          function article(title) {
+            return {
+              title,
+              description: title,
+              source: "Example News",
+              link: `https://example.com/${encodeURIComponent(title)}`,
+              publishedAt: "2026-08-28T00:00:00.000Z",
+              category: "세계",
+              scope: "world",
+              sourceType: "direct",
+              sourceRole: "other",
+            };
+          }
+
+          // These distinct fingerprints collide under the previous 32-bit FNV-1a implementation.
+          const first = [article("clkabuym fverifen")];
+          const second = [article("nkhbrcyr oltwxqyh")];
+          const firstId = __test.stableEventId(first);
+          const secondId = __test.stableEventId(second);
+
+          check("known 32-bit collision pair now receives distinct event IDs", firstId !== secondId);
+          check("event IDs use a substantially larger digest", /^evt_[0-9a-f]{24}$/.test(firstId) && /^evt_[0-9a-f]{24}$/.test(secondId));
+          check("event ID remains deterministic", __test.stableEventId(first) === firstId);
+
+          console.log(`Event ID collision abuse: ${passes.length} passed / ${failures.length} failed`);
+          passes.forEach((name) => console.log(`PASS  ${name}`));
+          failures.forEach((name) => console.error(`FAIL  ${name}`));
+          if (failures.length) process.exit(1);
+          '''.replace(/^          /gm, ""))
+
+          ci = Path(".github/workflows/adversarial-e2e.yml")
+          ci_text = ci.read_text()
+          marker = '''      - name: Source-link trust abuse
+                run: node scripts/source-link-abuse.mjs
+          '''
+          addition = marker + '''      - name: Event ID collision abuse
+                run: node scripts/event-id-collision-abuse.mjs
+          '''
+          assert marker in ci_text
+          ci.write_text(ci_text.replace(marker, addition, 1))
+
+          Path(".github/workflows/event-id-collision-fix.yml").unlink()
+      - run: npm install --no-audit --no-fund
+      - name: Event ID collision regression
+        run: node scripts/event-id-collision-abuse.mjs
+      - name: Full content abuse regression
+        run: node scripts/content-abuse.mjs
+      - name: Production build
+        run: npm run build
+      - name: Commit verified patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/news.ts scripts/event-id-collision-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/event-id-collision-fix.yml
+          git commit -m "Harden event IDs against hash collisions"
+          git push origin HEAD:main
+      - name: Dispatch full adversarial CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl --fail-with-body -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adversarial-e2e.yml/dispatches \
+            -d '{"ref":"main"}'
