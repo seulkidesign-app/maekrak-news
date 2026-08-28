@@ -1,12 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const ALLOWED = new Set(["GET", "HEAD"]);
+const READ_METHODS = new Set(["GET", "HEAD"]);
 
 export function proxy(request: NextRequest) {
-  if (!ALLOWED.has(request.method)) {
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        Allow: "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      },
+    });
+  }
+
+  if (!READ_METHODS.has(request.method)) {
     return new NextResponse(null, {
       status: 405,
-      headers: { Allow: "GET, HEAD" },
+      headers: { Allow: "GET, HEAD, OPTIONS" },
     });
   }
 
