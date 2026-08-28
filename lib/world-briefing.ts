@@ -1,5 +1,6 @@
 import type { Language } from "@/lib/i18n";
 import type { NewsEvent } from "@/lib/news";
+import { canonicalSourceName } from "./source-normalize.ts";
 
 export type WorldFlowCode = "security" | "economy" | "korea" | "technology" | "climate";
 
@@ -65,6 +66,18 @@ const flowRules: FlowRule[] = [
 
 function eventText(event: NewsEvent) {
   return event.articles.map((article) => `${article.title} ${article.description}`).join(" ").toLowerCase();
+}
+
+const trustedImpactSources = new Set([
+  "Reuters", "AP", "연합뉴스", "BBC", "KBS", "SBS", "MBC", "CNN", "Al Jazeera", "DW", "NHK",
+]);
+
+function trustedEventText(event: NewsEvent) {
+  return event.articles
+    .filter((article) => trustedImpactSources.has(canonicalSourceName(article.source)))
+    .map((article) => `${article.title} ${article.description}`)
+    .join(" ")
+    .toLowerCase();
 }
 
 function signatures(event: NewsEvent, code: WorldFlowCode) {
@@ -167,7 +180,8 @@ export function koreaImpact(event: NewsEvent, lang: Language): string | null {
       : "This story directly concerns Korea. Watch whether the announcement or debate turns into concrete institutional or daily-life change.";
   }
 
-  const text = eventText(event);
+  const text = trustedEventText(event);
+  if (!text) return null;
   const has = (pattern: RegExp) => pattern.test(text);
 
   const energyRegion = has(/\b(?:hormuz|middle east|iran|gulf)\b|호르무즈|중동|이란|걸프/);
