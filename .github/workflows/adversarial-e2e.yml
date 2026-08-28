@@ -52,6 +52,8 @@ jobs:
         run: node scripts/event-id-collision-abuse.mjs
       - name: Source flood abuse
         run: node scripts/source-flood-abuse.mjs
+      - name: Evidence flood abuse
+        run: node scripts/evidence-flood-abuse.mjs
       - name: Calendar rollover abuse
         run: node scripts/calendar-rollover-abuse.mjs
       - name: Mobile unbroken source-text abuse
