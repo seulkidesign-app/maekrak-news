@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { canonicalSourceName, normalizeExternalText } from "./source-normalize.ts";
 
@@ -279,9 +280,19 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
   }
 }
 
+function hasValidExplicitCalendarDate(raw: string) {
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
+  if (!match) return true;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 function safePublishedAt(value: unknown, now = Date.now()) {
   const raw = String(value ?? "").trim();
-  if (!raw) return "";
+  if (!raw || !hasValidExplicitCalendarDate(raw)) return "";
   const parsed = new Date(raw);
   const time = parsed.getTime();
   if (!Number.isFinite(time)) return "";
@@ -445,12 +456,7 @@ function sameEvent(a: NewsItem, b: NewsItem) {
 }
 
 function stableHash(value: string) {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
+  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 24);
 }
 
 function stableEventId(articles: NewsItem[]) {
@@ -642,6 +648,25 @@ function majority<T extends string>(values: T[], fallback: T): T {
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
 }
+function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: (article: NewsItem) => T, fallback: T): T {
+  const bySource = new Map<string, T[]>();
+  for (const article of articles) {
+    const source = canonicalSourceName(article.source).toLowerCase();
+    const values = bySource.get(source) ?? [];
+    values.push(select(article));
+    bySource.set(source, values);
+  }
+  const sourceVotes = [...bySource.values()].map((values) => majority(values, fallback));
+  const counts = new Map<T, number>();
+  sourceVotes.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts.entries()].sort((a, b) => {
+    const delta = b[1] - a[1];
+    if (delta) return delta;
+    if (a[0] === fallback) return -1;
+    if (b[0] === fallback) return 1;
+    return 0;
+  })[0]?.[0] ?? fallback;
+}
 
 function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
   const selected = events.slice(0, limit);
@@ -700,8 +725,8 @@ export async function getBriefing(): Promise<Briefing> {
       ?? sorted.find((article) => article.sourceType === "direct")
       ?? sorted[0];
     const sources = new Set(sorted.map((article) => canonicalSourceName(article.source)));
-    const category = majority(sorted.map((article) => article.category), primary.category);
-    const scope = majority(sorted.map((article) => article.scope), primary.scope);
+    const category = sourceBalancedMajority(sorted, (article) => article.category, primary.category);
+    const scope = sourceBalancedMajority(sorted, (article) => article.scope, primary.scope);
     const importanceScore = importanceFor(sorted);
     return {
       id: stableEventId(sorted),
@@ -767,4 +792,6 @@ export const __test = {
   properNameTokens,
   hasProperNameConflict,
   sameEvent,
+  stableEventId,
+  sourceBalancedMajority,
 };
