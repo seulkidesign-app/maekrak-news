@@ -23,13 +23,24 @@ function currencyUnit(value: string) {
   return "";
 }
 
+function measurementUnit(value: string) {
+  const lower = value.toLowerCase();
+  if (/°\s*c\b|\bdegrees?\s+celsius\b|\bcelsius\b/.test(lower)) return "°C";
+  if (/°\s*f\b|\bdegrees?\s+fahrenheit\b|\bfahrenheit\b/.test(lower)) return "°F";
+  if (/\b(?:km|kilometers?|kilometres?)\b/.test(lower)) return "KM";
+  if (/\b(?:mi|miles?)\b/.test(lower)) return "MI";
+  if (/\b(?:kg|kilograms?)\b/.test(lower)) return "KG";
+  if (/\b(?:lb|lbs|pounds?)\b/.test(lower)) return "LB";
+  return "";
+}
+
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
   const unit = /%|percent|퍼센트/.test(lower)
     ? "%"
     : /명/.test(lower)
       ? "명"
-      : currencyUnit(lower);
+      : currencyUnit(lower) || measurementUnit(lower);
   const numericText = lower.replace(/,/g, "").match(/\d+(?:\.\d+)?/)?.[0] ?? "";
   let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
@@ -56,7 +67,7 @@ function clockTimeRanges(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔|°\s*[CF]|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|km|kilometers?|kilometres?|mi|miles?|kg|kilograms?|lb|lbs|pounds?))?/gi;
   const cleaned: string[] = [];
   const clocks = clockTimeRanges(title);
   for (const match of title.matchAll(matcher)) {
