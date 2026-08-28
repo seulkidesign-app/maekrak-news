@@ -62,6 +62,8 @@ jobs:
         run: node scripts/korea-impact-poisoning-abuse.mjs
       - name: LocalStorage snapshot poisoning abuse
         run: node scripts/localstorage-snapshot-abuse.mjs
+      - name: Visit snapshot time poisoning abuse
+        run: node scripts/visit-snapshot-time-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
