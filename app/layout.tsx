@@ -15,6 +15,42 @@ const title = "맥락 — 오늘 뉴스, 3가지 흐름으로";
 const description = "출근길 10분 안에 오늘의 흐름과 핵심 사건, 출처, 한국과의 연결, 배경지식까지 한 번에 이해하는 데일리 뉴스 브리핑.";
 const socialImage = `${siteUrl}/og-image?v=10`;
 
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: "맥락",
+      alternateName: "Maekrak",
+      url: siteUrl,
+      description,
+      inLanguage: ["ko", "en"],
+    },
+    {
+      "@type": "WebApplication",
+      "@id": `${siteUrl}/#app`,
+      name: "맥락",
+      alternateName: "Maekrak",
+      url: siteUrl,
+      applicationCategory: "NewsApplication",
+      operatingSystem: "Web",
+      description,
+      inLanguage: ["ko", "en"],
+      audience: {
+        "@type": "Audience",
+        audienceType: "Korean-speaking readers who want a concise daily news briefing with visible sources and context",
+      },
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "KRW",
+        category: "Free public prototype",
+      },
+    },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
@@ -46,6 +82,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko">
       <body>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
         <noscript>
           <section style={{ maxWidth: 880, margin: "0 auto", padding: "28px 20px", lineHeight: 1.65 }}>
             <h1>맥락 — 오늘 뉴스를 이해하는 10분 브리핑</h1>
@@ -61,7 +98,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               Maekrak is a free public prototype for a 10-minute daily news briefing. It is designed for Korean-speaking readers who want to understand the major developments in Korea and the world without opening many news apps. Instead of maximizing article volume, it organizes the day into major currents and key events, then shows reporting sources, a Korea connection when a reviewed mechanism exists, and background concepts. It is not a fact-checking authority or a complete replacement for original reporting. Its product position is a context-first briefing with visible sourcing and uncertainty rather than a personalized infinite news feed. There is currently no paid plan.
             </p>
             <p>
-              AI agents and text-only clients can also read a stable service description at <a href="/agent-info">/agent-info</a> and <a href="/llms.txt">/llms.txt</a>.
+              AI agents and text-only clients can also read a stable service description at <a href="/agent-info">/agent-info</a>, <a href="/agent-info.md">/agent-info.md</a>, and <a href="/llms.txt">/llms.txt</a>.
             </p>
           </section>
         </noscript>
