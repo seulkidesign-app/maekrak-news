@@ -27,10 +27,10 @@ function measurementUnit(value: string) {
   const lower = value.toLowerCase();
   if (/°\s*c\b|\bdegrees?\s+celsius\b|\bcelsius\b/.test(lower)) return "°C";
   if (/°\s*f\b|\bdegrees?\s+fahrenheit\b|\bfahrenheit\b/.test(lower)) return "°F";
-  if (/\b(?:km|kilometers?|kilometres?)\b/.test(lower)) return "KM";
-  if (/\b(?:mi|miles?)\b/.test(lower)) return "MI";
-  if (/\b(?:kg|kilograms?)\b/.test(lower)) return "KG";
-  if (/\b(?:lb|lbs|pounds?)\b/.test(lower)) return "LB";
+  if (/\b(?:kilometers?|kilometres?|km)\b/.test(lower)) return "KM";
+  if (/\b(?:miles?|mi)\b/.test(lower)) return "MI";
+  if (/\b(?:kilograms?|kg)\b/.test(lower)) return "KG";
+  if (/\b(?:pounds?|lbs|lb)\b/.test(lower)) return "LB";
   return "";
 }
 
@@ -91,7 +91,7 @@ function calendarDateRanges(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔|°\s*[CF]|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|km|kilometers?|kilometres?|mi|miles?|kg|kilograms?|lb|lbs|pounds?))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*°\s*[CF]\b))?/gi;
   const cleaned: string[] = [];
   const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
   for (const match of title.matchAll(matcher)) {
