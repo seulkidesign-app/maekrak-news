@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { parseVisitSnapshot, type VisitSnapshot } from "@/lib/visit-snapshot";
+import { type VisitSnapshot } from "@/lib/visit-snapshot";
+import { rotateVisitSnapshot } from "@/lib/visit-storage";
 
 export type VisitEvent = {
   id: string;
@@ -33,13 +34,7 @@ export default function ReturningBrief({ events, lang }: { events: VisitEvent[];
   } satisfies VisitSnapshot), [events]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      setPrevious(parseVisitSnapshot(raw));
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-    } catch {
-      setPrevious(null);
-    }
+    setPrevious(rotateVisitSnapshot(window.localStorage, STORAGE_KEY, current));
   }, [current]);
 
   if (previous === undefined) return null;
