@@ -61,30 +61,44 @@ function canonicalNumber(value: string) {
   return `${String(number)}${unit}`;
 }
 
-function clockTimeRanges(title: string) {
+function rangesForMatches(title: string, patterns: RegExp[]) {
   const ranges: Array<[number, number]> = [];
-  const clock = /\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*(?:a\.?m\.?|p\.?m\.?))?\b/gi;
-  for (const match of title.matchAll(clock)) {
-    const start = match.index ?? 0;
-    ranges.push([start, start + match[0].length]);
-  }
-  const dottedClock = /\b(?:0?\d|1[0-2])\.[0-5]\d\s*(?:a\.?m\.?|p\.?m\.?)\b/gi;
-  for (const match of title.matchAll(dottedClock)) {
-    const start = match.index ?? 0;
-    ranges.push([start, start + match[0].length]);
+  for (const pattern of patterns) {
+    for (const match of title.matchAll(pattern)) {
+      const start = match.index ?? 0;
+      ranges.push([start, start + match[0].length]);
+    }
   }
   return ranges;
+}
+
+function clockTimeRanges(title: string) {
+  return rangesForMatches(title, [
+    /\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*(?:a\.?m\.?|p\.?m\.?))?\b/gi,
+    /\b(?:0?\d|1[0-2])\.[0-5]\d\s*(?:a\.?m\.?|p\.?m\.?)\b/gi,
+  ]);
+}
+
+function calendarDateRanges(title: string) {
+  const month = "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+  return rangesForMatches(title, [
+    /\b(?:19|20)\d{2}[-/.](?:0?[1-9]|1[0-2])[-/.](?:0?[1-9]|[12]\d|3[01])\b/g,
+    /\b(?:0?[1-9]|[12]\d|3[01])[-/.](?:0?[1-9]|1[0-2])[-/.](?:19|20)\d{2}\b/g,
+    new RegExp(`\\b${month}\\s+(?:0?[1-9]|[12]\\d|3[01])(?:,\\s*|\\s+)(?:19|20)\\d{2}\\b`, "gi"),
+    new RegExp(`\\b(?:0?[1-9]|[12]\\d|3[01])\\s+${month}\\s+(?:19|20)\\d{2}\\b`, "gi"),
+    /\b(?:19|20)\d{2}년\s*(?:0?[1-9]|1[0-2])월\s*(?:0?[1-9]|[12]\d|3[01])일\b/g,
+  ]);
 }
 
 function headlineNumbers(title: string): string[] {
   const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:\s*(?:dollars?|euros?|won|yen|원|달러|유로|엔|°\s*[CF]|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|km|kilometers?|kilometres?|mi|miles?|kg|kilograms?|lb|lbs|pounds?))?/gi;
   const cleaned: string[] = [];
-  const clocks = clockTimeRanges(title);
+  const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
     const index = match.index ?? 0;
     const end = index + value.length;
-    if (clocks.some(([start, finish]) => index < finish && end > start)) continue;
+    if (ignoredRanges.some(([start, finish]) => index < finish && end > start)) continue;
     const before = title.slice(Math.max(0, index - 3), index);
     const after = title.slice(index + value.length, index + value.length + 2);
     const attachedToIdentifier = /[A-Za-z]$/.test(before) || /[A-Za-z]-$/.test(before) || /^[A-Za-z]/.test(after);
