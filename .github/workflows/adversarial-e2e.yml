@@ -60,6 +60,8 @@ jobs:
         run: node scripts/mobile-unbroken-text-abuse.mjs
       - name: Korea impact poisoning abuse
         run: node scripts/korea-impact-poisoning-abuse.mjs
+      - name: LocalStorage snapshot poisoning abuse
+        run: node scripts/localstorage-snapshot-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
