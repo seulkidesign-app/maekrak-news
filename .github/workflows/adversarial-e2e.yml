@@ -54,6 +54,8 @@ jobs:
         run: node scripts/source-flood-abuse.mjs
       - name: Calendar rollover abuse
         run: node scripts/calendar-rollover-abuse.mjs
+      - name: Mobile unbroken source-text abuse
+        run: node scripts/mobile-unbroken-text-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
