@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Apply collision-resistant event IDs and regression
+      - name: Apply event integrity hardening
         shell: python
         run: |
           from pathlib import Path
@@ -29,6 +29,7 @@ jobs:
 
           news = Path("lib/news.ts")
           text = news.read_text()
+
           old_import = 'import { XMLParser } from "fast-xml-parser";\n'
           new_import = 'import { createHash } from "node:crypto";\nimport { XMLParser } from "fast-xml-parser";\n'
           if 'from "node:crypto"' not in text:
@@ -48,67 +49,108 @@ jobs:
           function stableHash(value: string) {
             return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 24);
           }''')
-          assert old_hash in text
-          text = text.replace(old_hash, new_hash, 1)
+          if old_hash in text:
+              text = text.replace(old_hash, new_hash, 1)
 
-          old_export = "  hasProperNameConflict,\n  sameEvent,\n};"
-          new_export = "  hasProperNameConflict,\n  sameEvent,\n  stableEventId,\n};"
-          assert old_export in text
-          text = text.replace(old_export, new_export, 1)
+          majority_marker = dedent('''\
+          function majority<T extends string>(values: T[], fallback: T): T {
+            const counts = new Map<T, number>();
+            values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+            return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
+          }
+          ''')
+          balanced = majority_marker + dedent('''\
+          function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: (article: NewsItem) => T, fallback: T): T {
+            const bySource = new Map<string, T[]>();
+            for (const article of articles) {
+              const source = canonicalSourceName(article.source);
+              const values = bySource.get(source) ?? [];
+              values.push(select(article));
+              bySource.set(source, values);
+            }
+            const sourceVotes = [...bySource.values()].map((values) => majority(values, fallback));
+            return majority(sourceVotes, fallback);
+          }
+          ''')
+          if 'function sourceBalancedMajority' not in text:
+              assert majority_marker in text
+              text = text.replace(majority_marker, balanced, 1)
+
+          text = text.replace('const category = majority(sorted.map((article) => article.category), primary.category);', 'const category = sourceBalancedMajority(sorted, (article) => article.category, primary.category);')
+          text = text.replace('const scope = majority(sorted.map((article) => article.scope), primary.scope);', 'const scope = sourceBalancedMajority(sorted, (article) => article.scope, primary.scope);')
+
+          export_marker = "  hasProperNameConflict,\n  sameEvent,\n};"
+          export_repl = "  hasProperNameConflict,\n  sameEvent,\n  stableEventId,\n  sourceBalancedMajority,\n};"
+          if export_marker in text:
+              text = text.replace(export_marker, export_repl, 1)
+          elif 'sourceBalancedMajority,' not in text:
+              raise AssertionError('test export marker not found')
           news.write_text(text)
 
-          regression = dedent(r'''
+          Path("scripts/event-id-collision-abuse.mjs").write_text(dedent(r'''
           const failures = [];
           const passes = [];
-          function check(name, condition) {
-            if (condition) passes.push(name);
-            else failures.push(name);
-          }
-
+          function check(name, condition) { condition ? passes.push(name) : failures.push(name); }
           const { __test } = await import("../lib/news.ts");
-
           function article(title) {
-            return {
-              title,
-              description: title,
-              source: "Example News",
-              link: `https://example.com/${encodeURIComponent(title)}`,
-              publishedAt: "2026-08-28T00:00:00.000Z",
-              category: "세계",
-              scope: "world",
-              sourceType: "direct",
-              sourceRole: "other",
-            };
+            return { title, description: title, source: "Example News", link: `https://example.com/${encodeURIComponent(title)}`, publishedAt: "2026-08-28T00:00:00.000Z", category: "세계", scope: "world", sourceType: "direct", sourceRole: "other" };
           }
-
-          // These distinct fingerprints collide under the previous 32-bit FNV-1a implementation.
           const first = [article("clkabuym fverifen")];
           const second = [article("nkhbrcyr oltwxqyh")];
           const firstId = __test.stableEventId(first);
           const secondId = __test.stableEventId(second);
-
           check("known 32-bit collision pair now receives distinct event IDs", firstId !== secondId);
-          check("event IDs use a substantially larger digest", /^evt_[0-9a-f]{24}$/.test(firstId) && /^evt_[0-9a-f]{24}$/.test(secondId));
+          check("event IDs use a 96-bit digest", /^evt_[0-9a-f]{24}$/.test(firstId) && /^evt_[0-9a-f]{24}$/.test(secondId));
           check("event ID remains deterministic", __test.stableEventId(first) === firstId);
-
           console.log(`Event ID collision abuse: ${passes.length} passed / ${failures.length} failed`);
-          passes.forEach((name) => console.log(`PASS  ${name}`));
           failures.forEach((name) => console.error(`FAIL  ${name}`));
           if (failures.length) process.exit(1);
-          ''').lstrip()
-          Path("scripts/event-id-collision-abuse.mjs").write_text(regression)
+          ''').lstrip())
+
+          Path("scripts/source-flood-abuse.mjs").write_text(dedent(r'''
+          const failures = [];
+          const passes = [];
+          function check(name, condition) { condition ? passes.push(name) : failures.push(name); }
+          const { __test } = await import("../lib/news.ts");
+          function article(source, category, scope = "world") {
+            return { title: `${source} update ${Math.random()}`, description: "", source, link: `https://example.com/${encodeURIComponent(source)}`, publishedAt: "2026-08-28T00:00:00.000Z", category, scope, sourceType: "direct", sourceRole: "other" };
+          }
+          const flooded = [
+            ...Array.from({ length: 8 }, () => article("Flood News", "경제")),
+            article("Outlet B", "정치"),
+            article("Outlet C", "정치"),
+          ];
+          check("one outlet cannot outvote two independent outlets by article volume", __test.sourceBalancedMajority(flooded, (item) => item.category, "세계") === "정치");
+          const scopeFlood = [
+            ...Array.from({ length: 9 }, () => article("Flood News", "세계", "domestic")),
+            article("Outlet B", "세계", "world"),
+            article("Outlet C", "세계", "world"),
+          ];
+          check("one outlet cannot flip event scope by duplicate volume", __test.sourceBalancedMajority(scopeFlood, (item) => item.scope, "world") === "world");
+          console.log(`Source flood abuse: ${passes.length} passed / ${failures.length} failed`);
+          failures.forEach((name) => console.error(`FAIL  ${name}`));
+          if (failures.length) process.exit(1);
+          ''').lstrip())
 
           ci = Path(".github/workflows/adversarial-e2e.yml")
           ci_text = ci.read_text()
           marker = "      - name: Source-link trust abuse\n        run: node scripts/source-link-abuse.mjs\n"
-          addition = marker + "      - name: Event ID collision abuse\n        run: node scripts/event-id-collision-abuse.mjs\n"
-          assert marker in ci_text
-          ci.write_text(ci_text.replace(marker, addition, 1))
+          addition = marker
+          if "Event ID collision abuse" not in ci_text:
+              addition += "      - name: Event ID collision abuse\n        run: node scripts/event-id-collision-abuse.mjs\n"
+          if "Source flood abuse" not in ci_text:
+              addition += "      - name: Source flood abuse\n        run: node scripts/source-flood-abuse.mjs\n"
+          if addition != marker:
+              assert marker in ci_text
+              ci_text = ci_text.replace(marker, addition, 1)
+          ci.write_text(ci_text)
 
           Path(".github/workflows/event-id-collision-fix.yml").unlink()
       - run: npm install --no-audit --no-fund
       - name: Event ID collision regression
         run: node scripts/event-id-collision-abuse.mjs
+      - name: Source flood regression
+        run: node scripts/source-flood-abuse.mjs
       - name: Full content abuse regression
         run: node scripts/content-abuse.mjs
       - name: Production build
@@ -118,7 +160,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Harden event IDs against hash collisions"
+          git commit -m "Harden event identity and source-balanced voting"
           git push origin HEAD:main
       - name: Dispatch full adversarial CI
         env:
