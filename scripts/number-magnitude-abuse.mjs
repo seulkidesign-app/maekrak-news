@@ -96,6 +96,30 @@ const englishWonAlias = auditEventAccuracy(event([
 ]));
 check("English won label and KRW code normalize to the same currency", !englishWonAlias.headlineNumberDifference);
 
+const decimalCommaPercent = auditEventAccuracy(event([
+  article("Inflation slows to 3.5% in July", "Reuters"),
+  article("Inflation slows to 3,5% in July", "BBC"),
+]));
+check("decimal comma and decimal point percentages normalize to the same value", !decimalCommaPercent.headlineNumberDifference);
+
+const decimalCommaMagnitude = auditEventAccuracy(event([
+  article("Aid package reaches 1.5 million euros", "Reuters"),
+  article("Aid package reaches 1,5 million euros", "BBC"),
+]));
+check("decimal comma and decimal point magnitudes normalize to the same value", !decimalCommaMagnitude.headlineNumberDifference);
+
+const thousandsComma = auditEventAccuracy(event([
+  article("Company plans 1,000 new jobs", "Reuters"),
+  article("Company plans 1000 new jobs", "BBC"),
+]));
+check("thousands comma remains a thousands separator", !thousandsComma.headlineNumberDifference);
+
+const realDecimalDifference = auditEventAccuracy(event([
+  article("Inflation slows to 3.5% in July", "Reuters"),
+  article("Inflation slows to 3,6% in July", "BBC"),
+]));
+check("real decimal disagreement still raises a warning", realDecimalDifference.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
