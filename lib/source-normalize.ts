@@ -14,6 +14,13 @@ function canonicalUnknownOutletCase(value: string) {
     .replace(/(^|[\s/._&()'\-])([a-z])/g, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
 }
 
+function placeholderOutletKey(value: string) {
+  return value
+    .toLocaleLowerCase("en-US")
+    .replace(/^[^\p{L}\p{N}/-]+|[^\p{L}\p{N}/-]+$/gu, "")
+    .trim();
+}
+
 export function normalizeExternalText(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -26,7 +33,8 @@ export function normalizeExternalText(value: unknown) {
 export function canonicalSourceName(value: string) {
   const raw = normalizeExternalText(value);
   const lower = raw.toLowerCase();
-  if (!raw || PLACEHOLDER_OUTLET.test(raw)) return "Unverified source";
+  const placeholderKey = placeholderOutletKey(raw);
+  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey)) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
   if (/^(연합뉴스|yonhap|yonhap news|yonhap news agency)$/.test(lower)) return "연합뉴스";
