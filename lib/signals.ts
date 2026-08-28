@@ -1,5 +1,5 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
-import { canonicalSourceName } from "@/lib/source-normalize";
+import { canonicalSourceName } from "./source-normalize.ts";
 
 export type EvidenceLabel = "일반 보도" | "발언·주장" | "전망·추정";
 
