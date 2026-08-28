@@ -39,6 +39,8 @@ jobs:
         run: node scripts/ipv6-boundary-abuse.mjs
       - name: Outlet case inflation abuse
         run: node scripts/outlet-case-abuse.mjs
+      - name: Placeholder outlet inflation abuse
+        run: node scripts/placeholder-outlet-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
