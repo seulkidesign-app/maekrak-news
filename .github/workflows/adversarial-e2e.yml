@@ -29,6 +29,8 @@ jobs:
         run: node scripts/timestamp-abuse.mjs
       - name: Template headline collision abuse
         run: node scripts/template-collision-abuse.mjs
+      - name: IPv6 URL boundary abuse
+        run: node scripts/ipv6-boundary-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
