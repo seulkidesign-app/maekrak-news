@@ -1,6 +1,7 @@
 const failures = [];
 const passes = [];
 const { parseVisitSnapshot } = await import("../lib/visit-snapshot.ts");
+const { rotateVisitSnapshot } = await import("../lib/visit-storage.ts");
 
 function check(name, condition) {
   if (condition) passes.push(name);
@@ -21,6 +22,37 @@ check("non-string IDs are rejected", parseVisitSnapshot(JSON.stringify({ savedAt
 check("invalid savedAt is rejected", parseVisitSnapshot(JSON.stringify({ savedAt: "not-a-date", eventIds: [], priorityEventIds: [] })) === null);
 check("oversized ID arrays are rejected", parseVisitSnapshot(JSON.stringify({ savedAt: new Date().toISOString(), eventIds: Array.from({ length: 501 }, (_, i) => `evt_${i}`), priorityEventIds: [] })) === null);
 check("oversized individual IDs are rejected", parseVisitSnapshot(JSON.stringify({ savedAt: new Date().toISOString(), eventIds: ["x".repeat(161)], priorityEventIds: [] })) === null);
+
+const now = Date.now();
+const previous = {
+  savedAt: new Date(now - 60 * 60_000).toISOString(),
+  eventIds: ["evt_previous"],
+  priorityEventIds: ["evt_previous"],
+};
+const current = {
+  savedAt: new Date(now).toISOString(),
+  eventIds: ["evt_current"],
+  priorityEventIds: ["evt_current"],
+};
+const quotaStorage = {
+  getItem() { return JSON.stringify(previous); },
+  setItem() {
+    const error = new Error("QuotaExceededError");
+    error.name = "QuotaExceededError";
+    throw error;
+  },
+};
+const preserved = rotateVisitSnapshot(quotaStorage, "maekrak:last-briefing:v2", current, now);
+check("quota-exhausted write preserves a valid previous snapshot", preserved?.eventIds[0] === "evt_previous");
+
+let persisted = "";
+const normalStorage = {
+  getItem() { return JSON.stringify(previous); },
+  setItem(_key, value) { persisted = value; },
+};
+const normalPrevious = rotateVisitSnapshot(normalStorage, "maekrak:last-briefing:v2", current, now);
+check("normal rotation returns the previous snapshot", normalPrevious?.priorityEventIds[0] === "evt_previous");
+check("normal rotation persists the current snapshot", JSON.parse(persisted).eventIds[0] === "evt_current");
 
 console.log(`LocalStorage snapshot abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
