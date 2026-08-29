@@ -13,10 +13,10 @@ const uncertaintyPatterns = [
 ];
 
 const nonAssertionClaimNouns = [
-  /\b(?:jobless|unemployment|insurance|benefit|benefits|initial|weekly)\s+claims?\b/i,
-  /\bclaims?\s+(?:for\s+)?(?:unemployment|insurance|benefits?|compensation|damages?)\b/i,
+  /\b(?:jobless|unemployment|insurance|benefit|benefits|initial|weekly)\s+claims?\b/gi,
+  /\bclaims?\s+(?:for\s+)?(?:unemployment|insurance|benefits?|compensation|damages?)\b/gi,
 ];
-const nonAssertionStatements = /\b(?:financial|income|bank|account)\s+statements?\b/i;
+const nonAssertionStatements = /\b(?:financial|income|bank|account)\s+statements?\b/gi;
 
 function hasClaimLanguage(text: string) {
   if (claimPatterns.some((pattern) => pattern.test(text))) return true;
