@@ -15,6 +15,7 @@ const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
 ];
 
 const BASIS_POINT = /\b(?:basis\s+points?|bps?|bp)\b|베이시스\s*포인트/i;
+const PERCENTAGE_POINT = /\bpercentage\s+points?\b|퍼센트\s*포인트/i;
 
 function currencyUnit(value: string) {
   const lower = value.toLowerCase();
@@ -52,11 +53,14 @@ function normalizedNumericText(value: string) {
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
   const isBasisPoint = BASIS_POINT.test(lower);
-  let unit = /%|percent|퍼센트/.test(lower) || isBasisPoint
-    ? "%"
-    : /명/.test(lower)
-      ? "명"
-      : currencyUnit(lower) || measurementUnit(lower);
+  const isPercentagePoint = PERCENTAGE_POINT.test(lower);
+  let unit = isPercentagePoint
+    ? "PP"
+    : /%|\bpercent\b|퍼센트/.test(lower) || isBasisPoint
+      ? "%"
+      : /명/.test(lower)
+        ? "명"
+        : currencyUnit(lower) || measurementUnit(lower);
   const numericText = normalizedNumericText(lower);
   let number = Number(numericText);
   if (!numericText || !Number.isFinite(number)) return "";
@@ -124,7 +128,7 @@ function fractionShareValues(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|meters?|metres?|miles?|mi|kilograms?|kg|grams?|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:percentage\s+points?|percent(?!age)|퍼센트\s*포인트|퍼센트|%|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|meters?|metres?|miles?|mi|kilograms?|kg|grams?|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
   const fractionShares = fractionShareValues(title);
   const cleaned: string[] = fractionShares.map((item) => item.canonical);
   const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title), ...fractionShares.map((item) => item.range)];
