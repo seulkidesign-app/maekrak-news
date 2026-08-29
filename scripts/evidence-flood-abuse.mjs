@@ -54,6 +54,23 @@ check("independent publisher remains represented", summary["일반 보도"] === 
 const timeline = eventTimeline(event);
 check("canonical source aliases cannot inflate one-hour timeline", timeline.length === 2, timeline.map((item) => item.source).join(","));
 
+const timelineFloodArticles = [
+  article("Reuters", "Reuters verified baseline", new Date(base.getTime() + 5 * 60_000).toISOString()),
+  article("BBC", "BBC verified baseline", new Date(base.getTime() + 65 * 60_000).toISOString()),
+  article("Unverified source", "Unknown update one", new Date(base.getTime() + 125 * 60_000).toISOString()),
+  article("Unknown source", "Unknown update two", new Date(base.getTime() + 185 * 60_000).toISOString()),
+  article("N/A", "Unknown update three", new Date(base.getTime() + 245 * 60_000).toISOString()),
+  article("Source unavailable", "Unknown update four", new Date(base.getTime() + 305 * 60_000).toISOString()),
+  article("Unverified source", "Unknown update five", new Date(base.getTime() + 365 * 60_000).toISOString()),
+];
+const timelineFloodEvent = { ...event, id: "unverified-timeline-flood", articles: timelineFloodArticles };
+const protectedTimeline = eventTimeline(timelineFloodEvent);
+const unknownSlots = protectedTimeline.filter((item) => ["Unverified source", "Unknown source", "N/A", "Source unavailable"].includes(item.source));
+check("unverified hourly updates cannot occupy the whole visible timeline", unknownSlots.length === 1, protectedTimeline.map((item) => item.source).join(","));
+check("verified Reuters survives unverified timeline flooding", protectedTimeline.some((item) => item.source === "Reuters"), protectedTimeline.map((item) => item.source).join(","));
+check("verified BBC survives unverified timeline flooding", protectedTimeline.some((item) => item.source === "BBC"), protectedTimeline.map((item) => item.source).join(","));
+check("latest unverified context remains visible once", unknownSlots[0]?.title === "Unknown update five", unknownSlots.map((item) => item.title).join(","));
+
 console.log(`\nEvidence flood abuse regression: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
