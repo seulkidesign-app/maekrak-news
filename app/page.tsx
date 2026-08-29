@@ -43,6 +43,7 @@ function eventCategoryLabel(category: string, lang: Language) {
 }
 
 function coverageLabel(event: NewsEvent, lang: Language) {
+  if (event.sourceCount === 0) return lang === "ko" ? "출처 확인 필요" : "Source identity unverified";
   if (lang === "ko") return event.sourceCount >= 3 ? `${event.sourceCount}개 매체 보도` : event.sourceCount === 2 ? "2개 매체 보도" : "단일 매체 보도";
   return event.sourceCount >= 3 ? `${event.sourceCount} outlets` : event.sourceCount === 2 ? "2 outlets" : "Single outlet";
 }

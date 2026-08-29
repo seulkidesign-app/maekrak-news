@@ -610,44 +610,61 @@ function sourceAuthorityWeight(article: NewsItem) {
   return 0.72;
 }
 
+function verifiedSourceArticles(articles: NewsItem[]) {
+  return articles.filter((article) => canonicalSourceName(article.source) !== "Unverified source");
+}
+
+function rankingSignalArticles(articles: NewsItem[]) {
+  const verified = verifiedSourceArticles(articles);
+  return verified.length ? verified : articles;
+}
+
+function verifiedSourceCount(articles: NewsItem[]) {
+  return new Set(verifiedSourceArticles(articles).map((article) => canonicalSourceName(article.source))).size;
+}
+
 function importanceFor(articles: NewsItem[]) {
   const now = Date.now();
-  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
-  const roles = new Set(articles.map((article) => article.sourceRole));
-  const validTimes = articles.map((article) => new Date(article.publishedAt).getTime()).filter(Number.isFinite);
+  const verified = verifiedSourceArticles(articles);
+  const signalArticles = verified.length ? verified : articles;
+  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
+  const roles = new Set(verified.map((article) => article.sourceRole));
+  const validTimes = signalArticles.map((article) => new Date(article.publishedAt).getTime()).filter(Number.isFinite);
   const newest = validTimes.length ? Math.max(...validTimes) : now - 86_400_000;
   const ageHours = Math.max(0, (now - newest) / 3_600_000);
   const recency = Math.max(0, 2.4 - ageHours / 12);
   const diversity = Math.min(4, sources.size) * 1.05;
   const roleDiversity = Math.min(3, roles.size) * 0.6;
-  const sourceAuthority = Math.max(...articles.map(sourceAuthorityWeight));
-  const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
+  const sourceAuthority = verified.length ? Math.max(...verified.map(sourceAuthorityWeight)) : 0.45;
+  const text = signalArticles.map((article) => `${article.title} ${article.description}`).join(" ");
   const impact = isHighImpact(text) ? 2.0 : structuralImpactPattern.test(text) ? 1.25 : 0;
   const softNewsPenalty = softNewsPattern.test(text) && !structuralImpactPattern.test(text) && !isHighImpact(text) ? 1.8 : 0;
-  const crossScope = new Set(articles.map((article) => article.scope)).size > 1 ? 0.65 : 0;
-  const directSignal = articles.some((article) => article.sourceType === "direct") ? 0.45 : 0;
-  const singleSourcePenalty = sources.size === 1 ? 1.6 : 0;
-  const aggregatedOnlyPenalty = sources.size === 1 && articles.every((article) => article.sourceType === "aggregated") ? 0.45 : 0;
+  const crossScope = new Set(signalArticles.map((article) => article.scope)).size > 1 ? 0.65 : 0;
+  const directSignal = verified.some((article) => article.sourceType === "direct") ? 0.45 : 0;
+  const singleSourcePenalty = sources.size <= 1 ? 1.6 : 0;
+  const aggregatedOnlyPenalty = sources.size <= 1 && signalArticles.every((article) => article.sourceType === "aggregated") ? 0.45 : 0;
   const score = diversity + roleDiversity + sourceAuthority + recency + impact + crossScope + directSignal - singleSourcePenalty - aggregatedOnlyPenalty - softNewsPenalty;
   return Math.round(Math.max(0, score) * 100) / 100;
 }
 
 function selectionReasons(articles: NewsItem[], score: number) {
   const reasons: string[] = [];
-  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
-  const roles = new Set(articles.map((article) => article.sourceRole));
-  const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
+  const verified = verifiedSourceArticles(articles);
+  const signalArticles = verified.length ? verified : articles;
+  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
+  const roles = new Set(verified.map((article) => article.sourceRole));
+  const text = signalArticles.map((article) => `${article.title} ${article.description}`).join(" ");
   if (sources.size >= 3) reasons.push("여러 매체에서 동시 보도");
   if (roles.has("wire")) reasons.push("통신사 보도 포함");
   if (roles.size >= 2) reasons.push("서로 다른 유형의 출처");
   if (isHighImpact(text)) reasons.push("정책·안보·재난 등 영향도가 큰 주제");
   else if (structuralImpactPattern.test(text)) reasons.push("제도·생활에 이어질 구조적 이슈");
-  if (score >= 7 && reasons.length === 0) reasons.push("최신성과 보도량을 함께 반영");
+  if (score >= 7 && reasons.length === 0 && sources.size > 0) reasons.push("최신성과 보도량을 함께 반영");
   return reasons.slice(0, 3);
 }
 
 function briefWhyFor(category: NewsCategory, articles: NewsItem[]): BriefWhyCode {
-  const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
+  const text = rankingSignalArticles(articles).map((article) => `${article.title} ${article.description}`).join(" ");
   if (/전쟁|공격|미사일|핵|휴전|제재|\b(?:war|attack|missiles?|nuclear|ceasefire|sanctions?)\b/i.test(text)) return "security";
   if (category === "정치" || /선거|대통령|총리|국회|개혁|\b(?:election|president|prime minister|parliament|reform)\b/i.test(text)) return "politics";
   if (category === "경제") return "economy";
@@ -658,8 +675,9 @@ function briefWhyFor(category: NewsCategory, articles: NewsItem[]): BriefWhyCode
 }
 
 function briefWatchFor(articles: NewsItem[]): BriefWatchCode {
-  const text = articles.map((article) => `${article.title} ${article.description}`).join(" ");
-  const sources = new Set(articles.map((article) => canonicalSourceName(article.source)));
+  const verified = verifiedSourceArticles(articles);
+  const text = rankingSignalArticles(articles).map((article) => `${article.title} ${article.description}`).join(" ");
+  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
   if (sources.size <= 1) return "single-source";
   if (uncertaintyPattern.test(text)) return "uncertain";
   if (claimPattern.test(text)) return "claim-heavy";
@@ -674,7 +692,9 @@ function majority<T extends string>(values: T[], fallback: T): T {
 }
 function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: (article: NewsItem) => T, fallback: T): T {
   const bySource = new Map<string, T[]>();
-  for (const article of articles) {
+  const verified = verifiedSourceArticles(articles);
+  const votingArticles = verified.length ? verified : articles;
+  for (const article of votingArticles) {
     const source = canonicalSourceName(article.source).toLowerCase();
     const values = bySource.get(source) ?? [];
     values.push(select(article));
@@ -749,10 +769,12 @@ export async function getBriefing(): Promise<Briefing> {
 
   const events = clusters.map((articles) => {
     const sorted = [...articles].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-    const primary = sorted.find((article) => article.sourceRole === "wire")
-      ?? sorted.find((article) => article.sourceType === "direct")
+    const signalPool = rankingSignalArticles(sorted);
+    const primary = signalPool.find((article) => article.sourceRole === "wire")
+      ?? signalPool.find((article) => article.sourceType === "direct")
+      ?? signalPool[0]
       ?? sorted[0];
-    const sources = new Set(sorted.map((article) => canonicalSourceName(article.source)));
+    const sourceCount = verifiedSourceCount(sorted);
     const category = sourceBalancedMajority(sorted, (article) => article.category, primary.category);
     const scope = sourceBalancedMajority(sorted, (article) => article.scope, primary.scope);
     const importanceScore = importanceFor(sorted);
@@ -765,7 +787,7 @@ export async function getBriefing(): Promise<Briefing> {
       publishedAt: sorted[0].publishedAt,
       dayStatus: sorted.some((article) => isTodayKst(article.publishedAt)) ? "today" : "ongoing",
       articles: sorted,
-      sourceCount: sources.size,
+      sourceCount,
       importanceScore,
       whySelected: selectionReasons(sorted, importanceScore),
       briefWhy: briefWhyFor(category, sorted),
@@ -826,4 +848,8 @@ export const __test = {
   clusterNewsItems,
   stableEventId,
   sourceBalancedMajority,
+  verifiedSourceArticles,
+  verifiedSourceCount,
+  importanceFor,
+  selectionReasons,
 };
