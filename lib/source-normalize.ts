@@ -1,5 +1,5 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
-const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n\/?a|na|none|null|-)$/i;
+const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n\/?a|na|none|null|-)(?:\s+\d+)?$/i;
 
 function hasSuspiciousMixedScripts(value: string) {
   const hasLatin = /\p{Script=Latin}/u.test(value);
@@ -18,6 +18,8 @@ function placeholderOutletKey(value: string) {
   return value
     .toLocaleLowerCase("en-US")
     .replace(/^[^\p{L}\p{N}/-]+|[^\p{L}\p{N}/-]+$/gu, "")
+    .replace(/[#()[\]{}:;]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
