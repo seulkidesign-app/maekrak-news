@@ -19,6 +19,15 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/apply-unverified-trust-signal-patch.mjs
+      - name: Remove duplicate test export
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('lib/news.ts')
+          s = p.read_text()
+          s = s.replace('  sourceBalancedMajority,\n  verifiedSourceArticles,\n  verifiedSourceCount,\n  importanceFor,\n  selectionReasons,\n  briefWatchFor,\n};', '  sourceBalancedMajority,\n  verifiedSourceArticles,\n  verifiedSourceCount,\n  importanceFor,\n  selectionReasons,\n};', 1)
+          p.write_text(s)
+          PY
       - run: npm install --no-audit --no-fund
       - run: node scripts/unverified-trust-signal-laundering-abuse.mjs
       - run: node scripts/content-abuse.mjs
