@@ -30,8 +30,10 @@ function measurementUnit(value: string) {
   if (/°\s*c\b|\bdegrees?\s+celsius\b|\bcelsius\b/.test(lower)) return "°C";
   if (/°\s*f\b|\bdegrees?\s+fahrenheit\b|\bfahrenheit\b/.test(lower)) return "°F";
   if (/\b(?:kilometers?|kilometres?|km)\b/.test(lower)) return "KM";
+  if (/\b(?:meters?|metres?)\b/.test(lower)) return "M";
   if (/\b(?:miles?|mi)\b/.test(lower)) return "MI";
   if (/\b(?:kilograms?|kg)\b/.test(lower)) return "KG";
+  if (/\bgrams?\b/.test(lower)) return "G";
   if (/\b(?:pounds?|lbs|lb)\b/.test(lower)) return "LB";
   return "";
 }
@@ -49,7 +51,7 @@ function normalizedNumericText(value: string) {
 function canonicalNumber(value: string) {
   const lower = value.toLowerCase().trim();
   const isBasisPoint = BASIS_POINT.test(lower);
-  const unit = /%|percent|퍼센트/.test(lower) || isBasisPoint
+  let unit = /%|percent|퍼센트/.test(lower) || isBasisPoint
     ? "%"
     : /명/.test(lower)
       ? "명"
@@ -61,6 +63,18 @@ function canonicalNumber(value: string) {
   number *= multiplier;
   if (isBasisPoint) number /= 100;
   if (/^(?:[$€£₩¥]|(?:usd|eur|gbp|krw|jpy)\s*)?[\s]*[\-−]/i.test(lower)) number *= -1;
+
+  // Exact metric conversions prevent equivalent reporting such as 1 km vs 1000 meters
+  // from being surfaced as a cross-source numeric disagreement. Avoid approximate
+  // imperial/metric conversions because rounded newsroom figures are not equivalent.
+  if (unit === "KM") {
+    number *= 1000;
+    unit = "M";
+  } else if (unit === "KG") {
+    number *= 1000;
+    unit = "G";
+  }
+
   if (!Number.isFinite(number)) return "";
   return `${String(number)}${unit}`;
 }
@@ -95,7 +109,7 @@ function calendarDateRanges(title: string) {
 }
 
 function headlineNumbers(title: string): string[] {
-  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|miles?|mi|kilograms?|kg|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
+  const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|meters?|metres?|miles?|mi|kilograms?|kg|grams?|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
   const cleaned: string[] = [];
   const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
   for (const match of title.matchAll(matcher)) {
