@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   patch:
+    if: github.event.head_commit.message == 'Retry verified trust-signal app patch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,12 +33,11 @@ jobs:
       - run: node scripts/unverified-trust-signal-laundering-abuse.mjs
       - run: node scripts/content-abuse.mjs
       - run: npm run build
-      - name: Commit verified patch
+      - name: Commit verified app patch
         run: |
-          rm scripts/apply-unverified-trust-signal-patch.mjs
-          rm .github/workflows/one-shot-run-trust-signal-patch.yml
           git config user.name "seulkidesign-app"
           git config user.email "seulki.design@gmail.com"
-          git add -A
+          git add lib/news.ts app/page.tsx scripts/unverified-trust-signal-laundering-abuse.mjs
           git commit -m "Block unverified trust-signal laundering"
+          git pull --rebase --autostash origin main
           git push origin HEAD:main
