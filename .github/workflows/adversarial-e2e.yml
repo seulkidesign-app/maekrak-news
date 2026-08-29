@@ -30,6 +30,8 @@ jobs:
         run: node scripts/number-magnitude-abuse.mjs
       - name: Unicode numeric glyph abuse
         run: node scripts/unicode-numeric-glyph-abuse.mjs
+      - name: Percentage-point semantic abuse
+        run: node scripts/percentage-point-abuse.mjs
       - name: Unit ambiguity abuse
         run: node scripts/unit-ambiguity-abuse.mjs
       - name: Clock-time number abuse
