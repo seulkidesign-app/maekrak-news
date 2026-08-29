@@ -52,6 +52,8 @@ jobs:
         run: node scripts/default-ignorable-outlet-abuse.mjs
       - name: Trusted-brand homoglyph outlet abuse
         run: node scripts/trusted-brand-homoglyph-abuse.mjs
+      - name: Combining-mark trusted-brand outlet abuse
+        run: node scripts/combining-mark-outlet-abuse.mjs
       - name: Benign mixed-script outlet false-positive abuse
         run: node scripts/benign-mixed-script-outlet-abuse.mjs
       - name: Placeholder outlet inflation abuse
