@@ -1,0 +1,16 @@
+/* Keep sticky navigation out of iOS notch / Dynamic Island safe areas without changing its visual height on ordinary screens. */
+.topbar{
+  height:calc(68px + env(safe-area-inset-top));
+  padding-top:env(safe-area-inset-top);
+  padding-left:max(5vw, env(safe-area-inset-left));
+  padding-right:max(5vw, env(safe-area-inset-right));
+}
+
+@supports (height: constant(safe-area-inset-top)){
+  .topbar{
+    height:calc(68px + constant(safe-area-inset-top));
+    padding-top:constant(safe-area-inset-top);
+    padding-left:max(5vw, constant(safe-area-inset-left));
+    padding-right:max(5vw, constant(safe-area-inset-right));
+  }
+}
