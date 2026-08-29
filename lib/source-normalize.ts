@@ -1,5 +1,5 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
-const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n\/?a|na|none|null|-)(?:\s+\d+)?$/i;
+const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null)(?:\s+\d+)?$/i;
 const TRUSTED_CONFUSABLE_SKELETONS = new Set([
   "reuters", "ap", "ap news", "bbc", "kbs", "mbc", "sbs", "dw", "nhk",
 ]);
@@ -41,8 +41,10 @@ function canonicalUnknownOutletCase(value: string) {
 function placeholderOutletKey(value: string) {
   return value
     .toLocaleLowerCase("en-US")
-    .replace(/^[^\p{L}\p{N}/-]+|[^\p{L}\p{N}/-]+$/gu, "")
-    .replace(/[#()[\]{}:;]+/g, " ")
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
+    // Placeholder labels are often machine-generated with arbitrary separators.
+    // Normalize separators only for placeholder detection so real outlet names keep their punctuation.
+    .replace(/[\p{P}\p{S}_]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
