@@ -48,6 +48,8 @@ jobs:
         run: node scripts/unicode-punctuation-outlet-abuse.mjs
       - name: Default-ignorable outlet inflation abuse
         run: node scripts/default-ignorable-outlet-abuse.mjs
+      - name: Trusted-brand homoglyph outlet abuse
+        run: node scripts/trusted-brand-homoglyph-abuse.mjs
       - name: Placeholder outlet inflation abuse
         run: node scripts/placeholder-outlet-abuse.mjs
       - name: Numbered placeholder outlet inflation abuse
