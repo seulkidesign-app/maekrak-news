@@ -175,6 +175,10 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
   const bySource = new Map<string, NewsItem>();
   event.articles.forEach((article) => {
     const canonical = canonicalSourceName(article.source);
+    // Keep unknown-source reports visible in the article list, but do not let an
+    // unverifiable identity count as an independent outlet or manufacture a
+    // cross-source numeric/certainty disagreement in the trust audit.
+    if (canonical === "Unverified source") return;
     if (!bySource.has(canonical)) bySource.set(canonical, { ...article, source: canonical });
   });
   const uniqueArticles = Array.from(bySource.values());
