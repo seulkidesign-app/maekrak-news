@@ -1,10 +1,34 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
 const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n\/?a|na|none|null|-)(?:\s+\d+)?$/i;
+const TRUSTED_CONFUSABLE_SKELETONS = new Set([
+  "reuters", "ap", "ap news", "bbc", "kbs", "mbc", "sbs", "dw", "nhk",
+]);
+const CONFUSABLE_TO_LATIN: Record<string, string> = {
+  // Cyrillic characters commonly used to visually impersonate Latin outlet names.
+  "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
+  "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
+  "С": "C", "с": "c", "Т": "T", "т": "t", "Х": "X", "х": "x", "У": "Y", "у": "y",
+  "І": "I", "і": "i", "Ј": "J", "ј": "j", "Ѕ": "S", "ѕ": "s",
+  // Greek lookalikes used in the same spoofing class.
+  "Α": "A", "α": "a", "Β": "B", "Ε": "E", "ε": "e", "Ζ": "Z", "Η": "H", "Ι": "I",
+  "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "ο": "o", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+};
 
 function hasSuspiciousMixedScripts(value: string) {
   const hasLatin = /\p{Script=Latin}/u.test(value);
   const hasCyrillicOrGreek = /[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value);
   return hasLatin && hasCyrillicOrGreek;
+}
+
+function trustedBrandHomoglyphSpoof(value: string) {
+  if (!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value)) return false;
+  const skeleton = [...value]
+    .map((character) => CONFUSABLE_TO_LATIN[character] ?? character)
+    .join("")
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/g, " ")
+    .trim();
+  return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
 }
 
 function canonicalUnknownOutletCase(value: string) {
@@ -47,7 +71,7 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  if (hasSuspiciousMixedScripts(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
+  if (hasSuspiciousMixedScripts(raw) || trustedBrandHomoglyphSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return canonicalUnknownOutletCase(raw);
 }
 
