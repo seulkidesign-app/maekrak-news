@@ -24,23 +24,24 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('lib/news.ts')
           text = path.read_text()
 
-          old = '''  const clusters: NewsItem[][] = [];
-          for (const item of news) {
-            const match = clusters.find((cluster) => cluster.length > 0 && sameEvent(cluster[0], item));
-            if (match) match.push(item);
-            else clusters.push([item]);
-          }
-          '''
-          new = '''  const clusters = clusterNewsItems(news);
-          '''
-          if old not in text:
-              raise SystemExit('expected legacy clustering loop not found')
-          text = text.replace(old, new, 1)
+          pattern = re.compile(
+              r'\n\s*const clusters: NewsItem\[\]\[\] = \[\];\n'
+              r'\s*for \(const item of news\) \{\n'
+              r'\s*const match = clusters\.find\(\(cluster\) => cluster\.length > 0 && sameEvent\(cluster\[0\], item\)\);\n'
+              r'\s*if \(match\) match\.push\(item\);\n'
+              r'\s*else clusters\.push\(\[item\]\);\n'
+              r'\s*\}\n'
+          )
+          text, count = pattern.subn('\n  const clusters = clusterNewsItems(news);\n', text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one legacy clustering loop, found {count}')
 
-          marker = '''export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {'''
+          marker = 'export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {'
           helper = '''function clusterNewsItems(items: NewsItem[]) {
             const clusters: NewsItem[][] = [];
             for (const item of items) {
@@ -56,13 +57,9 @@ jobs:
               raise SystemExit('getDisplayArticle marker not found')
           text = text.replace(marker, helper + marker, 1)
 
-          export_marker = '''  sameEvent,
-            stableEventId,'''
-          if export_marker not in text:
-              raise SystemExit('__test export marker not found')
-          text = text.replace(export_marker, '''  sameEvent,
-            clusterNewsItems,
-            stableEventId,''', 1)
+          text, count = re.subn(r'(\n\s*sameEvent,\n)(\s*stableEventId,)', r'\1  clusterNewsItems,\n\2', text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one __test export marker, found {count}')
 
           path.write_text(text)
           PY
