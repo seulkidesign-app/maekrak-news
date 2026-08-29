@@ -25,6 +25,17 @@ function trustedBrandHomoglyphSpoof(value: string) {
   return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
 }
 
+function trustedBrandCombiningMarkSpoof(value: string) {
+  if (!/\p{M}/u.test(value.normalize("NFD"))) return false;
+  const skeleton = value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/g, " ")
+    .trim();
+  return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
+}
+
 function canonicalUnknownOutletCase(value: string) {
   if (!/[A-Za-z]/.test(value)) return value;
   return value
@@ -67,9 +78,9 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  // Reject strings that resolve to a trusted-brand homoglyph, but do not reject
-  // every benign multilingual outlet name merely for mixing scripts.
-  if (trustedBrandHomoglyphSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
+  // Reject strings that resolve to a trusted-brand homoglyph or combining-mark spoof,
+  // but do not reject benign multilingual or accented outlet names in general.
+  if (trustedBrandHomoglyphSpoof(raw) || trustedBrandCombiningMarkSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return canonicalUnknownOutletCase(raw);
 }
 
