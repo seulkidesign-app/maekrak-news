@@ -1,7 +1,7 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
 const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null)(?:\s+\d+)?$/i;
 const TRUSTED_CONFUSABLE_SKELETONS = new Set([
-  "reuters", "ap", "ap news", "bbc", "kbs", "mbc", "sbs", "dw", "nhk",
+  "reuters", "reuters news", "ap", "ap news", "bbc", "bbc news", "kbs", "kbs news", "mbc", "mbc news", "sbs", "sbs news", "dw", "nhk",
 ]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   // Cyrillic characters commonly used to visually impersonate Latin outlet names.
@@ -13,12 +13,6 @@ const CONFUSABLE_TO_LATIN: Record<string, string> = {
   "Α": "A", "α": "a", "Β": "B", "Ε": "E", "ε": "e", "Ζ": "Z", "Η": "H", "Ι": "I",
   "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "ο": "o", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
 };
-
-function hasSuspiciousMixedScripts(value: string) {
-  const hasLatin = /\p{Script=Latin}/u.test(value);
-  const hasCyrillicOrGreek = /[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value);
-  return hasLatin && hasCyrillicOrGreek;
-}
 
 function trustedBrandHomoglyphSpoof(value: string) {
   if (!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value)) return false;
@@ -73,7 +67,9 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  if (hasSuspiciousMixedScripts(raw) || trustedBrandHomoglyphSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
+  // Reject strings that resolve to a trusted-brand homoglyph, but do not reject
+  // every benign multilingual outlet name merely for mixing scripts.
+  if (trustedBrandHomoglyphSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return canonicalUnknownOutletCase(raw);
 }
 
