@@ -138,6 +138,24 @@ const realBasisPointDifference = auditEventAccuracy(event([
 ]));
 check("real basis-point disagreement still raises a warning", realBasisPointDifference.headlineNumberDifference);
 
+const fractionalShareAlias = auditEventAccuracy(event([
+  article("3/4 of voters support the plan", "Reuters"),
+  article("75% of voters support the plan", "BBC"),
+]));
+check("explicit 3/4 share and 75 percent normalize to the same value", !fractionalShareAlias.headlineNumberDifference);
+
+const realFractionalShareDifference = auditEventAccuracy(event([
+  article("2/4 of voters support the plan", "Reuters"),
+  article("75% of voters support the plan", "BBC"),
+]));
+check("real fractional-share disagreement still raises a warning", realFractionalShareDifference.headlineNumberDifference);
+
+const slashOutsideShareContext = auditEventAccuracy(event([
+  article("Vote scheduled for 3/4 with turnout at 75%", "Reuters"),
+  article("Vote scheduled for 4/5 with turnout at 75%", "BBC"),
+]));
+check("slash numbers outside explicit share context are not silently converted", slashOutsideShareContext.headlineNumberDifference);
+
 console.log(`\nNumber magnitude abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
