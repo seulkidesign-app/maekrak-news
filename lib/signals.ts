@@ -30,12 +30,15 @@ export function eventEvidenceSummary(event: NewsEvent) {
     "전망·추정": 0,
   };
 
-  // Count each canonical publisher once. A single outlet can publish many updates
-  // to the same story; treating every update as independent evidence inflates the
-  // trust UI. When one publisher has mixed wording, keep its most cautious label.
+  // Count each identified canonical publisher once. A single outlet can publish
+  // many updates to the same story; treating every update as independent evidence
+  // inflates the trust UI. Articles whose publisher identity is unavailable stay
+  // visible in source/timeline views but do not add an independent evidence vote.
+  // When one identified publisher has mixed wording, keep its most cautious label.
   const labelBySource = new Map<string, EvidenceLabel>();
   event.articles.forEach((article) => {
     const source = canonicalSourceName(article.source);
+    if (source === "Unverified source") return;
     const label = classifyEvidence(article);
     const previous = labelBySource.get(source);
     if (!previous || evidenceRank[label] > evidenceRank[previous]) labelBySource.set(source, label);
