@@ -52,7 +52,8 @@ export function canonicalSourceName(value: string) {
 export function outletIdentityKey(value: string) {
   return normalizeExternalText(canonicalSourceName(value))
     .toLocaleLowerCase("en-US")
-    .replace(/[._-]+/g, " ")
+    .replace(/[._\p{Pd}]+/gu, " ")
+    .replace(/[’‘ʼ']/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
