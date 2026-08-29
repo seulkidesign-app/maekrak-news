@@ -108,10 +108,25 @@ function calendarDateRanges(title: string) {
   ]);
 }
 
+function fractionShareValues(title: string) {
+  const values: Array<{ range: [number, number]; canonical: string }> = [];
+  for (const match of title.matchAll(/\b(\d+)\s*\/\s*(\d+)\s+(?=of\b)/gi)) {
+    const numerator = Number(match[1]);
+    const denominator = Number(match[2]);
+    if (!Number.isInteger(numerator) || !Number.isInteger(denominator) || denominator <= 0 || numerator < 0 || numerator > denominator) continue;
+    const percentage = (numerator * 100) / denominator;
+    if (!Number.isInteger(percentage)) continue;
+    const start = match.index ?? 0;
+    values.push({ range: [start, start + match[0].length], canonical: `${percentage}%` });
+  }
+  return values;
+}
+
 function headlineNumbers(title: string): string[] {
   const matcher = /(?:[$€£₩¥]|\b(?:USD|EUR|GBP|KRW|JPY)\b\s*)?[+\-−]?\d+(?:[.,]\d+)*(?:\s*(?:%|percent|퍼센트|basis\s+points?|bps?|bp|베이시스\s*포인트|명|thousand|million|billion|trillion|천|만|백만|억|조))?(?:(?:\s*(?:dollars?|euros?|won|yen|degrees?\s+(?:celsius|fahrenheit)|celsius|fahrenheit|kilometers?|kilometres?|km|meters?|metres?|miles?|mi|kilograms?|kg|grams?|pounds?|lbs|lb)\b)|(?:\s*(?:원|달러|유로|엔))|(?:\s*°\s*[CF]\b))?/gi;
-  const cleaned: string[] = [];
-  const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title)];
+  const fractionShares = fractionShareValues(title);
+  const cleaned: string[] = fractionShares.map((item) => item.canonical);
+  const ignoredRanges = [...clockTimeRanges(title), ...calendarDateRanges(title), ...fractionShares.map((item) => item.range)];
   for (const match of title.matchAll(matcher)) {
     const value = match[0];
     const index = match.index ?? 0;
