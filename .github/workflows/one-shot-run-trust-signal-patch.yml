@@ -1,0 +1,34 @@
+name: one-shot-run-trust-signal-patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/apply-unverified-trust-signal-patch.mjs
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/unverified-trust-signal-laundering-abuse.mjs
+      - run: node scripts/content-abuse.mjs
+      - run: npm run build
+      - name: Commit verified patch
+        run: |
+          rm scripts/apply-unverified-trust-signal-patch.mjs
+          rm .github/workflows/one-shot-run-trust-signal-patch.yml
+          git config user.name "seulkidesign-app"
+          git config user.email "seulki.design@gmail.com"
+          git add -A
+          git commit -m "Block unverified trust-signal laundering"
+          git push origin HEAD:main
