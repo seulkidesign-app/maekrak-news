@@ -15,6 +15,11 @@ function validIdArray(value: unknown): value is string[] {
     && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= MAX_ID_LENGTH);
 }
 
+function hasConsistentEventRelations(eventIds: string[], priorityEventIds: string[]) {
+  const all = new Set(eventIds);
+  return priorityEventIds.every((id) => all.has(id));
+}
+
 export function parseVisitSnapshot(raw: string | null, now = Date.now()): VisitSnapshot | null {
   if (!raw) return null;
   try {
@@ -26,6 +31,7 @@ export function parseVisitSnapshot(raw: string | null, now = Date.now()): VisitS
     if (!Number.isFinite(savedAtMs) || savedAtMs > now + MAX_FUTURE_SKEW_MS) return null;
     if (savedAtMs < now - MAX_SNAPSHOT_AGE_MS) return null;
     if (!validIdArray(candidate.eventIds) || !validIdArray(candidate.priorityEventIds)) return null;
+    if (!hasConsistentEventRelations(candidate.eventIds, candidate.priorityEventIds)) return null;
     return {
       savedAt: candidate.savedAt,
       eventIds: [...candidate.eventIds],
