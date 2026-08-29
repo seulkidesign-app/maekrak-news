@@ -75,13 +75,33 @@ const metricAliases = auditEventAccuracy(event("metric-aliases", [
   article("Route length measured at 50 km", "BBC"),
 ]));
 check("equivalent distance aliases do not trigger false disagreement",
-  !metricAliases.headlineNumberDifference && metricAliases.numberExamples.every((item) => item.values.includes("50KM")));
+  !metricAliases.headlineNumberDifference && metricAliases.numberExamples.every((item) => item.values.includes("50000M")));
+
+const metricDistanceConversion = auditEventAccuracy(event("metric-distance-conversion", [
+  article("Evacuation zone extends 1 km from the site", "Reuters"),
+  article("Evacuation zone extends 1000 meters from the site", "BBC"),
+]));
+check("1 km and 1000 meters do not trigger false disagreement",
+  !metricDistanceConversion.headlineNumberDifference && metricDistanceConversion.numberExamples.every((item) => item.values.includes("1000M")));
+
+const metricDistanceDifference = auditEventAccuracy(event("metric-distance-difference", [
+  article("Evacuation zone extends 1 km from the site", "Reuters"),
+  article("Evacuation zone extends 900 meters from the site", "BBC"),
+]));
+check("real converted distance disagreement is still detected", metricDistanceDifference.headlineNumberDifference);
 
 const massConflict = auditEventAccuracy(event("mass-conflict", [
   article("Shipment weight listed as 5 kg", "Reuters"),
   article("Shipment weight listed as 5 pounds", "BBC"),
 ]));
 check("same number with different mass units triggers disagreement", massConflict.headlineNumberDifference);
+
+const metricMassConversion = auditEventAccuracy(event("metric-mass-conversion", [
+  article("Shipment contains 1 kg of material", "Reuters"),
+  article("Shipment contains 1000 grams of material", "BBC"),
+]));
+check("1 kg and 1000 grams do not trigger false disagreement",
+  !metricMassConversion.headlineNumberDifference && metricMassConversion.numberExamples.every((item) => item.values.includes("1000G")));
 
 console.log(`\nUnit ambiguity abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
