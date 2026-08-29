@@ -713,6 +713,16 @@ function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
     .map((event) => event.id);
 }
 
+function clusterNewsItems(items: NewsItem[]) {
+  const clusters: NewsItem[][] = [];
+  for (const item of items) {
+    const match = clusters.find((cluster) => cluster.length > 0 && cluster.every((member) => sameEvent(member, item)));
+    if (match) match.push(item);
+    else clusters.push([item]);
+  }
+  return clusters;
+}
+
 export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
   const wantsKorean = lang === "ko";
   const scored = event.articles.map((article) => {
@@ -735,13 +745,7 @@ export async function getBriefing(): Promise<Briefing> {
   const news = allNews
     .filter((item) => isTodayKst(item.publishedAt) || isOngoingCandidate(item))
     .slice(0, 260);
-
-  const clusters: NewsItem[][] = [];
-  for (const item of news) {
-    const match = clusters.find((cluster) => cluster.length > 0 && sameEvent(cluster[0], item));
-    if (match) match.push(item);
-    else clusters.push([item]);
-  }
+  const clusters = clusterNewsItems(news);
 
   const events = clusters.map((articles) => {
     const sorted = [...articles].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
@@ -819,6 +823,7 @@ export const __test = {
   properNameTokens,
   hasProperNameConflict,
   sameEvent,
+  clusterNewsItems,
   stableEventId,
   sourceBalancedMajority,
 };
