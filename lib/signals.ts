@@ -5,17 +5,40 @@ export type EvidenceLabel = "일반 보도" | "발언·주장" | "전망·추정
 
 const claimPatterns = [
   /말했|밝혔|주장|반박|촉구|경고|의혹|혐의|발언|인터뷰/i,
-  /\b(?:says?|said|claims?|alleges?|warns?|statement|according to)\b/i,
+  /\b(?:says?|said|alleges?|warns?|according to)\b/i,
 ];
 const uncertaintyPatterns = [
   /전망|예상|추정|잠정|확인 중|미확인|알려졌|보인다|가능성|계획|검토|시사/i,
   /\b(?:reportedly|unconfirmed|appears?|likely|estimated|expects?|plans?|could|may|might)\b/i,
 ];
 
+const nonAssertionClaimNouns = [
+  /\b(?:jobless|unemployment|insurance|benefit|benefits|initial|weekly)\s+claims?\b/i,
+  /\bclaims?\s+(?:for\s+)?(?:unemployment|insurance|benefits?|compensation|damages?)\b/i,
+];
+const nonAssertionStatements = /\b(?:financial|income|bank|account)\s+statements?\b/i;
+
+function hasClaimLanguage(text: string) {
+  if (claimPatterns.some((pattern) => pattern.test(text))) return true;
+
+  // "claims" and "statement" are ambiguous nouns in ordinary reporting. Economic
+  // claims data and financial/account statements are documents or measurements,
+  // not assertions by a speaker. Mask those narrow noun senses while preserving
+  // actual assertion language such as "the minister claims..." or "issued a statement".
+  const withoutNonAssertionClaims = nonAssertionClaimNouns.reduce(
+    (value, pattern) => value.replace(pattern, " "),
+    text,
+  );
+  if (/\bclaims?\b/i.test(withoutNonAssertionClaims)) return true;
+
+  const withoutDocumentStatements = text.replace(nonAssertionStatements, " ");
+  return /\bstatements?\b/i.test(withoutDocumentStatements);
+}
+
 export function classifyEvidence(article: NewsItem): EvidenceLabel {
   const text = `${article.title} ${article.description}`;
   if (uncertaintyPatterns.some((pattern) => pattern.test(text))) return "전망·추정";
-  if (claimPatterns.some((pattern) => pattern.test(text))) return "발언·주장";
+  if (hasClaimLanguage(text)) return "발언·주장";
   return "일반 보도";
 }
 
