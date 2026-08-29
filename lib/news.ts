@@ -380,6 +380,10 @@ function normalizedEntities(text: string) {
   return found;
 }
 
+function hasMutuallyExclusiveEntityConflict(left: Set<string>, right: Set<string>) {
+  return (left.has("southkorea") && right.has("northkorea")) || (left.has("northkorea") && right.has("southkorea"));
+}
+
 function normalizedActions(text: string) {
   const found = normalizedConcepts(text, actionAliases);
   const normalized = normalizeExternalText(text).toLowerCase();
@@ -443,18 +447,21 @@ function timeDistanceHours(a: string, b: string) {
 }
 
 function sameEvent(a: NewsItem, b: NewsItem) {
+  const leftEntities = normalizedEntities(a.title);
+  const rightEntities = normalizedEntities(b.title);
   const lexical = titleSimilarity(a.title, b.title);
-  const entities = entitySimilarity(a.title, b.title);
+  const entities = setSimilarity(leftEntities, rightEntities);
   const actions = actionSimilarity(a.title, b.title);
   const hours = timeDistanceHours(a.publishedAt, b.publishedAt);
   const properNameConflict = hasProperNameConflict(a.title, b.title);
 
   if (hours > 30) return false;
+  if (hasMutuallyExclusiveEntityConflict(leftEntities, rightEntities)) return false;
   if (lexical >= 0.9 && hours <= 24 && !properNameConflict) return true;
   if (lexical >= 0.74 && (entities > 0 || actions > 0) && hours <= 18 && !(properNameConflict && entities === 0)) return true;
   if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
   if (entities >= 0.67 && actions >= 0.5 && lexical >= 0.42 && hours <= 12) return true;
-  if (entities === 1 && normalizedEntities(a.title).size >= 2 && normalizedEntities(b.title).size >= 2 && actions === 1 && lexical >= 0.5 && hours <= 6) return true;
+  if (entities === 1 && leftEntities.size >= 2 && rightEntities.size >= 2 && actions === 1 && lexical >= 0.5 && hours <= 6) return true;
   return false;
 }
 
@@ -794,6 +801,7 @@ export const __test = {
   isHighImpact,
   briefWatchFor,
   normalizedEntities,
+  hasMutuallyExclusiveEntityConflict,
   properNameTokens,
   hasProperNameConflict,
   sameEvent,
