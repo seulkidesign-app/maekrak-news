@@ -62,6 +62,8 @@ jobs:
         run: node scripts/calendar-rollover-abuse.mjs
       - name: Mobile unbroken source-text abuse
         run: node scripts/mobile-unbroken-text-abuse.mjs
+      - name: Mobile safe-area overlap abuse
+        run: node scripts/mobile-safe-area-abuse.mjs
       - name: Korea impact poisoning abuse
         run: node scripts/korea-impact-poisoning-abuse.mjs
       - name: LocalStorage snapshot poisoning abuse
