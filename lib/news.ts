@@ -280,14 +280,28 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
   }
 }
 
-function hasValidExplicitCalendarDate(raw: string) {
-  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
-  if (!match) return true;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
+const rfcMonths: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+function isValidCalendarParts(year: number, month: number, day: number) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
   if (month < 1 || month > 12 || day < 1) return false;
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function hasValidExplicitCalendarDate(raw: string) {
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
+  if (iso) return isValidCalendarParts(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+
+  const rfc = raw.match(/^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s|$)/);
+  if (rfc) {
+    const month = rfcMonths[rfc[2].toLowerCase()];
+    if (!month) return false;
+    return isValidCalendarParts(Number(rfc[3]), month, Number(rfc[1]));
+  }
+  return true;
 }
 
 function safePublishedAt(value: unknown, now = Date.now()) {
