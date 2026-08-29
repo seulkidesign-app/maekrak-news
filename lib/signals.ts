@@ -65,7 +65,15 @@ export function eventTimeline(event: NewsEvent) {
     latestBySourceHour.set(key, article);
   }
 
-  return [...latestBySourceHour.values()]
+  const deduped = [...latestBySourceHour.values()]
+    .sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+  const identified = deduped.filter((article) => canonicalSourceName(article.source) !== "Unverified source");
+  const latestUnverified = [...deduped].reverse().find((article) => canonicalSourceName(article.source) === "Unverified source");
+
+  // Unknown publisher identity is useful context, but it must not be able to occupy
+  // every visible timeline slot simply by publishing once per hour. Keep at most the
+  // latest unverified item while preserving identified publishers for comparison.
+  return [...identified, ...(latestUnverified ? [latestUnverified] : [])]
     .sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())
     .slice(-5);
 }
