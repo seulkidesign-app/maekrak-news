@@ -68,6 +68,8 @@ jobs:
         run: node scripts/visit-snapshot-time-abuse.mjs
       - name: Stale visit snapshot replay abuse
         run: node scripts/stale-visit-snapshot-abuse.mjs
+      - name: Visit snapshot relation integrity abuse
+        run: node scripts/visit-snapshot-relation-abuse.mjs
       - run: npm run build
       - name: Start app
         run: |
