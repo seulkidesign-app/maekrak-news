@@ -139,7 +139,8 @@ const entityAliases: Record<string, string[]> = {
   oman: ["oman", "오만"],
   syria: ["syria", "syrian", "시리아"],
   us: ["united states", "u s", "america", "미국"],
-  korea: ["south korea", "korea", "한국", "대한민국"],
+  southkorea: ["south korea", "republic of korea", "rok", "대한민국", "남한"],
+  korea: ["korea", "한국"],
   northkorea: ["north korea", "dprk", "북한"],
   japan: ["japan", "japanese", "일본"],
   trump: ["trump", "트럼프"],
@@ -186,8 +187,8 @@ const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|
 const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|\b(?:police reform|prosecution reform|budget|housing supply|birth|population|semiconductor)\b/i;
 const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|\b(?:reportedly|unconfirmed|appears?|likely|estimated|might|could)\b/i;
 const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|\b(?:says?|said|claims?|alleges?|warns?|expects?|plans?)\b/i;
-const worldSignals = /미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
-const domesticSignals = /한국|대한민국|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
+const worldSignals = /북한|미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:north korea|dprk|united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
+const domesticSignals = /한국|대한민국|남한|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:south korea|republic of korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
 
 function isHighImpact(text: string) {
   return highImpactPattern.test(text) || leaderDeathPattern.test(text);
@@ -280,28 +281,14 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
   }
 }
 
-const rfcMonths: Record<string, number> = {
-  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
-};
-
-function isValidCalendarParts(year: number, month: number, day: number) {
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false;
+function hasValidExplicitCalendarDate(raw: string) {
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
+  if (!match) return true;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
   if (month < 1 || month > 12 || day < 1) return false;
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-function hasValidExplicitCalendarDate(raw: string) {
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
-  if (iso) return isValidCalendarParts(Number(iso[1]), Number(iso[2]), Number(iso[3]));
-
-  const rfc = raw.match(/^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s|$)/);
-  if (rfc) {
-    const month = rfcMonths[rfc[2].toLowerCase()];
-    if (!month) return false;
-    return isValidCalendarParts(Number(rfc[3]), month, Number(rfc[1]));
-  }
-  return true;
 }
 
 function safePublishedAt(value: unknown, now = Date.now()) {
@@ -388,7 +375,9 @@ function normalizedConcepts(text: string, aliases: Record<string, string[]>) {
 }
 
 function normalizedEntities(text: string) {
-  return normalizedConcepts(text, entityAliases);
+  const found = normalizedConcepts(text, entityAliases);
+  if (found.has("northkorea") || found.has("southkorea")) found.delete("korea");
+  return found;
 }
 
 function normalizedActions(text: string) {
@@ -799,10 +788,12 @@ export const __test = {
   safePublishedAt,
   sourceForFeed,
   sourceForLink,
+  inferScope,
   inferCategory,
   inferSourceRole,
   isHighImpact,
   briefWatchFor,
+  normalizedEntities,
   properNameTokens,
   hasProperNameConflict,
   sameEvent,
