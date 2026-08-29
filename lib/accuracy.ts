@@ -1,7 +1,8 @@
 import type { NewsEvent, NewsItem } from "@/lib/news";
 import { canonicalSourceName } from "./source-normalize.ts";
 
-const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|might|could)\b/i;
+const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|may|might|could)\b/i;
+const MAY_DATE = /\bMay\s+(?:0?[1-9]|[12]\d|3[01])(?:,\s*(?:19|20)\d{2})?\b|\b(?:0?[1-9]|[12]\d|3[01])\s+May(?:\s+(?:19|20)\d{2})?\b/gi;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
 const MAGNITUDE_MULTIPLIERS: Array<[RegExp, number]> = [
@@ -152,6 +153,10 @@ function articleText(article: NewsItem): string {
   return `${article.title} ${article.description}`;
 }
 
+function isUncertainText(text: string): boolean {
+  return UNCERTAINTY.test(text.replace(MAY_DATE, " "));
+}
+
 function hasSyndicationHint(article: NewsItem): boolean {
   const text = ` ${articleText(article).toLowerCase()} `;
   const source = canonicalSourceName(article.source).toLowerCase();
@@ -191,7 +196,7 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
 
   const certaintyExamples = uniqueArticles.map((article) => ({
     source: article.source,
-    uncertain: UNCERTAINTY.test(articleText(article)),
+    uncertain: isUncertainText(articleText(article)),
   }));
   const certaintyStates = new Set(certaintyExamples.map((item) => item.uncertain));
   const certaintyDifference = uniqueArticles.length >= 2 && certaintyStates.size >= 2;
