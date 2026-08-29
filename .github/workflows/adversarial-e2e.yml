@@ -50,6 +50,8 @@ jobs:
         run: node scripts/default-ignorable-outlet-abuse.mjs
       - name: Placeholder outlet inflation abuse
         run: node scripts/placeholder-outlet-abuse.mjs
+      - name: Numbered placeholder outlet inflation abuse
+        run: node scripts/numbered-placeholder-outlet-abuse.mjs
       - name: Source-link trust abuse
         run: node scripts/source-link-abuse.mjs
       - name: Event ID collision abuse
