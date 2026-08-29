@@ -82,6 +82,8 @@ jobs:
         run: node scripts/unverified-evidence-laundering-abuse.mjs
       - name: Unverified accuracy laundering abuse
         run: node scripts/unverified-accuracy-laundering-abuse.mjs
+      - name: Unverified trust-signal laundering abuse
+        run: node scripts/unverified-trust-signal-laundering-abuse.mjs
       - name: Calendar rollover abuse
         run: node scripts/calendar-rollover-abuse.mjs
       - name: Mobile unbroken source-text abuse
