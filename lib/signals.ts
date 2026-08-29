@@ -4,10 +4,12 @@ import { canonicalSourceName } from "./source-normalize.ts";
 export type EvidenceLabel = "일반 보도" | "발언·주장" | "전망·추정";
 
 const claimPatterns = [
-  /말했|밝혔|주장|반박|촉구|경고|의혹|혐의|발언|인터뷰|says?|said|claims?|alleges?|warns?|statement|according to/i,
+  /말했|밝혔|주장|반박|촉구|경고|의혹|혐의|발언|인터뷰/i,
+  /\b(?:says?|said|claims?|alleges?|warns?|statement|according to)\b/i,
 ];
 const uncertaintyPatterns = [
-  /전망|예상|추정|잠정|확인 중|미확인|알려졌|보인다|가능성|계획|검토|시사|reportedly|unconfirmed|appears?|likely|estimated|expects?|plans?|could|may|might/i,
+  /전망|예상|추정|잠정|확인 중|미확인|알려졌|보인다|가능성|계획|검토|시사/i,
+  /\b(?:reportedly|unconfirmed|appears?|likely|estimated|expects?|plans?|could|may|might)\b/i,
 ];
 
 export function classifyEvidence(article: NewsItem): EvidenceLabel {
