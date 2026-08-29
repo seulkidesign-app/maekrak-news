@@ -54,9 +54,17 @@ function placeholderOutletKey(value: string) {
     .trim();
 }
 
+function normalizeArabicScriptNumericGlyphs(value: string) {
+  return value
+    .replace(/[٠-٩]/g, (digit) => String(digit.codePointAt(0)! - 0x0660))
+    .replace(/[۰-۹]/g, (digit) => String(digit.codePointAt(0)! - 0x06f0))
+    .replace(/٪/g, "%")
+    .replace(/٫/g, ".")
+    .replace(/٬/g, ",");
+}
+
 export function normalizeExternalText(value: unknown) {
-  return String(value ?? "")
-    .normalize("NFKC")
+  return normalizeArabicScriptNumericGlyphs(String(value ?? "").normalize("NFKC"))
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
     .replace(/\p{Default_Ignorable_Code_Point}+/gu, "")
     .replace(/\s+/g, " ")
