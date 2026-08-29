@@ -50,16 +50,22 @@ export function eventEvidenceSummary(event: NewsEvent) {
 }
 
 export function eventTimeline(event: NewsEvent) {
-  const seen = new Set<string>();
-  return [...event.articles]
+  const sorted = [...event.articles]
+    .sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+  const latestBySourceHour = new Map<string, NewsItem>();
+
+  // A publisher can issue a correction or materially revised headline within the
+  // same hour. Keep the latest version for that publisher-hour bucket rather than
+  // the first one, otherwise the trust timeline can preserve stale wording while
+  // silently dropping the correction.
+  for (const article of sorted) {
+    const parsed = new Date(article.publishedAt);
+    const hour = Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 13) : article.publishedAt;
+    const key = `${canonicalSourceName(article.source)}-${hour}`;
+    latestBySourceHour.set(key, article);
+  }
+
+  return [...latestBySourceHour.values()]
     .sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())
-    .filter((article) => {
-      const parsed = new Date(article.publishedAt);
-      const hour = Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 13) : article.publishedAt;
-      const key = `${canonicalSourceName(article.source)}-${hour}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
     .slice(-5);
 }
