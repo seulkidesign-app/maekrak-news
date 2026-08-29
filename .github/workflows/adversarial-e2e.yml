@@ -38,6 +38,8 @@ jobs:
         run: node scripts/timestamp-abuse.mjs
       - name: Template headline collision abuse
         run: node scripts/template-collision-abuse.mjs
+      - name: Cluster bridge poisoning abuse
+        run: node scripts/cluster-bridge-abuse.mjs
       - name: Korea entity boundary abuse
         run: node scripts/korea-entity-boundary-abuse.mjs
       - name: IPv6 URL boundary abuse
