@@ -1,3 +1,4 @@
+// Complete-link regression: a bridge headline must not merge unrelated endpoint stories.
 const failures = [];
 const passes = [];
 const { __test } = await import("../lib/news.ts");
