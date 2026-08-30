@@ -1,3 +1,4 @@
+// Unverified backfills must not redefine a verified event's persistent identity.
 const failures = [];
 const passes = [];
 const { __test } = await import("../lib/news.ts");
