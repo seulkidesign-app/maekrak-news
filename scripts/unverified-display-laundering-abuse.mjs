@@ -1,3 +1,4 @@
+// Regression: unverified localized bait must not become the representative article when a verified source exists.
 const failures = [];
 const passes = [];
 const { getDisplayArticle } = await import("../lib/news.ts");
