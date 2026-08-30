@@ -1,0 +1,101 @@
+name: one-shot-high-impact-lexical-hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Reproduce, patch, regress, build, and land
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node --input-type=module <<'EOF'
+          const { __test } = await import('./lib/news.ts');
+          const benign = [
+            'City opens a new war memorial exhibition downtown',
+            'Students perform War and Peace at school festival',
+            '전쟁기념관 특별전 개막',
+          ];
+          if (!benign.every((text) => __test.isHighImpact(text))) throw new Error('high-impact lexical false positive no longer reproduces');
+          console.log('REPRODUCED: benign war-history/culture language receives high-impact treatment');
+          EOF
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          let news = readFileSync('lib/news.ts', 'utf8');
+          const oldBlock = `function isHighImpact(text: string) {
+            return highImpactPattern.test(text) || leaderDeathPattern.test(text);
+          }`;
+          const newBlock = `function highImpactSignalText(text: string) {
+            return text
+              .replace(/\\bwar memorial\\b/gi, " memorial ")
+              .replace(/\\bwar museum\\b/gi, " museum ")
+              .replace(/\\bwar and peace\\b/gi, " literary work ")
+              .replace(/전쟁기념관/g, "기념관")
+              .replace(/전쟁\\s*박물관/g, "박물관");
+          }
+
+          function isHighImpact(text: string) {
+            const signalText = highImpactSignalText(text);
+            return highImpactPattern.test(signalText) || leaderDeathPattern.test(signalText);
+          }`;
+          if (!news.includes(oldBlock)) throw new Error('isHighImpact patch anchor not found');
+          news = news.replace(oldBlock, newBlock);
+          writeFileSync('lib/news.ts', news);
+
+          const regression = `const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          check("war memorial exhibition is not treated as a live high-impact conflict", !__test.isHighImpact("City opens a new war memorial exhibition downtown"));
+          check("war museum opening is not treated as a live high-impact conflict", !__test.isHighImpact("New war museum opens with historical archives"));
+          check("War and Peace performance is not treated as a live high-impact conflict", !__test.isHighImpact("Students perform War and Peace at school festival"));
+          check("Korean war memorial exhibition is not treated as a live conflict", !__test.isHighImpact("전쟁기념관 특별전 개막"));
+          check("real war reporting remains high impact", __test.isHighImpact("Ukraine war enters a new phase after overnight fighting"));
+          check("attack on a war memorial remains high impact through the actual attack signal", __test.isHighImpact("War memorial hit by missile during overnight attack"));
+          check("Korean attack near a war memorial remains high impact", __test.isHighImpact("전쟁기념관 인근 미사일 공격 발생"));
+          console.log("High-impact lexical false-positive abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/high-impact-lexical-abuse.mjs', regression);
+
+          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
+          const anchor = `      - name: Adversarial content pipeline\n        run: node scripts/content-abuse.mjs\n`;
+          const step = `      - name: High-impact lexical false-positive abuse\n        run: node scripts/high-impact-lexical-abuse.mjs\n`;
+          if (!ci.includes('High-impact lexical false-positive abuse')) {
+            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
+            ci = ci.replace(anchor, anchor + step);
+          }
+          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
+          EOF
+
+          node scripts/high-impact-lexical-abuse.mjs
+          node scripts/content-abuse.mjs
+          node scripts/cluster-bridge-abuse.mjs
+          node scripts/unverified-cluster-poisoning-abuse.mjs
+          npm run build
+
+          rm -f .github/workflows/one-shot-high-impact-lexical-hardening.yml
+          git add -A
+          git commit -m "Avoid high-impact false positives from war-history phrases"
+          git push origin HEAD:main
