@@ -542,14 +542,33 @@ function isOngoingCandidate(item: NewsItem) {
   return isHighImpact(`${item.title} ${item.description}`);
 }
 
+function canonicalDedupeUrl(link: string) {
+  try {
+    const url = new URL(link);
+    url.hash = "";
+    const trackingKeys = [...url.searchParams.keys()].filter((key) =>
+      /^utm_/i.test(key) || /^(?:gclid|fbclid|mc_cid|mc_eid)$/i.test(key)
+    );
+    trackingKeys.forEach((key) => url.searchParams.delete(key));
+    url.searchParams.sort();
+    return url.toString();
+  } catch {
+    return link.trim();
+  }
+}
+
 function dedupeNews(items: NewsItem[]) {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = `${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const latestByIdentity = new Map<string, NewsItem>();
+  for (const item of items) {
+    const source = canonicalSourceName(item.source).toLowerCase();
+    const articleIdentity = canonicalDedupeUrl(item.link) || normalizePhrase(item.title);
+    const key = `${source}|${articleIdentity}`;
+    const existing = latestByIdentity.get(key);
+    if (!existing || new Date(item.publishedAt).getTime() > new Date(existing.publishedAt).getTime()) {
+      latestByIdentity.set(key, item);
+    }
+  }
+  return [...latestByIdentity.values()];
 }
 
 function sourceForFeed(value: unknown, feed: Feed) {
@@ -890,6 +909,8 @@ export const __test = {
   hasProperNameConflict,
   sameEvent,
   clusterNewsItems,
+  canonicalDedupeUrl,
+  dedupeNews,
   stableEventId,
   sourceBalancedMajority,
   verifiedSourceArticles,
