@@ -58,6 +58,8 @@ jobs:
         run: node scripts/default-ignorable-outlet-abuse.mjs
       - name: Trusted-brand homoglyph outlet abuse
         run: node scripts/trusted-brand-homoglyph-abuse.mjs
+      - name: Extended trusted-brand homoglyph abuse
+        run: node scripts/extended-trusted-brand-homoglyph-abuse.mjs
       - name: Combining-mark trusted-brand outlet abuse
         run: node scripts/combining-mark-outlet-abuse.mjs
       - name: Combining-overlay outlet inflation abuse
