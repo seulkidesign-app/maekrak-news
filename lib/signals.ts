@@ -18,6 +18,25 @@ const nonAssertionClaimNouns = [
 ];
 const nonAssertionStatements = /\b(?:financial|income|bank|account)\s+statements?\b/gi;
 
+// Korean morphemes used for uncertainty can also appear inside ordinary nouns.
+// Mask narrow, clearly non-epistemic senses before applying the uncertainty rules:
+// - 전망대: an observation deck / observatory, not a forecast
+// - 시사 프로그램/방송/잡지: current-affairs media, not "suggests/indicates"
+// - 시사점: an implication/takeaway noun, not a claim that an event is uncertain
+const nonUncertaintyKoreanLexemes = [
+  /전망대/g,
+  /시사\s*(?:프로그램|방송|잡지|교양)/g,
+  /시사점/g,
+];
+
+function hasUncertaintyLanguage(text: string) {
+  const masked = nonUncertaintyKoreanLexemes.reduce(
+    (value, pattern) => value.replace(pattern, " "),
+    text,
+  );
+  return uncertaintyPatterns.some((pattern) => pattern.test(masked));
+}
+
 function hasClaimLanguage(text: string) {
   if (claimPatterns.some((pattern) => pattern.test(text))) return true;
 
@@ -37,7 +56,7 @@ function hasClaimLanguage(text: string) {
 
 export function classifyEvidence(article: NewsItem): EvidenceLabel {
   const text = `${article.title} ${article.description}`;
-  if (uncertaintyPatterns.some((pattern) => pattern.test(text))) return "전망·추정";
+  if (hasUncertaintyLanguage(text)) return "전망·추정";
   if (hasClaimLanguage(text)) return "발언·주장";
   return "일반 보도";
 }
