@@ -124,6 +124,8 @@ jobs:
         run: node scripts/mobile-unbroken-text-abuse.mjs
       - name: Mobile safe-area overlap abuse
         run: node scripts/mobile-safe-area-abuse.mjs
+      - name: World-flow unverified poisoning abuse
+        run: node scripts/world-flow-unverified-poisoning-abuse.mjs
       - name: Korea impact poisoning abuse
         run: node scripts/korea-impact-poisoning-abuse.mjs
       - name: Location housing-flow false-positive abuse
