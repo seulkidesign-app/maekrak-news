@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Reproduce, patch, regress, build, and land app files
         shell: bash
         run: |
           set -euo pipefail
@@ -43,9 +43,7 @@ jobs:
           const ukraine = event('ukraine-poison', 'Ukraine reports Russian missile attack near Kyiv', 'Reuters');
           const yemen = event('yemen-poison', 'Yemen militia launches missile in Red Sea', 'BBC');
           const flows = buildWorldFlows([ukraine, yemen], 'en');
-          if (!flows.some((flow) => flow.code === 'security' && flow.eventIds.length === 2)) {
-            throw new Error('unverified world-flow poisoning did not reproduce');
-          }
+          if (!flows.some((flow) => flow.code === 'security' && flow.eventIds.length === 2)) throw new Error('unverified world-flow poisoning did not reproduce');
           console.log('REPRODUCED: unverified article text manufactures a shared security flow');
           EOF
 
@@ -71,17 +69,8 @@ jobs:
           const passes = [];
           const { buildWorldFlows } = await import("../lib/world-briefing.ts");
           function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
-          const article = (title, source) => ({
-            title, description: title, source, link: "https://example.com/story",
-            publishedAt: "2026-08-31T00:00:00Z", category: "세계", scope: "world",
-            sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : source === "BBC" ? "international" : "other",
-          });
-          const event = (id, verifiedTitle, source, poison = null) => ({
-            id, title: verifiedTitle, category: "세계", scope: "world", summary: verifiedTitle,
-            publishedAt: "2026-08-31T00:00:00Z", dayStatus: "today", importanceScore: 8,
-            sourceCount: source === "Unverified source" ? 0 : 1, whySelected: [], briefWhy: "security", briefWatch: "single-source",
-            articles: [article(verifiedTitle, source), ...(poison ? [article(poison, "Unverified source")] : [])],
-          });
+          const article = (title, source) => ({ title, description: title, source, link: "https://example.com/story", publishedAt: "2026-08-31T00:00:00Z", category: "세계", scope: "world", sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : source === "BBC" ? "international" : "other" });
+          const event = (id, verifiedTitle, source, poison = null) => ({ id, title: verifiedTitle, category: "세계", scope: "world", summary: verifiedTitle, publishedAt: "2026-08-31T00:00:00Z", dayStatus: "today", importanceScore: 8, sourceCount: source === "Unverified source" ? 0 : 1, whySelected: [], briefWhy: "security", briefWatch: "single-source", articles: [article(verifiedTitle, source), ...(poison ? [article(poison, "Unverified source")] : [])] });
           const ukraine = event("ukraine", "Ukraine reports Russian missile attack near Kyiv", "Reuters", "Iran regional security context injected by unknown publisher");
           const yemen = event("yemen", "Yemen militia launches missile in Red Sea", "BBC", "Iran regional security context injected by unknown publisher");
           const poisoned = buildWorldFlows([ukraine, yemen], "en");
@@ -92,24 +81,13 @@ jobs:
           check("verified shared regional thread still forms a security flow", genuine.some((flow) => flow.code === "security" && flow.eventIds.length === 2));
           const unknownA = event("unknown-a", "Iran ceasefire talks continue", "Unverified source");
           const unknownB = event("unknown-b", "Iran sanctions talks continue", "Unverified source");
-          const unknownOnly = buildWorldFlows([unknownA, unknownB], "en");
-          check("unverified-only events cannot manufacture a world flow", unknownOnly.length === 0);
+          check("unverified-only events cannot manufacture a world flow", buildWorldFlows([unknownA, unknownB], "en").length === 0);
           console.log("World-flow unverified poisoning abuse: " + passes.length + " passed / " + failures.length + " failed");
           passes.forEach((name) => console.log("PASS  " + name));
           failures.forEach((name) => console.error("FAIL  " + name));
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/world-flow-unverified-poisoning-abuse.mjs', regression);
-
-          const ciPath = '.github/workflows/adversarial-e2e.yml';
-          let ci = readFileSync(ciPath, 'utf8');
-          const anchor = `      - name: Korea impact poisoning abuse\n        run: node scripts/korea-impact-poisoning-abuse.mjs\n`;
-          const step = `      - name: World-flow unverified poisoning abuse\n        run: node scripts/world-flow-unverified-poisoning-abuse.mjs\n`;
-          if (!ci.includes('World-flow unverified poisoning abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI world-flow insertion anchor not found');
-            ci = ci.replace(anchor, step + anchor);
-          }
-          writeFileSync(ciPath, ci);
           EOF
 
           node scripts/world-flow-unverified-poisoning-abuse.mjs
@@ -117,7 +95,6 @@ jobs:
           node scripts/korea-impact-poisoning-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-world-flow-unverified-poisoning.yml
-          git add -A
+          git add lib/world-briefing.ts scripts/world-flow-unverified-poisoning-abuse.mjs
           git commit -m "Exclude unverified text from world-flow signatures"
           git push origin HEAD:main
