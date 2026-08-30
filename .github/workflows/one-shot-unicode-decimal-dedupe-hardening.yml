@@ -1,0 +1,196 @@
+name: one-shot-unicode-decimal-dedupe-hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Reproduce, patch, regress, build, and land
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node --input-type=module <<'EOF'
+          const { normalizeExternalText } = await import('./lib/source-normalize.ts');
+          const { auditEventAccuracy } = await import('./lib/accuracy.ts');
+          const article = (title, source) => ({
+            title, description: title, source, link: 'https://example.com/story',
+            publishedAt: '2026-08-30T10:00:00Z', category: '경제', scope: 'world',
+            sourceType: 'aggregated', sourceRole: source === 'Reuters' ? 'wire' : 'international',
+          });
+          const event = {
+            id: 'unicode-decimal-repro', title: 'Inflation', category: '경제', scope: 'world', summary: '',
+            publishedAt: '2026-08-30T10:00:00Z', dayStatus: 'today',
+            articles: [article('Inflation rises ३%', 'Reuters'), article('Inflation rises 4%', 'BBC')],
+            sourceCount: 2, importanceScore: 8, whySelected: [], briefWhy: 'economy', briefWatch: 'follow-up',
+          };
+          const audit = auditEventAccuracy(event);
+          if (normalizeExternalText('३%') === '3%' || audit.headlineNumberDifference) {
+            throw new Error('Unicode decimal attack no longer reproduces');
+          }
+          console.log('REPRODUCED: Devanagari numeric glyph bypasses numeric disagreement detection');
+          EOF
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          let source = readFileSync('lib/source-normalize.ts', 'utf8');
+          const oldNumeric = `function normalizeArabicScriptNumericGlyphs(value: string) {
+            return value
+              .replace(/[٠-٩]/g, (digit) => String(digit.codePointAt(0)! - 0x0660))
+              .replace(/[۰-۹]/g, (digit) => String(digit.codePointAt(0)! - 0x06f0))
+              .replace(/٪/g, "%")
+              .replace(/٫/g, ".")
+              .replace(/٬/g, ",");
+          }`;
+          const newNumeric = `const DECIMAL_DIGIT_ZERO_CODE_POINTS = [
+            0x0030, 0x0660, 0x06f0, 0x07c0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6,
+            0x0c66, 0x0ce6, 0x0d66, 0x0de6, 0x0e50, 0x0ed0, 0x0f20, 0x1040, 0x1090, 0x17e0,
+            0x1810, 0x1946, 0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50, 0xa620,
+            0xa8d0, 0xa900, 0xa9d0, 0xa9f0, 0xaa50, 0xabf0, 0xff10, 0x104a0, 0x10d30, 0x11066,
+            0x110f0, 0x11136, 0x111d0, 0x112f0, 0x11450, 0x114d0, 0x11650, 0x116c0, 0x11730, 0x118e0,
+            0x11950, 0x11c50, 0x11d50, 0x11da0, 0x11f50, 0x16a60, 0x16ac0, 0x16b50, 0x1d7ce, 0x1d7d8,
+            0x1d7e2, 0x1d7ec, 0x1d7f6, 0x1e140, 0x1e2f0, 0x1e4f0, 0x1e950, 0x1fbf0,
+          ];
+
+          function normalizeUnicodeDecimalDigits(value: string) {
+            return value.replace(/\\p{Nd}/gu, (digit) => {
+              const codePoint = digit.codePointAt(0)!;
+              const zero = DECIMAL_DIGIT_ZERO_CODE_POINTS.find((candidate) => codePoint >= candidate && codePoint <= candidate + 9);
+              return zero === undefined ? digit : String(codePoint - zero);
+            });
+          }
+
+          function normalizeExternalNumericGlyphs(value: string) {
+            return normalizeUnicodeDecimalDigits(value)
+              .replace(/٪/g, "%")
+              .replace(/٫/g, ".")
+              .replace(/٬/g, ",");
+          }`;
+          if (!source.includes(oldNumeric)) throw new Error('numeric normalization patch anchor not found');
+          source = source.replace(oldNumeric, newNumeric)
+            .replace('return normalizeArabicScriptNumericGlyphs(String(value ?? "").normalize("NFKC"))', 'return normalizeExternalNumericGlyphs(String(value ?? "").normalize("NFKC"))');
+          writeFileSync('lib/source-normalize.ts', source);
+
+          let news = readFileSync('lib/news.ts', 'utf8');
+          if (!news.includes('  dedupeNews,')) {
+            const anchor = '  clusterNewsItems,\n  stableEventId,';
+            if (!news.includes(anchor)) throw new Error('dedupe test export anchor not found');
+            news = news.replace(anchor, '  clusterNewsItems,\n  dedupeNews,\n  stableEventId,');
+          }
+          const oldDedupe = `function dedupeNews(items: NewsItem[]) {
+            const seen = new Set<string>();
+            return items.filter((item) => {
+              const key = \`${'${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}'}\`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }`;
+          const newDedupe = `function dedupeNews(items: NewsItem[]) {
+            const newestByKey = new Map<string, NewsItem>();
+            for (const item of items) {
+              const key = \`${'${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}'}\`;
+              const existing = newestByKey.get(key);
+              const currentTime = new Date(item.publishedAt).getTime();
+              const existingTime = existing ? new Date(existing.publishedAt).getTime() : Number.NEGATIVE_INFINITY;
+              if (!existing || (Number.isFinite(currentTime) && (!Number.isFinite(existingTime) || currentTime > existingTime))) {
+                newestByKey.set(key, item);
+              }
+            }
+            return [...newestByKey.values()];
+          }`;
+          if (!news.includes(oldDedupe)) throw new Error('dedupeNews patch anchor not found');
+          news = news.replace(oldDedupe, newDedupe);
+          writeFileSync('lib/news.ts', news);
+
+          const unicodeRegression = `const failures = [];
+          const passes = [];
+          const { normalizeExternalText } = await import("../lib/source-normalize.ts");
+          const { auditEventAccuracy } = await import("../lib/accuracy.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          const article = (title, source) => ({ title, description: title, source, link: "https://example.com/story", publishedAt: "2026-08-30T10:00:00Z", category: "경제", scope: "world", sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : "international" });
+          const event = (left, right) => ({ id: "unicode-decimal", title: left.title, category: "경제", scope: "world", summary: "", publishedAt: left.publishedAt, dayStatus: "today", articles: [left, right], sourceCount: 2, importanceScore: 8, whySelected: [], briefWhy: "economy", briefWatch: "follow-up" });
+          check("Devanagari decimal digit normalizes to ASCII", normalizeExternalText("३%") === "3%");
+          check("Bengali decimal digit normalizes to ASCII", normalizeExternalText("৩%") === "3%");
+          check("Thai decimal digit normalizes to ASCII", normalizeExternalText("๓%") === "3%");
+          check("Arabic-Indic normalization remains supported", normalizeExternalText("٣٪") === "3%");
+          const devanagariConflict = auditEventAccuracy(event(article("Inflation rises ३%", "Reuters"), article("Inflation rises 4%", "BBC")));
+          check("Devanagari numeric disagreement is detected", devanagariConflict.headlineNumberDifference);
+          const bengaliEqual = auditEventAccuracy(event(article("Inflation rises ৩%", "Reuters"), article("Inflation rises 3%", "BBC")));
+          check("equivalent Bengali and ASCII digits do not create false conflict", !bengaliEqual.headlineNumberDifference);
+          console.log("Unicode decimal-script abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/unicode-decimal-script-abuse.mjs', unicodeRegression);
+
+          const dedupeRegression = `const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          const make = (source, publishedAt, description, title = "Central bank keeps benchmark rate unchanged") => ({ title, description, source, link: "https://example.com/story", publishedAt, category: "경제", scope: "world", sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : "international" });
+          const stale = make("Reuters", "2026-08-30T09:00:00Z", "Initial report: vote was 5-2.");
+          const corrected = make("Reuters", "2026-08-30T10:00:00Z", "Correction: vote was 6-1.");
+          const staleFirst = __test.dedupeNews([stale, corrected]);
+          check("newer correction survives stale-first feed order", staleFirst.length === 1 && staleFirst[0].description === corrected.description);
+          const freshFirst = __test.dedupeNews([corrected, stale]);
+          check("dedupe result is invariant to duplicate input order", freshFirst.length === 1 && freshFirst[0].description === corrected.description);
+          const bbc = make("BBC", "2026-08-30T09:30:00Z", "BBC version");
+          check("same headline from another publisher remains independent", __test.dedupeNews([stale, corrected, bbc]).length === 2);
+          const otherTitle = make("Reuters", "2026-08-30T10:05:00Z", "Separate story", "Central bank signals possible rate cut");
+          check("different headline from same publisher is not collapsed", __test.dedupeNews([corrected, otherTitle]).length === 2);
+          console.log("Dedupe correction retention abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/dedupe-correction-abuse.mjs', dedupeRegression);
+
+          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
+          const unicodeAnchor = `      - name: Unicode numeric glyph abuse\n        run: node scripts/unicode-numeric-glyph-abuse.mjs\n`;
+          const unicodeStep = `      - name: Unicode decimal-script abuse\n        run: node scripts/unicode-decimal-script-abuse.mjs\n`;
+          if (!ci.includes('Unicode decimal-script abuse')) {
+            if (!ci.includes(unicodeAnchor)) throw new Error('Unicode CI insertion anchor not found');
+            ci = ci.replace(unicodeAnchor, unicodeAnchor + unicodeStep);
+          }
+          const dedupeAnchor = `      - name: Accuracy correction retention abuse\n        run: node scripts/accuracy-correction-abuse.mjs\n`;
+          const dedupeStep = `      - name: Dedupe correction retention abuse\n        run: node scripts/dedupe-correction-abuse.mjs\n`;
+          if (!ci.includes('Dedupe correction retention abuse')) {
+            if (!ci.includes(dedupeAnchor)) throw new Error('Dedupe CI insertion anchor not found');
+            ci = ci.replace(dedupeAnchor, dedupeAnchor + dedupeStep);
+          }
+          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
+          EOF
+
+          node scripts/unicode-decimal-script-abuse.mjs
+          node scripts/unicode-numeric-glyph-abuse.mjs
+          node scripts/number-magnitude-abuse.mjs
+          node scripts/dedupe-correction-abuse.mjs
+          node scripts/accuracy-correction-abuse.mjs
+          node scripts/timeline-correction-abuse.mjs
+          node scripts/content-abuse.mjs
+          npm run build
+
+          rm -f .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml
+          git add -A
+          git commit -m "Normalize Unicode decimal digits and retain latest corrections"
+          git push origin HEAD:main
