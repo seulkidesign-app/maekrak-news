@@ -84,6 +84,8 @@ jobs:
         run: node scripts/evidence-substring-abuse.mjs
       - name: Evidence lexical ambiguity abuse
         run: node scripts/evidence-lexical-ambiguity-abuse.mjs
+      - name: Korean evidence lexical ambiguity abuse
+        run: node scripts/evidence-korean-lexical-ambiguity-abuse.mjs
       - name: Timeline correction retention abuse
         run: node scripts/timeline-correction-abuse.mjs
       - name: Unverified evidence laundering abuse
