@@ -20,33 +20,12 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Patch, regress, build, and land
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          node --input-type=module <<'EOF'
-          const { normalizeExternalText } = await import('./lib/source-normalize.ts');
-          const { auditEventAccuracy } = await import('./lib/accuracy.ts');
-          const article = (title, source) => ({
-            title, description: title, source, link: 'https://example.com/story',
-            publishedAt: '2026-08-30T10:00:00Z', category: '경제', scope: 'world',
-            sourceType: 'aggregated', sourceRole: source === 'Reuters' ? 'wire' : 'international',
-          });
-          const event = {
-            id: 'unicode-decimal-repro', title: 'Inflation', category: '경제', scope: 'world', summary: '',
-            publishedAt: '2026-08-30T10:00:00Z', dayStatus: 'today',
-            articles: [article('Inflation rises ३%', 'Reuters'), article('Inflation rises 4%', 'BBC')],
-            sourceCount: 2, importanceScore: 8, whySelected: [], briefWhy: 'economy', briefWatch: 'follow-up',
-          };
-          const audit = auditEventAccuracy(event);
-          if (normalizeExternalText('३%') === '3%' || audit.headlineNumberDifference) {
-            throw new Error('Unicode decimal attack no longer reproduces');
-          }
-          console.log('REPRODUCED: Devanagari numeric glyph bypasses numeric disagreement detection');
-          EOF
 
           node --input-type=module <<'EOF'
           import { readFileSync, writeFileSync } from 'node:fs';
@@ -88,6 +67,17 @@ jobs:
           source = source.replace(oldNumeric, newNumeric)
             .replace('return normalizeArabicScriptNumericGlyphs(String(value ?? "").normalize("NFKC"))', 'return normalizeExternalNumericGlyphs(String(value ?? "").normalize("NFKC"))');
           writeFileSync('lib/source-normalize.ts', source);
+
+          let accuracy = readFileSync('lib/accuracy.ts', 'utf8');
+          const oldImport = 'import { canonicalSourceName } from "./source-normalize.ts";';
+          const newImport = 'import { canonicalSourceName, normalizeExternalText } from "./source-normalize.ts";';
+          if (!accuracy.includes(oldImport)) throw new Error('accuracy import anchor not found');
+          accuracy = accuracy.replace(oldImport, newImport);
+          const oldNumberCall = 'values:headlineNumbers(article.title)';
+          const newNumberCall = 'values:headlineNumbers(normalizeExternalText(article.title))';
+          if (!accuracy.includes(oldNumberCall)) throw new Error('accuracy numeric boundary anchor not found');
+          accuracy = accuracy.replace(oldNumberCall, newNumberCall);
+          writeFileSync('lib/accuracy.ts', accuracy);
 
           let news = readFileSync('lib/news.ts', 'utf8');
           if (!news.includes('  dedupeNews,')) {
@@ -133,7 +123,7 @@ jobs:
           check("Thai decimal digit normalizes to ASCII", normalizeExternalText("๓%") === "3%");
           check("Arabic-Indic normalization remains supported", normalizeExternalText("٣٪") === "3%");
           const devanagariConflict = auditEventAccuracy(event(article("Inflation rises ३%", "Reuters"), article("Inflation rises 4%", "BBC")));
-          check("Devanagari numeric disagreement is detected", devanagariConflict.headlineNumberDifference);
+          check("Devanagari numeric disagreement is detected at audit boundary", devanagariConflict.headlineNumberDifference);
           const bengaliEqual = auditEventAccuracy(event(article("Inflation rises ৩%", "Reuters"), article("Inflation rises 3%", "BBC")));
           check("equivalent Bengali and ASCII digits do not create false conflict", !bengaliEqual.headlineNumberDifference);
           console.log("Unicode decimal-script abuse: " + passes.length + " passed / " + failures.length + " failed");
