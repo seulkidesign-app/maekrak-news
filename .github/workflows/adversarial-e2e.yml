@@ -92,6 +92,8 @@ jobs:
         run: node scripts/unverified-evidence-laundering-abuse.mjs
       - name: Unverified accuracy laundering abuse
         run: node scripts/unverified-accuracy-laundering-abuse.mjs
+      - name: Negation disagreement abuse
+        run: node scripts/negation-disagreement-abuse.mjs
       - name: Unverified trust-signal laundering abuse
         run: node scripts/unverified-trust-signal-laundering-abuse.mjs
       - name: Unverified display laundering abuse
