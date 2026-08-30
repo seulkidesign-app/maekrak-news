@@ -2,6 +2,7 @@ import type { NewsEvent, NewsItem } from "@/lib/news";
 import { canonicalSourceName } from "./source-normalize.ts";
 
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|may|might|could)\b/i;
+const NEGATION = /(?:아니|않|없|못|부인|거부|실패)|\b(?:not|no|never|without|denies?|denied|rejects?|rejected|fails? to|failed to|didn['’]t|doesn['’]t|won['’]t|can['’]t|cannot)\b/i;
 const MAY_DATE = /\bMay\s+(?:0?[1-9]|[12]\d|3[01])(?:,\s*(?:19|20)\d{2})?\b|\b(?:0?[1-9]|[12]\d|3[01])\s+May(?:\s+(?:19|20)\d{2})?\b/gi;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
@@ -161,6 +162,10 @@ function isUncertainText(text: string): boolean {
   return UNCERTAINTY.test(text.replace(MAY_DATE, " "));
 }
 
+function isNegatedText(text: string): boolean {
+  return NEGATION.test(text);
+}
+
 function hasSyndicationHint(article: NewsItem): boolean {
   const text = ` ${articleText(article).toLowerCase()} `;
   const source = canonicalSourceName(article.source).toLowerCase();
@@ -177,6 +182,8 @@ export type AccuracyAudit = {
   numberExamples: Array<{ source: string; values: string[] }>;
   certaintyDifference: boolean;
   certaintyExamples: Array<{ source: string; uncertain: boolean }>;
+  negationDifference: boolean;
+  negationExamples: Array<{ source: string; negated: boolean }>;
   syndicationHintSources: string[];
 };
 
@@ -186,7 +193,7 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
     const canonical = canonicalSourceName(article.source);
     // Keep unknown-source reports visible in the article list, but do not let an
     // unverifiable identity count as an independent outlet or manufacture a
-    // cross-source numeric/certainty disagreement in the trust audit.
+    // cross-source numeric/certainty/negation disagreement in the trust audit.
     if (canonical === "Unverified source") return;
     if (!bySource.has(canonical)) bySource.set(canonical, { ...article, source: canonical });
   });
@@ -205,6 +212,13 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
   const certaintyStates = new Set(certaintyExamples.map((item) => item.uncertain));
   const certaintyDifference = uniqueArticles.length >= 2 && certaintyStates.size >= 2;
 
+  const negationExamples = uniqueArticles.map((article) => ({
+    source: article.source,
+    negated: isNegatedText(articleText(article)),
+  }));
+  const negationStates = new Set(negationExamples.map((item) => item.negated));
+  const negationDifference = uniqueArticles.length >= 2 && negationStates.size >= 2;
+
   const syndicationHintSources = Array.from(new Set(
     uniqueArticles.filter(hasSyndicationHint).map((article) => article.source),
   )).slice(0, 5);
@@ -215,6 +229,8 @@ export function auditEventAccuracy(event: NewsEvent): AccuracyAudit {
     numberExamples: numberExamples.slice(0, 5),
     certaintyDifference,
     certaintyExamples: certaintyExamples.slice(0, 6),
+    negationDifference,
+    negationExamples: negationExamples.slice(0, 6),
     syndicationHintSources,
   };
 }
