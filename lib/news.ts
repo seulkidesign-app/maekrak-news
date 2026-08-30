@@ -820,6 +820,19 @@ export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
   return scored.sort((a, b) => b.score - a.score)[0]?.article ?? event.articles[0];
 }
 
+function categoryCoverageFor(events: NewsEvent[]): Record<NewsCategory, number> {
+  const verifiedEvents = events.filter((event) => event.sourceCount > 0);
+  return {
+    국내: verifiedEvents.filter((event) => event.scope === "domestic").length,
+    세계: verifiedEvents.filter((event) => event.scope === "world").length,
+    정치: verifiedEvents.filter((event) => event.category === "정치").length,
+    사회: verifiedEvents.filter((event) => event.category === "사회").length,
+    경제: verifiedEvents.filter((event) => event.category === "경제").length,
+    기술: verifiedEvents.filter((event) => event.category === "기술").length,
+    재난: verifiedEvents.filter((event) => event.category === "재난").length,
+  };
+}
+
 export async function getBriefing(): Promise<Briefing> {
   const loaded = await Promise.all(feeds.map(loadFeed));
   const sourceHealth = loaded.map((result) => result.health);
@@ -861,15 +874,7 @@ export async function getBriefing(): Promise<Briefing> {
     return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
   }).slice(0, 30);
 
-  const categoryCoverage: Record<NewsCategory, number> = {
-    국내: events.filter((event) => event.scope === "domestic").length,
-    세계: events.filter((event) => event.scope === "world").length,
-    정치: events.filter((event) => event.category === "정치").length,
-    사회: events.filter((event) => event.category === "사회").length,
-    경제: events.filter((event) => event.category === "경제").length,
-    기술: events.filter((event) => event.category === "기술").length,
-    재난: events.filter((event) => event.category === "재난").length,
-  };
+  const categoryCoverage = categoryCoverageFor(events);
 
   return {
     news,
@@ -909,6 +914,7 @@ export const __test = {
   hasProperNameConflict,
   sameEvent,
   clusterNewsItems,
+  categoryCoverageFor,
   canonicalDedupeUrl,
   dedupeNews,
   stableEventId,
