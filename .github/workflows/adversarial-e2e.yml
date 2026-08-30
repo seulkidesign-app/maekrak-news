@@ -86,6 +86,8 @@ jobs:
         run: node scripts/source-link-abuse.mjs
       - name: Event ID collision abuse
         run: node scripts/event-id-collision-abuse.mjs
+      - name: Unverified event ID churn abuse
+        run: node scripts/unverified-event-id-churn-abuse.mjs
       - name: Source flood abuse
         run: node scripts/source-flood-abuse.mjs
       - name: Evidence flood abuse
