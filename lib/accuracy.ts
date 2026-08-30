@@ -2,7 +2,7 @@ import type { NewsEvent, NewsItem } from "@/lib/news";
 import { canonicalSourceName } from "./source-normalize.ts";
 
 const UNCERTAINTY = /추정|잠정|미확인|가능성|가능할|전망|예상|것으로 보|\b(?:reportedly|unconfirmed|alleged|appear|appears|likely|estimated|may|might|could)\b/i;
-const NEGATION = /(?:아니|않|없|못|부인|거부|실패)|\b(?:not|no|never|without|denies?|denied|rejects?|rejected|fails? to|failed to|didn['’]t|doesn['’]t|won['’]t|can['’]t|cannot)\b/i;
+const NEGATION = /(?:아니(?:다|라고|며)|않(?:다|았|는|고)|없(?:다|었|는|다고)|못(?:했다|한다|해|한)|부인(?:했|했다|한다|해|하며|하고)|거부(?:했|했다|한다|해|하며|하고)|실패(?:했|했다|한다|해|하며|하고))|\b(?:not|no|never|without|denies?|denied|rejects?|rejected|fails? to|failed to|didn['’]t|doesn['’]t|won['’]t|can['’]t|cannot)\b/i;
 const MAY_DATE = /\bMay\s+(?:0?[1-9]|[12]\d|3[01])(?:,\s*(?:19|20)\d{2})?\b|\b(?:0?[1-9]|[12]\d|3[01])\s+May(?:\s+(?:19|20)\d{2})?\b/gi;
 const SYNDICATION_TERMS = ["reuters", "associated press", " ap ", " afp ", "agence france", "연합뉴스", "yonhap"];
 
