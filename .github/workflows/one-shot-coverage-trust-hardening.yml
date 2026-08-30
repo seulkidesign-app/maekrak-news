@@ -39,10 +39,8 @@ jobs:
           node --input-type=module <<'EOF'
           import { readFileSync, writeFileSync } from 'node:fs';
           let news = readFileSync('lib/news.ts', 'utf8');
-
           const block = /  const categoryCoverage: Record<NewsCategory, number> = \{\n    국내: events\.filter\(\(event\) => event\.scope === "domestic"\)\.length,\n    세계: events\.filter\(\(event\) => event\.scope === "world"\)\.length,\n    정치: events\.filter\(\(event\) => event\.category === "정치"\)\.length,\n    사회: events\.filter\(\(event\) => event\.category === "사회"\)\.length,\n    경제: events\.filter\(\(event\) => event\.category === "경제"\)\.length,\n    기술: events\.filter\(\(event\) => event\.category === "기술"\)\.length,\n    재난: events\.filter\(\(event\) => event\.category === "재난"\)\.length,\n  \};/;
           if (!block.test(news)) throw new Error('categoryCoverage block anchor not found');
-
           const helper = `function categoryCoverageFor(events: NewsEvent[]): Record<NewsCategory, number> {
             const verifiedEvents = events.filter((event) => event.sourceCount > 0);
             return {
@@ -61,7 +59,6 @@ jobs:
           if (!news.includes(insertAnchor)) throw new Error('getBriefing anchor not found');
           news = news.replace(insertAnchor, helper + insertAnchor);
           news = news.replace(block, '  const categoryCoverage = categoryCoverageFor(events);');
-
           if (!news.includes('  categoryCoverageFor,')) {
             const exportAnchor = '  clusterNewsItems,\n';
             if (!news.includes(exportAnchor)) throw new Error('__test export anchor not found');
@@ -100,15 +97,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/coverage-trust-poisoning-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Unverified trust-signal laundering abuse\n        run: node scripts/unverified-trust-signal-laundering-abuse.mjs\n`;
-          const step = `      - name: Coverage trust poisoning abuse\n        run: node scripts/coverage-trust-poisoning-abuse.mjs\n`;
-          if (!ci.includes('Coverage trust poisoning abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/coverage-trust-poisoning-abuse.mjs
@@ -117,7 +105,6 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-coverage-trust-hardening.yml
-          git add -A
+          git add lib/news.ts scripts/coverage-trust-poisoning-abuse.mjs
           git commit -m "Exclude unverified-only events from coverage signals"
           git push origin HEAD:main
