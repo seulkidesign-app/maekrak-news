@@ -1,0 +1,164 @@
+name: one-shot-dedupe-url-identity-hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Reproduce, patch, regress, build, and land
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node --input-type=module <<'EOF'
+          import { readFileSync } from 'node:fs';
+          const source = readFileSync('lib/news.ts', 'utf8');
+          if (!source.includes('canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}')) {
+            throw new Error('dedupe title-only vulnerability no longer present');
+          }
+          console.log('REPRODUCED: dedupe identity ignores article URL and can erase distinct same-title stories');
+          EOF
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          let news = readFileSync('lib/news.ts', 'utf8');
+          const oldBlock = `function dedupeNews(items: NewsItem[]) {
+            const seen = new Set<string>();
+            return items.filter((item) => {
+              const key = \`${'${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}'}\`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }`;
+          const newBlock = `function canonicalDedupeUrl(link: string) {
+            try {
+              const url = new URL(link);
+              url.hash = "";
+              const trackingKeys = [...url.searchParams.keys()].filter((key) =>
+                /^utm_/i.test(key) || /^(?:gclid|fbclid|mc_cid|mc_eid)$/i.test(key)
+              );
+              trackingKeys.forEach((key) => url.searchParams.delete(key));
+              url.searchParams.sort();
+              return url.toString();
+            } catch {
+              return link.trim();
+            }
+          }
+
+          function dedupeNews(items: NewsItem[]) {
+            const latestByIdentity = new Map<string, NewsItem>();
+            for (const item of items) {
+              const source = canonicalSourceName(item.source).toLowerCase();
+              const articleIdentity = canonicalDedupeUrl(item.link) || normalizePhrase(item.title);
+              const key = \`${'${source}|${articleIdentity}'}\`;
+              const existing = latestByIdentity.get(key);
+              if (!existing || new Date(item.publishedAt).getTime() > new Date(existing.publishedAt).getTime()) {
+                latestByIdentity.set(key, item);
+              }
+            }
+            return [...latestByIdentity.values()];
+          }`;
+          if (!news.includes(oldBlock)) throw new Error('dedupe patch anchor not found');
+          news = news.replace(oldBlock, newBlock);
+          if (!news.includes('  dedupeNews,')) {
+            const anchor = '  clusterNewsItems,\n  stableEventId,';
+            if (!news.includes(anchor)) throw new Error('__test insertion anchor not found');
+            news = news.replace(anchor, '  clusterNewsItems,\n  canonicalDedupeUrl,\n  dedupeNews,\n  stableEventId,');
+          }
+          writeFileSync('lib/news.ts', news);
+
+          const regression = `const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          const article = (source, link, publishedAt, title = "Live updates") => ({
+            title, description: title, source, link, publishedAt,
+            category: "세계", scope: "world", sourceType: "aggregated",
+            sourceRole: source === "Reuters" ? "wire" : "international",
+          });
+          const distinctSameTitle = __test.dedupeNews([
+            article("Reuters", "https://www.reuters.com/world/story-a", "2026-08-30T09:00:00Z"),
+            article("Reuters", "https://www.reuters.com/world/story-b", "2026-08-30T10:00:00Z"),
+          ]);
+          check("same outlet same title but different URLs are preserved", distinctSameTitle.length === 2);
+
+          const correction = __test.dedupeNews([
+            article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T09:00:00Z", "Election results"),
+            article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T10:00:00Z", "Election results"),
+          ]);
+          check("same article URL keeps only one revision", correction.length === 1);
+          check("same article URL keeps the latest revision", correction[0]?.publishedAt === "2026-08-30T10:00:00Z");
+
+          const reverseCorrection = __test.dedupeNews([
+            article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T10:00:00Z", "Election results"),
+            article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T09:00:00Z", "Election results"),
+          ]);
+          check("revision retention is independent of feed order", reverseCorrection[0]?.publishedAt === "2026-08-30T10:00:00Z");
+
+          const trackingVariants = __test.dedupeNews([
+            article("Reuters", "https://www.reuters.com/world/story-d?utm_source=rss&x=1", "2026-08-30T09:00:00Z"),
+            article("Reuters", "https://www.reuters.com/world/story-d?x=1&utm_medium=feed", "2026-08-30T10:00:00Z"),
+          ]);
+          check("tracking-only URL variants collapse to one article", trackingVariants.length === 1 && trackingVariants[0]?.publishedAt === "2026-08-30T10:00:00Z");
+
+          const meaningfulQueries = __test.dedupeNews([
+            article("Reuters", "https://www.reuters.com/live?id=alpha", "2026-08-30T09:00:00Z"),
+            article("Reuters", "https://www.reuters.com/live?id=beta", "2026-08-30T10:00:00Z"),
+          ]);
+          check("meaningful query differences remain distinct", meaningfulQueries.length === 2);
+
+          const differentOutlets = __test.dedupeNews([
+            article("Reuters", "https://example.com/shared", "2026-08-30T09:00:00Z"),
+            article("BBC", "https://example.com/shared", "2026-08-30T09:00:00Z"),
+          ]);
+          check("different outlets sharing a URL remain distinct", differentOutlets.length === 2);
+
+          console.log("Dedupe URL identity abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/dedupe-url-identity-abuse.mjs', regression);
+
+          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
+          const anchor = `      - name: Accuracy correction retention abuse\n        run: node scripts/accuracy-correction-abuse.mjs\n`;
+          const step = `      - name: Dedupe URL identity abuse\n        run: node scripts/dedupe-url-identity-abuse.mjs\n`;
+          if (!ci.includes('Dedupe URL identity abuse')) {
+            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
+            ci = ci.replace(anchor, anchor + step);
+          }
+          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
+          EOF
+
+          node scripts/dedupe-url-identity-abuse.mjs
+          node scripts/timeline-correction-abuse.mjs
+          node scripts/accuracy-correction-abuse.mjs
+          node scripts/content-abuse.mjs
+          npm run build
+
+          rm -f .github/workflows/one-shot-dedupe-url-identity-hardening.yml
+          git add -A
+          git commit -m "Preserve distinct same-title articles during dedupe"
+          git fetch origin main
+          git rebase origin/main
+          node scripts/dedupe-url-identity-abuse.mjs
+          npm run build
+          git push origin HEAD:main
