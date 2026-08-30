@@ -65,7 +65,11 @@ const flowRules: FlowRule[] = [
 ];
 
 function eventText(event: NewsEvent) {
-  return event.articles.map((article) => `${article.title} ${article.description}`).join(" ").toLowerCase();
+  return event.articles
+    .filter((article) => canonicalSourceName(article.source) !== "Unverified source")
+    .map((article) => `${article.title} ${article.description}`)
+    .join(" ")
+    .toLowerCase();
 }
 
 const trustedImpactSources = new Set([

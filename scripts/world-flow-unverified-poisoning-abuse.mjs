@@ -1,0 +1,21 @@
+const failures = [];
+const passes = [];
+const { buildWorldFlows } = await import("../lib/world-briefing.ts");
+function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+const article = (title, source) => ({ title, description: title, source, link: "https://example.com/story", publishedAt: "2026-08-31T00:00:00Z", category: "세계", scope: "world", sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : source === "BBC" ? "international" : "other" });
+const event = (id, verifiedTitle, source, poison = null) => ({ id, title: verifiedTitle, category: "세계", scope: "world", summary: verifiedTitle, publishedAt: "2026-08-31T00:00:00Z", dayStatus: "today", importanceScore: 8, sourceCount: source === "Unverified source" ? 0 : 1, whySelected: [], briefWhy: "security", briefWatch: "single-source", articles: [article(verifiedTitle, source), ...(poison ? [article(poison, "Unverified source")] : [])] });
+const ukraine = event("ukraine", "Ukraine reports Russian missile attack near Kyiv", "Reuters", "Iran regional security context injected by unknown publisher");
+const yemen = event("yemen", "Yemen militia launches missile in Red Sea", "BBC", "Iran regional security context injected by unknown publisher");
+const poisoned = buildWorldFlows([ukraine, yemen], "en");
+check("unverified Iran injection cannot manufacture a shared security flow", !poisoned.some((flow) => flow.code === "security" && flow.eventIds.length === 2));
+const iranA = event("iran-a", "Iran and Israel discuss ceasefire after regional attacks", "Reuters");
+const iranB = event("iran-b", "Hormuz shipping risk rises as Iran tensions continue", "BBC");
+const genuine = buildWorldFlows([iranA, iranB], "en");
+check("verified shared regional thread still forms a security flow", genuine.some((flow) => flow.code === "security" && flow.eventIds.length === 2));
+const unknownA = event("unknown-a", "Iran ceasefire talks continue", "Unverified source");
+const unknownB = event("unknown-b", "Iran sanctions talks continue", "Unverified source");
+check("unverified-only events cannot manufacture a world flow", buildWorldFlows([unknownA, unknownB], "en").length === 0);
+console.log("World-flow unverified poisoning abuse: " + passes.length + " passed / " + failures.length + " failed");
+passes.forEach((name) => console.log("PASS  " + name));
+failures.forEach((name) => console.error("FAIL  " + name));
+if (failures.length) process.exit(1);
