@@ -1,14 +1,21 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
 const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null)(?:\s+\d+)?$/i;
 const TRUSTED_CONFUSABLE_SKELETONS = new Set([
-  "reuters", "reuters news", "ap", "ap news", "bbc", "bbc news", "kbs", "kbs news", "mbc", "mbc news", "sbs", "sbs news", "dw", "nhk",
+  "reuters", "reuters news",
+  "ap", "ap news", "associated press", "the associated press",
+  "yonhap", "yonhap news", "yonhap news agency",
+  "bbc", "bbc news",
+  "kbs", "kbs news", "mbc", "mbc news", "sbs", "sbs news",
+  "al jazeera", "al jazeera english",
+  "dw", "deutsche welle",
+  "nhk", "nhk world", "nhk world-japan",
 ]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   // Cyrillic characters commonly used to visually impersonate Latin outlet names.
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
   "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
   "С": "C", "с": "c", "Т": "T", "т": "t", "Х": "X", "х": "x", "У": "Y", "у": "y",
-  "І": "I", "і": "i", "Ј": "J", "ј": "j", "Ѕ": "S", "ѕ": "s",
+  "І": "I", "і": "i", "Ј": "J", "ј": "j", "Ѕ": "S", "ѕ": "s", "Ԝ": "W", "ԝ": "w",
   // Greek lookalikes used in the same spoofing class.
   "Α": "A", "α": "a", "Β": "B", "Ε": "E", "ε": "e", "Ζ": "Z", "Η": "H", "Ι": "I",
   "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "ο": "o", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
