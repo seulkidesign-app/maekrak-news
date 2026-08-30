@@ -105,7 +105,7 @@ function signatures(event: NewsEvent, code: WorldFlowCode) {
 
   if (code === "korea") {
     add("police-justice", /\b(?:police|prosecut(?:or|ors|ion)?|court)\b|경찰|검찰|수사|법원|사법/);
-    add("housing", /\b(?:housing|real estate)\b|주택|주거|부동산|용산|탄천/);
+    add("housing", /\b(?:housing|real estate)\b|주택|주거|부동산/);
     add("party-politics", /\b(?:party|parliament)\b|정당|대표|국민의힘|민주당|개혁신당|국회/);
     add("labor", /\b(?:labor|wage|employment)\b|노동|임금|고용/);
     add("health", /\b(?:health|hospital)\b|의료|병원|건강/);
