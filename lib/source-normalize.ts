@@ -19,10 +19,12 @@ const CONFUSABLE_TO_LATIN: Record<string, string> = {
   // Greek lookalikes used in the same spoofing class.
   "Α": "A", "α": "a", "Β": "B", "Ε": "E", "ε": "e", "Ζ": "Z", "Η": "H", "Ι": "I",
   "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "ο": "o", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+  // Armenian lookalikes can bypass Greek/Cyrillic-only mixed-script defenses.
+  "Օ": "O", "օ": "o", "Ս": "U", "ս": "u",
 };
 
 function trustedBrandHomoglyphSpoof(value: string) {
-  if (!/[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(value)) return false;
+  if (!/[\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Armenian}]/u.test(value)) return false;
   const skeleton = [...value]
     .map((character) => CONFUSABLE_TO_LATIN[character] ?? character)
     .join("")
