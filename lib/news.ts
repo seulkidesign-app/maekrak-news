@@ -190,8 +190,18 @@ const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|�
 const worldSignals = /북한|미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:north korea|dprk|united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
 const domesticSignals = /한국|대한민국|남한|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:south korea|republic of korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
 
+function highImpactSignalText(text: string) {
+  return text
+    .replace(/\bwar memorial\b/gi, " memorial ")
+    .replace(/\bwar museum\b/gi, " museum ")
+    .replace(/\bwar and peace\b/gi, " literary work ")
+    .replace(/전쟁기념관/g, "기념관")
+    .replace(/전쟁\s*박물관/g, "박물관");
+}
+
 function isHighImpact(text: string) {
-  return highImpactPattern.test(text) || leaderDeathPattern.test(text);
+  const signalText = highImpactSignalText(text);
+  return highImpactPattern.test(signalText) || leaderDeathPattern.test(signalText);
 }
 
 function safeCodePoint(raw: string, radix: number) {
