@@ -38,12 +38,18 @@ jobs:
         run: node scripts/clock-time-number-abuse.mjs
       - name: Calendar-date number abuse
         run: node scripts/calendar-date-number-abuse.mjs
+      - name: Timezone-less publication timestamp abuse
+        run: node scripts/timezone-less-published-at-abuse.mjs
+      - name: Ambiguous timezone abbreviation abuse
+        run: node scripts/ambiguous-timezone-abbreviation-abuse.mjs
       - name: Timestamp poisoning abuse
         run: node scripts/timestamp-abuse.mjs
       - name: Template headline collision abuse
         run: node scripts/template-collision-abuse.mjs
       - name: Cluster bridge poisoning abuse
         run: node scripts/cluster-bridge-abuse.mjs
+      - name: Unverified cluster poisoning abuse
+        run: node scripts/unverified-cluster-poisoning-abuse.mjs
       - name: Korea entity boundary abuse
         run: node scripts/korea-entity-boundary-abuse.mjs
       - name: IPv6 URL boundary abuse
