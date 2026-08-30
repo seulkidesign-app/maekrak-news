@@ -1,0 +1,140 @@
+name: one-shot-dedupe-correction-hardening
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Reproduce, patch, regress, build, and land
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          let news = readFileSync('lib/news.ts', 'utf8');
+          if (!news.includes('  dedupeNews,')) {
+            const anchor = '  clusterNewsItems,\n  stableEventId,';
+            if (news.includes(anchor)) news = news.replace(anchor, '  clusterNewsItems,\n  dedupeNews,\n  stableEventId,');
+            else {
+              const fallback = '  sameEvent,\n  stableEventId,';
+              if (!news.includes(fallback)) throw new Error('test export anchor not found');
+              news = news.replace(fallback, '  sameEvent,\n  dedupeNews,\n  stableEventId,');
+            }
+            writeFileSync('lib/news.ts', news);
+          }
+          EOF
+
+          node --input-type=module <<'EOF'
+          const { __test } = await import('./lib/news.ts');
+          const make = (publishedAt, description) => ({
+            title: 'Central bank keeps benchmark rate unchanged',
+            description,
+            source: 'Reuters',
+            link: 'https://www.reuters.com/example',
+            publishedAt,
+            category: '경제',
+            scope: 'world',
+            sourceType: 'aggregated',
+            sourceRole: 'wire',
+          });
+          const stale = make('2026-08-30T09:00:00Z', 'Initial report: vote was 5-2.');
+          const corrected = make('2026-08-30T10:00:00Z', 'Correction: vote was 6-1.');
+          const result = __test.dedupeNews([stale, corrected]);
+          if (result.length !== 1 || result[0].description !== stale.description) throw new Error('stale-first suppression did not reproduce');
+          console.log('REPRODUCED: stale duplicate suppresses later correction');
+          EOF
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          let news = readFileSync('lib/news.ts', 'utf8');
+          const oldBlock = `function dedupeNews(items: NewsItem[]) {
+            const seen = new Set<string>();
+            return items.filter((item) => {
+              const key = \`${'${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}'}\`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }`;
+          const newBlock = `function dedupeNews(items: NewsItem[]) {
+            const newestByKey = new Map<string, NewsItem>();
+            for (const item of items) {
+              const key = \`${'${canonicalSourceName(item.source).toLowerCase()}|${normalizePhrase(item.title)}'}\`;
+              const existing = newestByKey.get(key);
+              if (!existing || new Date(item.publishedAt).getTime() > new Date(existing.publishedAt).getTime()) {
+                newestByKey.set(key, item);
+              }
+            }
+            return [...newestByKey.values()];
+          }`;
+          if (!news.includes(oldBlock)) throw new Error('dedupeNews patch anchor not found');
+          news = news.replace(oldBlock, newBlock);
+          writeFileSync('lib/news.ts', news);
+
+          const regression = `const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          const make = (source, publishedAt, description, title = "Central bank keeps benchmark rate unchanged") => ({
+            title, description, source, link: "https://example.com/story", publishedAt,
+            category: "경제", scope: "world", sourceType: "aggregated",
+            sourceRole: source === "Reuters" ? "wire" : "international",
+          });
+          const stale = make("Reuters", "2026-08-30T09:00:00Z", "Initial report: vote was 5-2.");
+          const corrected = make("Reuters", "2026-08-30T10:00:00Z", "Correction: vote was 6-1.");
+          const staleFirst = __test.dedupeNews([stale, corrected]);
+          check("newer correction survives stale-first feed order", staleFirst.length === 1 && staleFirst[0].description === corrected.description);
+          const freshFirst = __test.dedupeNews([corrected, stale]);
+          check("dedupe result is invariant to duplicate input order", freshFirst.length === 1 && freshFirst[0].description === corrected.description);
+          const bbc = make("BBC", "2026-08-30T09:30:00Z", "BBC version");
+          check("same headline from another publisher remains independent", __test.dedupeNews([stale, corrected, bbc]).length === 2);
+          const otherTitle = make("Reuters", "2026-08-30T10:05:00Z", "Separate story", "Central bank signals possible rate cut");
+          check("different headline from same publisher is not collapsed", __test.dedupeNews([corrected, otherTitle]).length === 2);
+          console.log("Dedupe correction retention abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/dedupe-correction-abuse.mjs', regression);
+
+          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
+          const anchor = `      - name: Accuracy correction retention abuse\n        run: node scripts/accuracy-correction-abuse.mjs\n`;
+          const step = `      - name: Dedupe correction retention abuse\n        run: node scripts/dedupe-correction-abuse.mjs\n`;
+          if (!ci.includes('Dedupe correction retention abuse')) {
+            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
+            ci = ci.replace(anchor, anchor + step);
+          }
+          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
+          EOF
+
+          node scripts/dedupe-correction-abuse.mjs
+          node scripts/accuracy-correction-abuse.mjs
+          node scripts/timeline-correction-abuse.mjs
+          node scripts/content-abuse.mjs
+          node scripts/unverified-cluster-poisoning-abuse.mjs
+          node scripts/timezone-less-published-at-abuse.mjs
+          node scripts/ambiguous-timezone-abbreviation-abuse.mjs
+          npm run build
+
+          rm -f .github/workflows/one-shot-dedupe-correction-hardening.yml
+          git add -A
+          git commit -m "Keep newest duplicate article correction"
+          git push origin HEAD:main
