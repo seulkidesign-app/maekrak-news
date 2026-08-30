@@ -20,24 +20,19 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce shared proper-name template collision
+      - name: Apply validated hardening on latest main
+        shell: bash
         run: |
-          node --input-type=module <<'EOF'
-          const { __test } = await import('./lib/news.ts');
-          const article = (title, source) => ({
-            title, description: title, source, link: 'https://example.com/story',
-            publishedAt: '2026-08-30T12:00:00Z', category: '세계', scope: 'world',
-            sourceType: 'aggregated', sourceRole: source === 'Reuters' ? 'wire' : 'international',
-          });
-          const acme = article('Acme recalls phones following battery defect as nationwide consumer safety investigation expands after FDA warning', 'Reuters');
-          const globex = article('Globex recalls phones following battery defect as nationwide consumer safety investigation expands after FDA warning', 'BBC');
-          if (!__test.sameEvent(acme, globex)) throw new Error('attack did not reproduce');
-          if (__test.hasProperNameConflict(acme.title, globex.title)) throw new Error('current conflict detector unexpectedly caught attack');
-          console.log('REPRODUCED shared proper-name template collision');
-          EOF
-      - name: Patch proper-name conflict logic and add regression
-        run: |
-          node --input-type=module <<'EOF'
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3 4; do
+            echo "=== attempt ${attempt} ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            node --input-type=module <<'EOF'
           import { readFileSync, writeFileSync } from 'node:fs';
           let news = readFileSync('lib/news.ts', 'utf8');
           const oldBlock = `function hasProperNameConflict(a: string, b: string) {
@@ -55,8 +50,8 @@ jobs:
             const rightOnly = [...right].filter((value) => !left.has(value));
             return leftOnly.length > 0 && rightOnly.length > 0;
           }`;
-          if (!news.includes(oldBlock)) throw new Error('proper-name patch anchor not found');
-          news = news.replace(oldBlock, newBlock);
+          if (news.includes(oldBlock)) news = news.replace(oldBlock, newBlock);
+          else if (!news.includes('const leftOnly = [...left].filter')) throw new Error('proper-name patch anchor not found');
           writeFileSync('lib/news.ts', news);
 
           const test = `const failures = [];
@@ -90,19 +85,34 @@ jobs:
           }
           writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
-      - name: Run focused regressions
-        run: |
-          node scripts/shared-proper-name-template-collision-abuse.mjs
-          node scripts/template-collision-abuse.mjs
-          node scripts/cluster-bridge-abuse.mjs
-          node scripts/korea-entity-boundary-abuse.mjs
-          node scripts/content-abuse.mjs
-          npm run build
-      - name: Commit hardened code
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/workflows/one-shot-shared-proper-name-hardening.yml
-          git add -A
-          git commit -m "Harden shared proper-name template collisions"
-          git push origin HEAD:main
+
+            node scripts/shared-proper-name-template-collision-abuse.mjs
+            node scripts/template-collision-abuse.mjs
+            node scripts/cluster-bridge-abuse.mjs
+            node scripts/korea-entity-boundary-abuse.mjs
+            node scripts/content-abuse.mjs
+            npm run build
+
+            rm -f .github/workflows/one-shot-shared-proper-name-hardening.yml
+            git add -A
+            if git diff --cached --quiet; then
+              echo "No changes left to land."
+              exit 0
+            fi
+            git commit -m "Harden shared proper-name template collisions"
+
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Concurrent change conflicted; retrying from latest main."
+              continue
+            fi
+            if git push origin HEAD:main; then
+              echo "Hardening landed."
+              exit 0
+            fi
+            echo "Concurrent main update after rebase; retrying."
+          done
+
+          echo "Failed to land validated hardening after retries."
+          exit 1
