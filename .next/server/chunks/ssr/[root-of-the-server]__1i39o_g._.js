@@ -1,0 +1,3 @@
+module.exports=[91227,a=>{a.v(b=>Promise.all(["server/chunks/ssr/[externals]_next_dist_compiled_@vercel_og_index_node_01np1ap.js"].map(b=>a.l(b))).then(()=>b(21425)))},55237,a=>{"use strict";a.i(7997),a.i(99475),a.i(36228);var b=a.i(52425);let c={alt:"맥락 — 오늘의 한국과 세계를, 하나의 흐름으로",contentType:"image/png",size:{width:1200,height:630}};async function d(a){let{__metadata_id__:d,...e}=await a.params,f=(0,b.fillMetadataSegment)("/",e,"twitter-image",!1);return[function(a){let b={alt:a.alt,type:a.contentType||"image/png",url:f+"?e7c701780668bd70"},{size:c}=a;return c&&(b.width=c.width,b.height=c.height),b}(c)]}a.s(["default",0,d],55237)},51380,function(a){a.n(a.i(55237))}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__1i39o_g._.js.map

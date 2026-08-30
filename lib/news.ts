@@ -494,8 +494,10 @@ function stableHash(value: string) {
 }
 
 function stableEventId(articles: NewsItem[]) {
-  const earliest = [...articles].sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())[0];
-  const anchor = earliest?.title ?? articles[0]?.title ?? "event";
+  const verified = verifiedSourceArticles(articles);
+  const identityPool = verified.length ? verified : articles;
+  const earliest = [...identityPool].sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())[0];
+  const anchor = earliest?.title ?? identityPool[0]?.title ?? "event";
   const entities = [...normalizedEntities(anchor)].sort();
   const actions = [...normalizedActions(anchor)].sort();
   const anchorTokens = [...tokens(anchor)].sort().slice(0, 12);

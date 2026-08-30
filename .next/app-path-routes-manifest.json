@@ -1,0 +1,12 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/agent-info/page": "/agent-info",
+  "/icon.svg/route": "/icon.svg",
+  "/og-image/route": "/og-image",
+  "/opengraph-image/route": "/opengraph-image",
+  "/page": "/",
+  "/qa/page": "/qa",
+  "/sitemap.xml/route": "/sitemap.xml",
+  "/twitter-image/route": "/twitter-image"
+}
