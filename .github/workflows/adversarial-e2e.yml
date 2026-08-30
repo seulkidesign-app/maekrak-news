@@ -112,6 +112,8 @@ jobs:
         run: node scripts/mobile-safe-area-abuse.mjs
       - name: Korea impact poisoning abuse
         run: node scripts/korea-impact-poisoning-abuse.mjs
+      - name: Location housing-flow false-positive abuse
+        run: node scripts/location-housing-flow-abuse.mjs
       - name: LocalStorage snapshot poisoning abuse
         run: node scripts/localstorage-snapshot-abuse.mjs
       - name: Visit snapshot time poisoning abuse
