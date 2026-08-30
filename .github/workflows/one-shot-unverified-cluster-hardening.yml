@@ -29,9 +29,9 @@ jobs:
 
           node --input-type=module <<'EOF'
           const { __test } = await import('./lib/news.ts');
-          const make = (source, publishedAt) => ({
-            title: 'Iran sanctions talks resume in Oman Monday',
-            description: 'Iran sanctions talks resume in Oman Monday',
+          const make = (source, publishedAt, title) => ({
+            title,
+            description: title,
             source,
             link: 'https://example.com/story',
             publishedAt,
@@ -40,9 +40,9 @@ jobs:
             sourceType: 'aggregated',
             sourceRole: source === 'Reuters' ? 'wire' : source === 'BBC' ? 'international' : 'other',
           });
-          const u = make('Unverified source', '2026-08-30T20:00:00Z');
-          const a = make('Reuters', '2026-08-30T10:00:00Z');
-          const b = make('BBC', '2026-08-30T00:00:00Z');
+          const u = make('Unverified source', '2026-08-30T20:00:00Z', 'Iran sanctions talks resume in Oman Monday');
+          const a = make('Reuters', '2026-08-30T10:00:00Z', 'Iran sanctions talks resume in Oman Tuesday');
+          const b = make('BBC', '2026-08-30T00:00:00Z', 'Iran sanctions talks resume in Oman Wednesday');
           if (!__test.sameEvent(u, a) || !__test.sameEvent(a, b) || __test.sameEvent(u, b)) throw new Error('attack relation did not reproduce');
           const clusters = [];
           for (const item of [u, a, b]) {
@@ -108,14 +108,14 @@ jobs:
           const passes = [];
           const { __test } = await import("../lib/news.ts");
           function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
-          const make = (source, publishedAt, title = "Iran sanctions talks resume in Oman Monday") => ({
+          const make = (source, publishedAt, title) => ({
             title, description: title, source, link: "https://example.com/story", publishedAt,
             category: "세계", scope: "world", sourceType: "aggregated",
             sourceRole: source === "Reuters" ? "wire" : source === "BBC" ? "international" : "other",
           });
-          const poison = make("Unverified source", "2026-08-30T20:00:00Z");
-          const reuters = make("Reuters", "2026-08-30T10:00:00Z");
-          const bbc = make("BBC", "2026-08-30T00:00:00Z");
+          const poison = make("Unverified source", "2026-08-30T20:00:00Z", "Iran sanctions talks resume in Oman Monday");
+          const reuters = make("Reuters", "2026-08-30T10:00:00Z", "Iran sanctions talks resume in Oman Tuesday");
+          const bbc = make("BBC", "2026-08-30T00:00:00Z", "Iran sanctions talks resume in Oman Wednesday");
           check("poison matches the newer verified report", __test.sameEvent(poison, reuters));
           check("verified reports are the same event", __test.sameEvent(reuters, bbc));
           check("poison does not match the older verified report", !__test.sameEvent(poison, bbc));
