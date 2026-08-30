@@ -37,12 +37,12 @@ jobs:
           node scripts/timestamp-abuse.mjs
       - name: Production build
         run: npm run build
-      - name: Land verified patch
+      - name: Land app and regression files
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/workflows/one-shot-hardening-v2.yml
-          git add -A
+          git checkout HEAD -- .github/workflows/adversarial-e2e.yml
+          git add lib scripts
           git commit -m "Harden publication timestamps and trusted event clustering"
           git push origin HEAD:main
