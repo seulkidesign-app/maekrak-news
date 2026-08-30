@@ -141,6 +141,8 @@ jobs:
 
           git add lib/news.ts scripts/dedupe-url-identity-abuse.mjs
           git commit -m "Preserve distinct same-title articles during dedupe"
+          git restore --worktree .next || true
+          git clean -fd .next || true
           git fetch origin main
           git rebase origin/main
           node scripts/dedupe-url-identity-abuse.mjs
