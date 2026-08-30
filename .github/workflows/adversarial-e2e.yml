@@ -24,6 +24,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Adversarial content pipeline
         run: node scripts/content-abuse.mjs
+      - name: High-impact lexical false-positive abuse
+        run: node scripts/high-impact-lexical-abuse.mjs
       - name: Feed boundary abuse
         run: node scripts/feed-boundary-abuse.mjs
       - name: Number magnitude abuse
