@@ -745,7 +745,9 @@ function clusterNewsItems(items: NewsItem[]) {
 
 export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
   const wantsKorean = lang === "ko";
-  const scored = event.articles.map((article) => {
+  const verified = verifiedSourceArticles(event.articles);
+  const candidates = verified.length ? verified : event.articles;
+  const scored = candidates.map((article) => {
     const titleHasHangul = /[가-힣]/.test(article.title);
     const languageScore = wantsKorean ? (titleHasHangul ? 4 : 0) : (!titleHasHangul ? 4 : 0);
     const roleScore = article.sourceRole === "wire" ? 1.4 : article.sourceType === "direct" ? 1 : 0.4;
