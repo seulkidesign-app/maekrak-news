@@ -58,7 +58,7 @@ export function SourceCheck({
   const claims = evidence["발언·주장"];
   const sourceNames = [...new Set(event.articles.map((article) => canonicalSourceName(article.source)))];
   const political = event.category === "정치" || event.briefWhy === "politics" || event.briefWhy === "security";
-  const hasDifference = audit.headlineNumberDifference || audit.certaintyDifference;
+  const hasDifference = audit.headlineNumberDifference || audit.certaintyDifference || audit.negationDifference;
 
   return (
     <div className={`sourceCheck sourceCheck-${state.tone}`}>
@@ -106,6 +106,9 @@ export function SourceCheck({
               )}
               {audit.certaintyDifference && (
                 <p>{lang === "ko" ? "일부 매체는 가능성·추정 표현을 사용하지만 다른 매체는 그렇지 않습니다. 확정된 사실과 전망을 구분해 읽어야 합니다." : "Some outlets use uncertainty language while others do not. Distinguish confirmed facts from forecasts or reports."}</p>
+              )}
+              {audit.negationDifference && (
+                <p>{lang === "ko" ? "일부 매체는 부정·거부·실패 표현을 사용하지만 다른 매체는 그렇지 않습니다. 결론이 반대로 읽힐 수 있으므로 원문을 직접 비교하세요." : "Some outlets use negation, denial, rejection or failure language while others do not. The conclusion may be reversed, so compare the originals directly."}</p>
               )}
               {audit.numberExamples.length > 0 && audit.headlineNumberDifference && (
                 <div className="accuracyExamples">
