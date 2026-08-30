@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Reproduce, patch, regress, build, and land app changes
         shell: bash
         run: |
           set -euo pipefail
@@ -99,53 +99,38 @@ jobs:
             article("Reuters", "https://www.reuters.com/world/story-b", "2026-08-30T10:00:00Z"),
           ]);
           check("same outlet same title but different URLs are preserved", distinctSameTitle.length === 2);
-
           const correction = __test.dedupeNews([
             article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T09:00:00Z", "Election results"),
             article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T10:00:00Z", "Election results"),
           ]);
           check("same article URL keeps only one revision", correction.length === 1);
           check("same article URL keeps the latest revision", correction[0]?.publishedAt === "2026-08-30T10:00:00Z");
-
           const reverseCorrection = __test.dedupeNews([
             article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T10:00:00Z", "Election results"),
             article("Reuters", "https://www.reuters.com/world/story-c", "2026-08-30T09:00:00Z", "Election results"),
           ]);
           check("revision retention is independent of feed order", reverseCorrection[0]?.publishedAt === "2026-08-30T10:00:00Z");
-
           const trackingVariants = __test.dedupeNews([
             article("Reuters", "https://www.reuters.com/world/story-d?utm_source=rss&x=1", "2026-08-30T09:00:00Z"),
             article("Reuters", "https://www.reuters.com/world/story-d?x=1&utm_medium=feed", "2026-08-30T10:00:00Z"),
           ]);
           check("tracking-only URL variants collapse to one article", trackingVariants.length === 1 && trackingVariants[0]?.publishedAt === "2026-08-30T10:00:00Z");
-
           const meaningfulQueries = __test.dedupeNews([
             article("Reuters", "https://www.reuters.com/live?id=alpha", "2026-08-30T09:00:00Z"),
             article("Reuters", "https://www.reuters.com/live?id=beta", "2026-08-30T10:00:00Z"),
           ]);
           check("meaningful query differences remain distinct", meaningfulQueries.length === 2);
-
           const differentOutlets = __test.dedupeNews([
             article("Reuters", "https://example.com/shared", "2026-08-30T09:00:00Z"),
             article("BBC", "https://example.com/shared", "2026-08-30T09:00:00Z"),
           ]);
           check("different outlets sharing a URL remain distinct", differentOutlets.length === 2);
-
           console.log("Dedupe URL identity abuse: " + passes.length + " passed / " + failures.length + " failed");
           passes.forEach((name) => console.log("PASS  " + name));
           failures.forEach((name) => console.error("FAIL  " + name));
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/dedupe-url-identity-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Accuracy correction retention abuse\n        run: node scripts/accuracy-correction-abuse.mjs\n`;
-          const step = `      - name: Dedupe URL identity abuse\n        run: node scripts/dedupe-url-identity-abuse.mjs\n`;
-          if (!ci.includes('Dedupe URL identity abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/dedupe-url-identity-abuse.mjs
@@ -154,8 +139,7 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-dedupe-url-identity-hardening.yml
-          git add -A
+          git add lib/news.ts scripts/dedupe-url-identity-abuse.mjs
           git commit -m "Preserve distinct same-title articles during dedupe"
           git fetch origin main
           git rebase origin/main
