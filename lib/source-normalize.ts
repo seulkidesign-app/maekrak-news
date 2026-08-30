@@ -94,6 +94,9 @@ export function canonicalSourceName(value: string) {
 
 export function outletIdentityKey(value: string) {
   return normalizeExternalText(canonicalSourceName(value))
+    // Overlay marks can make the same visible outlet look like a distinct publisher identity.
+    // Remove only visual overlay marks here; keep ordinary accents and the displayed source name intact.
+    .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
     .toLocaleLowerCase("en-US")
     .replace(/[._\p{Pd}]+/gu, " ")
     .replace(/[’‘ʼ']/g, "")
