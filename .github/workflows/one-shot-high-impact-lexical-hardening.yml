@@ -78,15 +78,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/high-impact-lexical-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Adversarial content pipeline\n        run: node scripts/content-abuse.mjs\n`;
-          const step = `      - name: High-impact lexical false-positive abuse\n        run: node scripts/high-impact-lexical-abuse.mjs\n`;
-          if (!ci.includes('High-impact lexical false-positive abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/high-impact-lexical-abuse.mjs
@@ -95,7 +86,6 @@ jobs:
           node scripts/unverified-cluster-poisoning-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-high-impact-lexical-hardening.yml
-          git add -A
+          git add lib/news.ts scripts/high-impact-lexical-abuse.mjs
           git commit -m "Avoid high-impact false positives from war-history phrases"
           git push origin HEAD:main
