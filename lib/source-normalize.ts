@@ -45,6 +45,24 @@ function trustedBrandCombiningMarkSpoof(value: string) {
   return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
 }
 
+function genericMixedScriptIdentitySkeleton(value: string) {
+  if (!/\p{Script=Latin}/u.test(value) || !/[\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Armenian}]/u.test(value)) return value;
+  let sawMappedConfusable = false;
+  let hasUnmappedNonLatinLetter = false;
+  const skeleton = [...value].map((character) => {
+    const mapped = CONFUSABLE_TO_LATIN[character];
+    if (mapped) {
+      sawMappedConfusable = true;
+      return mapped;
+    }
+    if (/\p{L}/u.test(character) && !/\p{Script=Latin}/u.test(character)) hasUnmappedNonLatinLetter = true;
+    return character;
+  }).join("");
+  // Collapse only Latin-looking mixed-script variants whose non-Latin letters are all known visual confusables.
+  // Genuine multilingual names such as "Meduza Россия" retain their distinct identity.
+  return sawMappedConfusable && !hasUnmappedNonLatinLetter ? skeleton : value;
+}
+
 function canonicalUnknownOutletCase(value: string) {
   if (!/[A-Za-z]/.test(value)) return value;
   return value
@@ -102,7 +120,7 @@ export function canonicalSourceName(value: string) {
 }
 
 export function outletIdentityKey(value: string) {
-  return normalizeExternalText(canonicalSourceName(value))
+  return normalizeExternalText(genericMixedScriptIdentitySkeleton(canonicalSourceName(value)))
     // Overlay marks can make the same visible outlet look like a distinct publisher identity.
     // Remove only visual overlay marks here; keep ordinary accents and the displayed source name intact.
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
