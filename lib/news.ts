@@ -307,9 +307,17 @@ function hasValidExplicitCalendarDate(raw: string) {
   return true;
 }
 
+function hasExplicitTimezoneForTimestamp(raw: string) {
+  const hasClock = /(?:T|\s)\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?/.test(raw);
+  if (!hasClock) return true;
+  const normalized = raw.trim();
+  if (/(?:Z|[+-]\d{2}:?\d{2})(?:\s*\([^)]*\))?$/i.test(normalized)) return true;
+  return /(?:GMT|UTC)(?:\s*\([^)]*\))?$/i.test(normalized);
+}
+
 function safePublishedAt(value: unknown, now = Date.now()) {
   const raw = String(value ?? "").trim();
-  if (!raw || !hasValidExplicitCalendarDate(raw)) return "";
+  if (!raw || !hasValidExplicitCalendarDate(raw) || !hasExplicitTimezoneForTimestamp(raw)) return "";
   const parsed = new Date(raw);
   const time = parsed.getTime();
   if (!Number.isFinite(time)) return "";
@@ -736,13 +744,33 @@ function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
 }
 
 function clusterNewsItems(items: NewsItem[]) {
-  const clusters: NewsItem[][] = [];
-  for (const item of items) {
-    const match = clusters.find((cluster) => cluster.length > 0 && cluster.every((member) => sameEvent(member, item)));
+  const verifiedItems = verifiedSourceArticles(items);
+  const unverifiedItems = items.filter((item) => canonicalSourceName(item.source) === "Unverified source");
+  const verifiedClusters: NewsItem[][] = [];
+
+  for (const item of verifiedItems) {
+    const match = verifiedClusters.find((cluster) => cluster.length > 0 && cluster.every((member) => sameEvent(member, item)));
     if (match) match.push(item);
-    else clusters.push([item]);
+    else verifiedClusters.push([item]);
   }
-  return clusters;
+
+  const unverifiedOnlyClusters: NewsItem[][] = [];
+  for (const item of unverifiedItems) {
+    const verifiedMatch = verifiedClusters.find((cluster) => {
+      const trustedMembers = verifiedSourceArticles(cluster);
+      return trustedMembers.length > 0 && trustedMembers.every((member) => sameEvent(member, item));
+    });
+    if (verifiedMatch) {
+      verifiedMatch.push(item);
+      continue;
+    }
+
+    const unverifiedMatch = unverifiedOnlyClusters.find((cluster) => cluster.length > 0 && cluster.every((member) => sameEvent(member, item)));
+    if (unverifiedMatch) unverifiedMatch.push(item);
+    else unverifiedOnlyClusters.push([item]);
+  }
+
+  return [...verifiedClusters, ...unverifiedOnlyClusters];
 }
 
 export function getDisplayArticle(event: NewsEvent, lang: "ko" | "en") {
