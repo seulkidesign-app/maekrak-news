@@ -1,0 +1,117 @@
+name: timezone-less-published-at-patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Confirm the new attack reproduces before patch
+        run: |
+          node --input-type=module <<'NODE'
+          const { __test } = await import('./lib/news.ts');
+          const now = Date.UTC(2026, 7, 30, 12, 0, 0);
+          const vulnerable = __test.safePublishedAt('2026-08-30T10:00:00', now) !== '';
+          if (!vulnerable) {
+            console.error('Expected timezone-less timestamp vulnerability was not reproducible');
+            process.exit(1);
+          }
+          console.log('REPRODUCED: timezone-less ISO datetime is accepted and interpreted using runtime timezone');
+          NODE
+      - name: Patch timestamp validation and add regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          news = Path('lib/news.ts')
+          text = news.read_text()
+          old = '''function safePublishedAt(value: unknown, now = Date.now()) {
+            const raw = String(value ?? "").trim();
+            if (!raw || !hasValidExplicitCalendarDate(raw)) return "";
+            const parsed = new Date(raw);
+          '''.replace('            ', '')
+          new = '''function hasExplicitTimezoneForTimestamp(raw: string) {
+            const hasClock = /(?:T|\\s)\\d{1,2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?/.test(raw);
+            if (!hasClock) return true;
+            return /(?:Z|[+-]\\d{2}:?\\d{2}|[A-Z]{2,5})(?:\\s*\\([^)]*\\))?$/i.test(raw);
+          }
+
+          function safePublishedAt(value: unknown, now = Date.now()) {
+            const raw = String(value ?? "").trim();
+            if (!raw || !hasValidExplicitCalendarDate(raw) || !hasExplicitTimezoneForTimestamp(raw)) return "";
+            const parsed = new Date(raw);
+          '''.replace('            ', '')
+          if old not in text:
+            raise SystemExit('safePublishedAt patch anchor not found')
+          news.write_text(text.replace(old, new, 1))
+
+          regression = r'''const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+
+          function check(name, condition, detail = "") {
+            if (condition) passes.push(name);
+            else failures.push(`${name}${detail ? ` — ${detail}` : ""}`);
+          }
+
+          const now = Date.UTC(2026, 7, 30, 12, 0, 0);
+          const parse = (value) => __test.safePublishedAt(value, now);
+
+          check("timezone-less ISO datetime is rejected", parse("2026-08-30T10:00:00") === "");
+          check("timezone-less space-separated datetime is rejected", parse("2026-08-30 10:00:00") === "");
+          check("timezone-less RFC datetime is rejected", parse("Sun, 30 Aug 2026 10:00:00") === "");
+          check("UTC Z timestamp remains allowed", parse("2026-08-30T10:00:00Z") === "2026-08-30T10:00:00.000Z");
+          check("numeric ISO offset remains allowed", parse("2026-08-30T19:00:00+09:00") === "2026-08-30T10:00:00.000Z");
+          check("RFC GMT timestamp remains allowed", Boolean(parse("Sun, 30 Aug 2026 10:00:00 GMT")));
+          check("RFC numeric offset remains allowed", Boolean(parse("Sun, 30 Aug 2026 19:00:00 +0900")));
+          check("date-only value remains deterministic", parse("2026-08-30") === "2026-08-30T00:00:00.000Z");
+
+          console.log(`Timezone-less publication timestamp abuse: ${passes.length} passed / ${failures.length} failed`);
+          passes.forEach((name) => console.log(`PASS  ${name}`));
+          failures.forEach((name) => console.error(`FAIL  ${name}`));
+          if (failures.length) process.exit(1);
+          '''
+          Path('scripts/timezone-less-published-at-abuse.mjs').write_text(regression.replace('          ', ''))
+
+          workflow = Path('.github/workflows/adversarial-e2e.yml')
+          wf = workflow.read_text()
+          anchor = '''      - name: Timestamp poisoning abuse
+        run: node scripts/timestamp-abuse.mjs
+'''
+          addition = '''      - name: Timezone-less publication timestamp abuse
+        run: node scripts/timezone-less-published-at-abuse.mjs
+''' + anchor
+          if 'Timezone-less publication timestamp abuse' not in wf:
+            if anchor not in wf:
+              raise SystemExit('CI insertion anchor not found')
+            wf = wf.replace(anchor, addition, 1)
+          workflow.write_text(wf)
+          PY
+      - name: Run focused regressions
+        run: |
+          node scripts/timezone-less-published-at-abuse.mjs
+          node scripts/calendar-rollover-abuse.mjs
+          node scripts/timestamp-abuse.mjs
+          npm run build
+      - name: Commit hardened implementation
+        run: |
+          rm .github/workflows/timezone-less-published-at-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/news.ts scripts/timezone-less-published-at-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/timezone-less-published-at-patch.yml
+          git commit -m "Reject timezone-less publication timestamps"
+          git push origin HEAD:main
