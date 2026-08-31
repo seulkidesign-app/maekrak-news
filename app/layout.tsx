@@ -10,6 +10,7 @@ import "./trust.css";
 import "./ux-polish.css";
 import "./qa-fixes.css";
 import "./mobile-safe-area.css";
+import "./mobile-trust-targets.css";
 
 const siteUrl = "https://maekrak-news-rrrb-gamma.vercel.app";
 const title = "맥락 — 오늘 뉴스, 3가지 흐름으로";
