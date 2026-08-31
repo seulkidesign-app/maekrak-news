@@ -148,8 +148,8 @@ export function outletIdentityKey(value: string) {
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
     .toLocaleLowerCase("en-US")
     // Feed/source labels commonly alternate punctuation separators while naming the same publisher.
-    // Collapse low-semantic separators here so they cannot inflate independent-outlet counts.
-    .replace(/[._\p{Pd}/:|]+/gu, " ")
+    // Collapse low-semantic separators and Unicode slash lookalikes here so they cannot inflate independent-outlet counts.
+    .replace(/[._\p{Pd}/:|\u2044\u2215]+/gu, " ")
     .replace(/[’‘ʼ']/g, "")
     .replace(/\s+/g, " ")
     .trim();
