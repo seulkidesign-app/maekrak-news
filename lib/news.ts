@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
-import { canonicalSourceName, normalizeExternalText } from "./source-normalize.ts";
+import { canonicalSourceName, normalizeExternalText, outletIdentityKey } from "./source-normalize.ts";
 
 export type NewsCategory = "국내" | "세계" | "정치" | "사회" | "경제" | "기술" | "재난";
 export type NewsScope = "domestic" | "world";
@@ -612,7 +612,7 @@ function canonicalDedupeUrl(link: string) {
 function dedupeNews(items: NewsItem[]) {
   const latestByIdentity = new Map<string, NewsItem>();
   for (const item of items) {
-    const source = canonicalSourceName(item.source).toLowerCase();
+    const source = outletIdentityKey(item.source);
     const articleIdentity = canonicalDedupeUrl(item.link) || normalizePhrase(item.title);
     const key = `${source}|${articleIdentity}`;
     const existing = latestByIdentity.get(key);
@@ -715,14 +715,14 @@ function rankingSignalArticles(articles: NewsItem[]) {
 }
 
 function verifiedSourceCount(articles: NewsItem[]) {
-  return new Set(verifiedSourceArticles(articles).map((article) => canonicalSourceName(article.source))).size;
+  return new Set(verifiedSourceArticles(articles).map((article) => outletIdentityKey(article.source))).size;
 }
 
 function importanceFor(articles: NewsItem[]) {
   const now = Date.now();
   const verified = verifiedSourceArticles(articles);
   const signalArticles = verified.length ? verified : articles;
-  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
+  const sources = new Set(verified.map((article) => outletIdentityKey(article.source)));
   const roles = new Set(verified.map((article) => article.sourceRole));
   const validTimes = signalArticles.map((article) => new Date(article.publishedAt).getTime()).filter(Number.isFinite);
   const newest = validTimes.length ? Math.max(...validTimes) : now - 86_400_000;
@@ -746,7 +746,7 @@ function selectionReasons(articles: NewsItem[], score: number) {
   const reasons: string[] = [];
   const verified = verifiedSourceArticles(articles);
   const signalArticles = verified.length ? verified : articles;
-  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
+  const sources = new Set(verified.map((article) => outletIdentityKey(article.source)));
   const roles = new Set(verified.map((article) => article.sourceRole));
   const text = signalArticles.map((article) => `${article.title} ${article.description}`).join(" ");
   if (sources.size >= 3) reasons.push("여러 매체에서 동시 보도");
@@ -772,7 +772,7 @@ function briefWhyFor(category: NewsCategory, articles: NewsItem[]): BriefWhyCode
 function briefWatchFor(articles: NewsItem[]): BriefWatchCode {
   const verified = verifiedSourceArticles(articles);
   const text = rankingSignalArticles(articles).map((article) => `${article.title} ${article.description}`).join(" ");
-  const sources = new Set(verified.map((article) => canonicalSourceName(article.source)));
+  const sources = new Set(verified.map((article) => outletIdentityKey(article.source)));
   if (sources.size <= 1) return "single-source";
   if (uncertaintyPattern.test(text)) return "uncertain";
   if (claimPattern.test(text)) return "claim-heavy";
@@ -790,7 +790,7 @@ function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: 
   const verified = verifiedSourceArticles(articles);
   const votingArticles = verified.length ? verified : articles;
   for (const article of votingArticles) {
-    const source = canonicalSourceName(article.source).toLowerCase();
+    const source = outletIdentityKey(article.source);
     const values = bySource.get(source) ?? [];
     values.push(select(article));
     bySource.set(source, values);
