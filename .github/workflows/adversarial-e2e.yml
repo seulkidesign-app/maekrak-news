@@ -34,6 +34,8 @@ jobs:
         run: node scripts/percentage-range-abuse.mjs
       - name: Unicode numeric glyph abuse
         run: node scripts/unicode-numeric-glyph-abuse.mjs
+      - name: Unicode placeholder digit abuse
+        run: node scripts/unicode-placeholder-digit-abuse.mjs
       - name: Percentage-point semantic abuse
         run: node scripts/percentage-point-abuse.mjs
       - name: Unit ambiguity abuse
