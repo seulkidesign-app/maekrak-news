@@ -12,7 +12,8 @@ const MAX_SNAPSHOT_AGE_MS = 48 * 60 * 60_000;
 function validIdArray(value: unknown): value is string[] {
   return Array.isArray(value)
     && value.length <= MAX_EVENT_IDS
-    && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= MAX_ID_LENGTH);
+    && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= MAX_ID_LENGTH)
+    && new Set(value).size === value.length;
 }
 
 function hasConsistentEventRelations(eventIds: string[], priorityEventIds: string[]) {
