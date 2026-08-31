@@ -623,6 +623,12 @@ function dedupeNews(items: NewsItem[]) {
   return [...latestByIdentity.values()];
 }
 
+function selectFeedWindow(candidates: NewsItem[], maxItems = 28) {
+  return dedupeNews(
+    candidates.filter((item) => item.title && item.link && item.publishedAt)
+  ).slice(0, maxItems);
+}
+
 function sourceForFeed(value: unknown, feed: Feed) {
   const cleaned = clean(value, 100);
   if (cleaned) return canonicalSourceName(cleaned);
@@ -647,7 +653,7 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     const xml = await readResponseTextLimited(response);
     const data = parser.parse(xml);
     const rawItems = asArray<any>(data?.rss?.channel?.item ?? data?.feed?.entry);
-    const items = rawItems.slice(0, 28).map((item: any) => {
+    const candidates = rawItems.slice(0, 112).map((item: any) => {
       const sourceNode = item?.source;
       const sourceRaw = sourceNode?.["#text"] ?? sourceNode;
       const sourceAttributionUrl = typeof sourceNode === "object" ? sourceNode?.["@_url"] ?? "" : "";
@@ -672,7 +678,8 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
         sourceType: feed.sourceType,
         sourceRole: inferSourceRole(source),
       } satisfies NewsItem;
-    }).filter((item: NewsItem) => item.title && item.link && item.publishedAt);
+    });
+    const items = selectFeedWindow(candidates);
 
     const latestPublishedAt = [...items]
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())[0]?.publishedAt;
@@ -973,6 +980,7 @@ export const __test = {
   selectPriorityEventIds,
   canonicalDedupeUrl,
   dedupeNews,
+  selectFeedWindow,
   stableEventId,
   sourceBalancedMajority,
   verifiedSourceArticles,
