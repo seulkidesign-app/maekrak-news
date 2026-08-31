@@ -108,6 +108,8 @@ jobs:
         run: node scripts/transport-downgrade-abuse.mjs
       - name: Representation cache poisoning abuse
         run: node scripts/representation-cache-poisoning-abuse.mjs
+      - name: Accept negotiation abuse
+        run: node scripts/accept-negotiation-abuse.mjs
       - name: Event ID collision abuse
         run: node scripts/event-id-collision-abuse.mjs
       - name: Unverified event ID churn abuse
