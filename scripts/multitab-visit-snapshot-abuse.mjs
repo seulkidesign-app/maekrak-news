@@ -52,6 +52,16 @@ const corrupted = memoryStorage({
 const fallback = rotateVisitSnapshot(corrupted, key, tabB, now + 5_000);
 check("corrupt companion baseline safely falls back to the recent main snapshot", fallback?.eventIds[0] === "evt_tab_a");
 
+const mainRecent = snapshot(now - 60_000, "main_recent");
+const poisonedFutureBaseline = snapshot(now + 4 * 60_000, "poisoned_future");
+const poisoned = memoryStorage({
+  [key]: JSON.stringify(mainRecent),
+  [`${key}:session-baseline`]: JSON.stringify(poisonedFutureBaseline),
+});
+const poisonedFallback = rotateVisitSnapshot(poisoned, key, tabA, now);
+check("future-dated companion baseline cannot override a newer main snapshot", poisonedFallback?.eventIds[0] === "evt_main_recent");
+check("future-dated companion baseline cannot suppress deltas with attacker IDs", !poisonedFallback?.eventIds.includes("evt_poisoned_future"));
+
 console.log(`Multitab visit snapshot abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
