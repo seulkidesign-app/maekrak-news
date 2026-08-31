@@ -23,6 +23,7 @@ export function proxy(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") ?? "";
     if (AGENT_UA.test(userAgent)) {
       const response = NextResponse.rewrite(new URL("/agent-info", request.url));
+      response.headers.set("Vary", "User-Agent, Accept-Encoding");
       response.headers.set("X-Agent-Representation", "static-html");
       return response;
     }
