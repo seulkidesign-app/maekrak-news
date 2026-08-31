@@ -94,6 +94,8 @@ jobs:
         run: node scripts/separator-placeholder-outlet-abuse.mjs
       - name: Source-link trust abuse
         run: node scripts/source-link-abuse.mjs
+      - name: Transport downgrade abuse
+        run: node scripts/transport-downgrade-abuse.mjs
       - name: Event ID collision abuse
         run: node scripts/event-id-collision-abuse.mjs
       - name: Unverified event ID churn abuse
