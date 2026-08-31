@@ -74,6 +74,8 @@ jobs:
         run: node scripts/unicode-punctuation-outlet-abuse.mjs
       - name: Outlet separator inflation abuse
         run: node scripts/outlet-separator-inflation-abuse.mjs
+      - name: Source identity integration abuse
+        run: node scripts/source-identity-integration-abuse.mjs
       - name: Unicode slash outlet inflation abuse
         run: node scripts/unicode-slash-outlet-inflation-abuse.mjs
       - name: Default-ignorable outlet inflation abuse
