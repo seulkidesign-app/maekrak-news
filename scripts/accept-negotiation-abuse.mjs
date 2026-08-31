@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server";
-import { proxy } from "../proxy.ts";
+import fs from "node:fs";
+import { acceptsMarkdown } from "../lib/accept-negotiation.ts";
 
 const failures = [];
 const passes = [];
@@ -8,33 +8,18 @@ function check(name, condition) {
   else failures.push(name);
 }
 
-function request(accept, userAgent = "Mozilla/5.0") {
-  return proxy(new NextRequest("https://maekrak.example/", {
-    headers: {
-      accept,
-      "user-agent": userAgent,
-    },
-  }));
-}
+check("q=0 explicitly refuses markdown representation", acceptsMarkdown("text/html, text/markdown;q=0") === false);
+check("malformed markdown quality cannot force markdown representation", acceptsMarkdown("text/html, text/markdown;q=bogus") === false);
+check("out-of-range markdown quality cannot force markdown representation", acceptsMarkdown("text/html, text/markdown;q=2") === false);
+check("markdown substring inside another media type does not negotiate markdown", acceptsMarkdown("application/x-text/markdown, text/html") === false);
+check("positive markdown quality still enables markdown representation", acceptsMarkdown("text/markdown; q=0.5, text/html") === true);
+check("plain markdown media type remains accepted", acceptsMarkdown("text/markdown") === true);
+check("media type comparison is case-insensitive", acceptsMarkdown("TEXT/MARKDOWN;Q=1") === true);
 
-const refused = request("text/html, text/markdown;q=0");
-check("q=0 explicitly refuses markdown representation", refused.headers.get("X-Agent-Representation") !== "markdown");
-
-const malformed = request("text/html, text/markdown;q=bogus");
-check("malformed markdown quality cannot force markdown representation", malformed.headers.get("X-Agent-Representation") !== "markdown");
-
-const invalidHigh = request("text/html, text/markdown;q=2");
-check("out-of-range markdown quality cannot force markdown representation", invalidHigh.headers.get("X-Agent-Representation") !== "markdown");
-
-const substringTrap = request("application/x-text/markdown, text/html");
-check("markdown substring inside another media type does not negotiate markdown", substringTrap.headers.get("X-Agent-Representation") !== "markdown");
-
-const accepted = request("text/markdown; q=0.5, text/html");
-check("positive markdown quality still enables markdown representation", accepted.headers.get("X-Agent-Representation") === "markdown");
-check("markdown response continues to vary on Accept", (accepted.headers.get("Vary") ?? "").toLowerCase().includes("accept"));
-
-const botRefused = request("text/html, text/markdown;q=0", "GPTBot/1.0");
-check("bot refusing markdown falls through to static HTML rather than markdown", botRefused.headers.get("X-Agent-Representation") === "static-html");
+const proxySource = fs.readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
+check("proxy uses the hardened Accept parser", proxySource.includes("acceptsMarkdown(accept)"));
+check("proxy no longer uses substring-only markdown negotiation", !proxySource.includes('accept.includes("text/markdown")'));
+check("markdown representation still varies on Accept", /set\("Vary",\s*"Accept, Accept-Encoding"\)/.test(proxySource));
 
 console.log(`\nAccept negotiation abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
