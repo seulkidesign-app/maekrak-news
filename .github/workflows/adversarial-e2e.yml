@@ -118,6 +118,8 @@ jobs:
         run: node scripts/unverified-trust-signal-laundering-abuse.mjs
       - name: Coverage trust poisoning abuse
         run: node scripts/coverage-trust-poisoning-abuse.mjs
+      - name: Priority trust-slot poisoning abuse
+        run: node scripts/priority-trust-slot-abuse.mjs
       - name: Unverified display laundering abuse
         run: node scripts/unverified-display-laundering-abuse.mjs
       - name: Calendar rollover abuse
