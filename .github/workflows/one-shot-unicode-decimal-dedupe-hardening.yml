@@ -1,11 +1,140 @@
-name: completed-publication-precision-hardening
+name: one-shot-directional-role-reversal-hardening
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
-  completed:
-    if: false
+  harden:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - run: echo "Publication precision hardening has landed in main."
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - name: Reproduce, patch, regress, build, and land
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          node --input-type=module <<'EOF'
+          const { __test } = await import('./lib/news.ts');
+          const article = (title, source = 'Reuters') => ({
+            title, description: title, source, link: 'https://example.com/story',
+            publishedAt: '2026-08-31T01:00:00Z', category: '세계', scope: 'world',
+            sourceType: 'aggregated', sourceRole: source === 'Reuters' ? 'wire' : 'international',
+          });
+          const left = article('Russia attacks Ukraine near border', 'Reuters');
+          const reversed = article('Ukraine attacks Russia near border', 'BBC');
+          if (!__test.sameEvent(left, reversed)) throw new Error('role-reversal attack no longer reproduces');
+          console.log('REPRODUCED: reversed attacker and target are merged as one event');
+          EOF
+
+          node --input-type=module <<'EOF'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          let news = readFileSync('lib/news.ts', 'utf8');
+          const anchor = `function sameEvent(a: NewsItem, b: NewsItem) {`;
+          if (!news.includes(anchor)) throw new Error('sameEvent anchor not found');
+          const helper = `function firstNormalizedEntity(text: string) {
+            const normalized = normalizePhrase(text);
+            const allowed = normalizedEntities(text);
+            let best: { concept: string; index: number } | null = null;
+            for (const concept of allowed) {
+              const variants = entityAliases[concept] ?? [];
+              for (const variant of variants) {
+                const index = normalized.indexOf(normalizePhrase(variant));
+                if (index >= 0 && (!best || index < best.index)) best = { concept, index };
+              }
+            }
+            return best?.concept ?? null;
+          }
+
+          function directionalEntityRelation(text: string) {
+            const normalized = normalizeExternalText(text).toLowerCase();
+            const verb = /\\b(?:attacks?|attacked|bombs?|bombed|threatens?|threatened)\\b/.exec(normalized);
+            if (!verb || verb.index === undefined) return null;
+            const actor = firstNormalizedEntity(normalized.slice(0, verb.index));
+            const target = firstNormalizedEntity(normalized.slice(verb.index + verb[0].length));
+            return actor && target && actor !== target ? [actor, target] as const : null;
+          }
+
+          function hasDirectionalRoleReversal(a: string, b: string) {
+            const left = directionalEntityRelation(a);
+            const right = directionalEntityRelation(b);
+            return Boolean(left && right && left[0] === right[1] && left[1] === right[0]);
+          }
+
+          `;
+          news = news.replace(anchor, helper + anchor);
+          const guardAnchor = `  if (hours > 30) return false;\n  if (hasMutuallyExclusiveEntityConflict(leftEntities, rightEntities)) return false;`;
+          const guardReplacement = `  if (hours > 30) return false;\n  if (hasMutuallyExclusiveEntityConflict(leftEntities, rightEntities)) return false;\n  if (hasDirectionalRoleReversal(a.title, b.title)) return false;`;
+          if (!news.includes(guardAnchor)) throw new Error('sameEvent guard anchor not found');
+          news = news.replace(guardAnchor, guardReplacement);
+          writeFileSync('lib/news.ts', news);
+
+          const regression = `const failures = [];
+          const passes = [];
+          const { __test } = await import("../lib/news.ts");
+          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
+          const article = (title, source = "Reuters") => ({
+            title, description: title, source, link: "https://example.com/story",
+            publishedAt: "2026-08-31T01:00:00Z", category: "세계", scope: "world",
+            sourceType: "aggregated", sourceRole: source === "Reuters" ? "wire" : "international",
+          });
+          check("attacker-target reversal is not one event",
+            !__test.sameEvent(article("Russia attacks Ukraine near border"), article("Ukraine attacks Russia near border", "BBC")));
+          check("same directional attack remains clusterable",
+            __test.sameEvent(article("Russia attacks Ukraine near border"), article("Russia attacks Ukraine near border today", "BBC")));
+          check("threat actor-target reversal is not one event",
+            !__test.sameEvent(article("Iran threatens Israel after talks"), article("Israel threatens Iran after talks", "BBC")));
+          check("non-directional entity order does not force a split",
+            __test.sameEvent(article("Russia Ukraine ceasefire talks continue"), article("Ukraine Russia ceasefire talks continue", "BBC")));
+          console.log("Directional role reversal abuse: " + passes.length + " passed / " + failures.length + " failed");
+          passes.forEach((name) => console.log("PASS  " + name));
+          failures.forEach((name) => console.error("FAIL  " + name));
+          if (failures.length) process.exit(1);
+          `;
+          writeFileSync('scripts/directional-role-reversal-abuse.mjs', regression);
+
+          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
+          const ciAnchor = `      - name: Unverified cluster poisoning abuse\n        run: node scripts/unverified-cluster-poisoning-abuse.mjs\n`;
+          const ciStep = `      - name: Directional role reversal abuse\n        run: node scripts/directional-role-reversal-abuse.mjs\n`;
+          if (!ci.includes('Directional role reversal abuse')) {
+            if (!ci.includes(ciAnchor)) throw new Error('CI insertion anchor not found');
+            ci = ci.replace(ciAnchor, ciAnchor + ciStep);
+          }
+          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
+          EOF
+
+          node scripts/directional-role-reversal-abuse.mjs
+          node scripts/template-collision-abuse.mjs
+          node scripts/cluster-bridge-abuse.mjs
+          node scripts/korea-entity-boundary-abuse.mjs
+          node scripts/content-abuse.mjs
+          npm run build
+
+          cat > .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml <<'EOF'
+          name: completed-directional-role-reversal-hardening
+          on:
+            workflow_dispatch:
+          jobs:
+            completed:
+              if: false
+              runs-on: ubuntu-latest
+              steps:
+                - run: echo "Directional role reversal hardening has landed in main."
+          EOF
+
+          git add lib/news.ts scripts/directional-role-reversal-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml
+          git commit -m "Prevent attacker-target reversal event collisions"
+          git push origin HEAD:main
