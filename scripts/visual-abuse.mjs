@@ -58,6 +58,18 @@ async function runViewport(label, width, height, path = "/") {
     }).length);
     check(`${label}: visible interactive controls have names`, emptyInteractive === 0, `${emptyInteractive} unnamed controls`);
 
+    if (width <= 375) {
+      const undersizedTrustTargets = await page.locator(".languageToggle a, .referenceLink, .moreContext > summary, .principlesDetails > summary, .sourceList a, .sourceOnlyList a").evaluateAll((nodes) => nodes.flatMap((node) => {
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        const visible = style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+        if (!visible || (box.width >= 44 && box.height >= 44)) return [];
+        const name = (node.getAttribute("aria-label") || node.textContent || node.className || node.tagName).replace(/\s+/g, " ").trim().slice(0, 80);
+        return [`${name} (${Math.round(box.width)}x${Math.round(box.height)})`];
+      }));
+      check(`${label}: trust-critical mobile tap targets are at least 44px`, undersizedTrustTargets.length === 0, undersizedTrustTargets.slice(0, 5).join(" | "));
+    }
+
     const summary = page.locator("details > summary").first();
     if (await summary.count()) {
       await summary.click();
