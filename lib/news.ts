@@ -441,9 +441,24 @@ const genericTitleCaseWords = new Set([
   "A", "An", "As", "At", "After", "Before", "Company", "Government", "President", "Prime", "Minister", "Officials", "Police", "Court", "Bank", "Central", "New", "Latest", "Breaking",
 ]);
 
+const koreanOrganizationSuffix = /(?:전자|자동차|하이닉스|그룹|은행|증권|보험|항공|제약|바이오|건설|화학|에너지|텔레콤|카드|캐피탈|금융|상사|중공업|조선|모비스|로보틱스)$/;
+const koreanGenericOrganizationPrefixes = /^(?:전기|수소|자율주행|친환경|승용|상용|소형|대형|국내|해외)$/;
+
 function properNameTokens(text: string) {
-  const matches = clean(text).match(/\b[A-Z][A-Za-z0-9&.-]{1,}\b/g) ?? [];
-  return new Set(matches.filter((word) => !genericTitleCaseWords.has(word)).map((word) => word.toLowerCase()));
+  const cleaned = clean(text);
+  const english = cleaned.match(/\b[A-Z][A-Za-z0-9&.-]{1,}\b/g) ?? [];
+  const korean = cleaned
+    .split(/\s+/)
+    .map((word) => word.replace(/^[^가-힣A-Za-z0-9]+|[^가-힣A-Za-z0-9·&.-]+$/g, ""))
+    .filter((word) => {
+      if (!/[가-힣]/.test(word) || !koreanOrganizationSuffix.test(word)) return false;
+      const stem = word.replace(koreanOrganizationSuffix, "");
+      return stem.length >= 2 && !koreanGenericOrganizationPrefixes.test(stem);
+    });
+  return new Set([
+    ...english.filter((word) => !genericTitleCaseWords.has(word)).map((word) => word.toLowerCase()),
+    ...korean,
+  ]);
 }
 
 function hasProperNameConflict(a: string, b: string) {
