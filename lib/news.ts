@@ -278,7 +278,7 @@ function hostMatches(hostname: string, domain: string) {
   return host === normalizedDomain || host.endsWith(`.${normalizedDomain}`);
 }
 
-function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"]) {
+function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
   const trustedDomains = trustedSourceDomains[source];
   if (!trustedDomains) return source;
   try {
@@ -286,8 +286,15 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
     if (url.protocol !== "https:") return "Unverified source";
     const hostname = url.hostname;
     const official = trustedDomains.some((domain) => hostMatches(hostname, domain));
+    if (official) return source;
+
     const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain));
-    return official || allowedAggregator ? source : "Unverified source";
+    if (!allowedAggregator) return "Unverified source";
+
+    const attribution = safeHttpUrl(sourceAttributionUrl);
+    if (!attribution) return "Unverified source";
+    const attributionHostname = new URL(attribution).hostname;
+    return trustedDomains.some((domain) => hostMatches(attributionHostname, domain)) ? source : "Unverified source";
   } catch {
     return "Unverified source";
   }
@@ -641,13 +648,15 @@ async function loadFeed(feed: Feed): Promise<{ items: NewsItem[]; health: Source
     const data = parser.parse(xml);
     const rawItems = asArray<any>(data?.rss?.channel?.item ?? data?.feed?.entry);
     const items = rawItems.slice(0, 28).map((item: any) => {
-      const sourceRaw = item?.source?.["#text"] ?? item?.source;
+      const sourceNode = item?.source;
+      const sourceRaw = sourceNode?.["#text"] ?? sourceNode;
+      const sourceAttributionUrl = typeof sourceNode === "object" ? sourceNode?.["@_url"] ?? "" : "";
       const claimedSource = sourceForFeed(sourceRaw, feed);
       const rawTitle = clean(item?.title, 320);
       const title = stripSourceSuffix(rawTitle, claimedSource, feed.name);
       const rawLink = typeof item?.link === "string" ? item.link : item?.link?.["@_href"] ?? item?.guid ?? "";
       const link = safeHttpUrl(rawLink);
-      const source = link ? sourceForLink(claimedSource, link, feed.sourceType) : claimedSource;
+      const source = link ? sourceForLink(claimedSource, link, feed.sourceType, sourceAttributionUrl) : claimedSource;
       const publishedAt = safePublishedAt(item?.pubDate ?? item?.published ?? item?.updated);
       const description = clean(item?.description ?? item?.summary ?? item?.content, 2400);
       const scope = inferScope(title, description, feed.scope);
