@@ -754,12 +754,13 @@ function sourceBalancedMajority<T extends string>(articles: NewsItem[], select: 
 }
 
 function selectPriorityEventIds(events: NewsEvent[], limit = 5) {
-  const selected = events.slice(0, limit);
+  const eligibleEvents = events.filter((event) => event.sourceCount > 0);
+  const selected = eligibleEvents.slice(0, limit);
   if (!selected.length) return [];
 
   const ensureScope = (scope: NewsScope) => {
     if (selected.some((event) => event.scope === scope)) return;
-    const candidate = events.find((event) => event.scope === scope && !selected.some((item) => item.id === event.id));
+    const candidate = eligibleEvents.find((event) => event.scope === scope && !selected.some((item) => item.id === event.id));
     if (!candidate) return;
     const lowestIndex = selected.reduce((lowest, event, index) => event.importanceScore < selected[lowest].importanceScore ? index : lowest, 0);
     const lowest = selected[lowestIndex];
@@ -915,6 +916,7 @@ export const __test = {
   sameEvent,
   clusterNewsItems,
   categoryCoverageFor,
+  selectPriorityEventIds,
   canonicalDedupeUrl,
   dedupeNews,
   stableEventId,

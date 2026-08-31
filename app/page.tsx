@@ -364,14 +364,15 @@ export default async function Home({ searchParams }: PageProps) {
 
   const readyEvents = events;
   const languagePending = lang === "ko" ? events.filter((event) => !hasHeadlineForLanguage(event, "ko")) : [];
-  const readyById = new Map(readyEvents.map((event) => [event.id, event]));
+  const priorityCandidates = readyEvents.filter((event) => event.sourceCount > 0);
+  const readyById = new Map(priorityCandidates.map((event) => [event.id, event]));
   const priorityEvents: NewsEvent[] = [];
 
   for (const id of briefing.priorityEventIds) {
     const event = readyById.get(id);
     if (event && priorityEvents.length < 5) priorityEvents.push(event);
   }
-  for (const event of readyEvents) {
+  for (const event of priorityCandidates) {
     if (priorityEvents.length >= 5) break;
     if (!priorityEvents.some((item) => item.id === event.id)) priorityEvents.push(event);
   }
