@@ -30,6 +30,8 @@ jobs:
         run: node scripts/feed-boundary-abuse.mjs
       - name: Number magnitude abuse
         run: node scripts/number-magnitude-abuse.mjs
+      - name: Percentage range notation abuse
+        run: node scripts/percentage-range-abuse.mjs
       - name: Unicode numeric glyph abuse
         run: node scripts/unicode-numeric-glyph-abuse.mjs
       - name: Percentage-point semantic abuse
