@@ -46,8 +46,10 @@ function trustedBrandCombiningMarkSpoof(value: string) {
 }
 
 function trustedBrandCompatibilitySpoof(value: string) {
+  // Full-width publisher labels are intentionally normalized by the existing pipeline.
+  // Reject only deceptive compatibility glyph families that visually restyle letters.
+  if (!/[\u2460-\u24FF\u{1D400}-\u{1D7FF}]/u.test(value)) return false;
   const folded = value.normalize("NFKC");
-  if (value === folded) return false;
   const skeleton = folded
     .toLocaleLowerCase("en-US")
     .replace(/\s+/g, " ")
