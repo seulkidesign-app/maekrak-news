@@ -1,22 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { acceptsMarkdown } from "./lib/accept-negotiation.ts";
 
 const ALLOWED = new Set(["GET", "HEAD"]);
 const AGENT_UA = /GPTBot|ChatGPT-User|ClaudeBot|Claude-SearchBot|PerplexityBot|DeepSeekBot|Google-Extended|Applebot-Extended/i;
-
-function acceptsMarkdown(accept: string) {
-  return accept.split(",").some((entry) => {
-    const [rawType, ...rawParams] = entry.split(";");
-    if (rawType.trim().toLowerCase() !== "text/markdown") return false;
-
-    const qualityParam = rawParams
-      .map((param) => param.trim())
-      .find((param) => /^q\s*=/i.test(param));
-    if (!qualityParam) return true;
-
-    const quality = Number(qualityParam.replace(/^q\s*=\s*/i, ""));
-    return Number.isFinite(quality) && quality > 0 && quality <= 1;
-  });
-}
 
 export function proxy(request: NextRequest) {
   if (!ALLOWED.has(request.method)) {
