@@ -126,15 +126,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/priority-trust-slot-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Coverage trust poisoning abuse\n        run: node scripts/coverage-trust-poisoning-abuse.mjs\n`;
-          const step = `      - name: Priority trust-slot poisoning abuse\n        run: node scripts/priority-trust-slot-abuse.mjs\n`;
-          if (!ci.includes('Priority trust-slot poisoning abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/priority-trust-slot-abuse.mjs
@@ -144,7 +135,8 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-priority-trust-hardening.yml
-          git add -A
+          git restore .next 2>/dev/null || true
+          git clean -fd .next >/dev/null 2>&1 || true
+          git add lib/news.ts app/page.tsx scripts/priority-trust-slot-abuse.mjs
           git commit -m "Exclude unverified-only events from key-news priority slots"
           git push origin HEAD:main
