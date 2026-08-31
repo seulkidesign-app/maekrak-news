@@ -48,7 +48,7 @@ jobs:
             const matches = clean(text).match(/\\b[A-Z][A-Za-z0-9&.-]{1,}\\b/g) ?? [];
             return new Set(matches.filter((word) => !genericTitleCaseWords.has(word)).map((word) => word.toLowerCase()));
           }`;
-          const newBlock = `const koreanOrganizationSuffix = /(?:전자|하이닉스|그룹|은행|증권|보험|항공|제약|바이오|건설|화학|에너지|텔레콤|카드|캐피탈|금융|상사|중공업|조선|모비스|로보틱스)$/;
+          const newBlock = `const koreanOrganizationSuffix = /(?:전자|자동차|하이닉스|그룹|은행|증권|보험|항공|제약|바이오|건설|화학|에너지|텔레콤|카드|캐피탈|금융|상사|중공업|조선|모비스|로보틱스)$/;
           const koreanGenericOrganizationPrefixes = /^(?:전기|수소|자율주행|친환경|승용|상용|소형|대형|국내|해외)$/;
 
           function properNameTokens(text: string) {
