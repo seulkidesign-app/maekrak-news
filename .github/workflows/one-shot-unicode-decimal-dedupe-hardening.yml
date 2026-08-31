@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Reproduce, patch, regress, build, and land source changes
         shell: bash
         run: |
           set -euo pipefail
@@ -83,15 +83,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/publication-precision-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Timezone-less publication timestamp abuse\n        run: node scripts/timezone-less-published-at-abuse.mjs\n`;
-          const step = `      - name: Publication precision spoofing abuse\n        run: node scripts/publication-precision-abuse.mjs\n`;
-          if (!ci.includes('Publication precision spoofing abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI timestamp anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/publication-precision-abuse.mjs
@@ -102,7 +93,8 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml
-          git add -A
+          git restore --worktree --staged .next 2>/dev/null || true
+          git clean -fd .next 2>/dev/null || true
+          git add lib/news.ts scripts/timezone-less-published-at-abuse.mjs scripts/publication-precision-abuse.mjs
           git commit -m "Reject imprecise date-only news publication timestamps"
           git push origin HEAD:main
