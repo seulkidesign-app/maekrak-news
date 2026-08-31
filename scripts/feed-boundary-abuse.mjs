@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 
+// Regression coverage includes feed-window starvation via invalid and duplicate front-loading.
 const source = await readFile(new URL("../lib/news.ts", import.meta.url), "utf8");
 const { __test } = await import("../lib/news.ts");
 const failures = [];
