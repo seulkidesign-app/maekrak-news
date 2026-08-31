@@ -45,6 +45,16 @@ function trustedBrandCombiningMarkSpoof(value: string) {
   return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
 }
 
+function trustedBrandCompatibilitySpoof(value: string) {
+  const folded = value.normalize("NFKC");
+  if (value === folded) return false;
+  const skeleton = folded
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/g, " ")
+    .trim();
+  return TRUSTED_CONFUSABLE_SKELETONS.has(skeleton);
+}
+
 function genericMixedScriptIdentitySkeleton(value: string) {
   if (!/\p{Script=Latin}/u.test(value) || !/[\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Armenian}]/u.test(value)) return value;
   let sawMappedConfusable = false;
@@ -106,10 +116,13 @@ export function normalizeExternalText(value: unknown) {
 }
 
 export function canonicalSourceName(value: string) {
-  const raw = normalizeExternalText(value);
+  const original = String(value ?? "").trim();
+  const compatibilitySpoof = trustedBrandCompatibilitySpoof(original);
+  const raw = normalizeExternalText(original);
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
   if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey)) return "Unverified source";
+  if (compatibilitySpoof) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
   if (/^(연합뉴스|yonhap|yonhap news|yonhap news agency)$/.test(lower)) return "연합뉴스";
@@ -120,7 +133,7 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  // Reject strings that resolve to a trusted-brand homoglyph or combining-mark spoof,
+  // Reject strings that resolve to a trusted-brand homoglyph, combining-mark, or compatibility spoof,
   // but do not reject benign multilingual or accented outlet names in general.
   if (trustedBrandHomoglyphSpoof(raw) || trustedBrandCombiningMarkSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return canonicalUnknownOutletCase(raw);
