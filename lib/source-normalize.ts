@@ -81,10 +81,17 @@ function placeholderOutletKey(value: string) {
     .trim();
 }
 
+function normalizeUnicodeDecimalDigits(value: string) {
+  return value.replace(/\p{Nd}/gu, (digit) => {
+    const codePoint = digit.codePointAt(0)!;
+    let runStart = codePoint;
+    while (runStart > 0 && /\p{Nd}/u.test(String.fromCodePoint(runStart - 1))) runStart -= 1;
+    return String((codePoint - runStart) % 10);
+  });
+}
+
 function normalizeArabicScriptNumericGlyphs(value: string) {
-  return value
-    .replace(/[٠-٩]/g, (digit) => String(digit.codePointAt(0)! - 0x0660))
-    .replace(/[۰-۹]/g, (digit) => String(digit.codePointAt(0)! - 0x06f0))
+  return normalizeUnicodeDecimalDigits(value)
     .replace(/٪/g, "%")
     .replace(/٫/g, ".")
     .replace(/٬/g, ",");
