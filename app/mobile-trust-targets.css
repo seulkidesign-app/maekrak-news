@@ -1,0 +1,28 @@
+/* Trust-critical controls must remain deliberate to tap on narrow screens. */
+.languageToggle a{
+  min-width:44px;
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.referenceLink,
+.moreContext>summary,
+.principlesDetails>summary{
+  min-height:44px;
+}
+.referenceLink{
+  display:flex;
+  align-items:center;
+}
+.moreContext>summary,
+.principlesDetails>summary{
+  align-items:center;
+}
+
+@media(max-width:620px){
+  .sourceList a,
+  .sourceOnlyList a{
+    min-height:44px;
+  }
+}
