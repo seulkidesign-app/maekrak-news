@@ -32,7 +32,15 @@ export function rotateVisitSnapshot(
   const previousTime = previous ? new Date(previous.savedAt).getTime() : Number.NaN;
   const previousAge = Number.isFinite(previousTime) ? now - previousTime : Number.POSITIVE_INFINITY;
   const sameSession = Boolean(previous && previousAge >= 0 && previousAge <= SESSION_WINDOW_MS);
-  const comparisonBaseline = sameSession && sessionBaseline ? sessionBaseline : previous;
+  const baselineTime = sessionBaseline ? new Date(sessionBaseline.savedAt).getTime() : Number.NaN;
+  const validSessionBaseline = Boolean(
+    sameSession
+    && sessionBaseline
+    && Number.isFinite(baselineTime)
+    && Number.isFinite(previousTime)
+    && baselineTime <= previousTime,
+  );
+  const comparisonBaseline = validSessionBaseline ? sessionBaseline : previous;
 
   if (!sameSession) {
     try {
