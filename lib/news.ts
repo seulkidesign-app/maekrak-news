@@ -480,6 +480,35 @@ function timeDistanceHours(a: string, b: string) {
   return Math.abs(left - right) / 3_600_000;
 }
 
+function firstNormalizedEntity(text: string) {
+  const normalized = normalizePhrase(text);
+  const allowed = normalizedEntities(text);
+  let best: { concept: string; index: number } | null = null;
+  for (const concept of allowed) {
+    const variants = entityAliases[concept] ?? [];
+    for (const variant of variants) {
+      const index = normalized.indexOf(normalizePhrase(variant));
+      if (index >= 0 && (!best || index < best.index)) best = { concept, index };
+    }
+  }
+  return best?.concept ?? null;
+}
+
+function directionalEntityRelation(text: string) {
+  const normalized = normalizeExternalText(text).toLowerCase();
+  const verb = /\b(?:attacks?|attacked|bombs?|bombed|threatens?|threatened)\b/.exec(normalized);
+  if (!verb || verb.index === undefined) return null;
+  const actor = firstNormalizedEntity(normalized.slice(0, verb.index));
+  const target = firstNormalizedEntity(normalized.slice(verb.index + verb[0].length));
+  return actor && target && actor !== target ? [actor, target] as const : null;
+}
+
+function hasDirectionalRoleReversal(a: string, b: string) {
+  const left = directionalEntityRelation(a);
+  const right = directionalEntityRelation(b);
+  return Boolean(left && right && left[0] === right[1] && left[1] === right[0]);
+}
+
 function sameEvent(a: NewsItem, b: NewsItem) {
   const leftEntities = normalizedEntities(a.title);
   const rightEntities = normalizedEntities(b.title);
@@ -491,6 +520,7 @@ function sameEvent(a: NewsItem, b: NewsItem) {
 
   if (hours > 30) return false;
   if (hasMutuallyExclusiveEntityConflict(leftEntities, rightEntities)) return false;
+  if (hasDirectionalRoleReversal(a.title, b.title)) return false;
   if (lexical >= 0.9 && hours <= 24 && !properNameConflict) return true;
   if (lexical >= 0.74 && (entities > 0 || actions > 0) && hours <= 18 && !(properNameConflict && entities === 0)) return true;
   if (lexical >= 0.58 && entities > 0 && actions > 0 && hours <= 18) return true;
