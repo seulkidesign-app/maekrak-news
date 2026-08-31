@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Reproduce, patch, regress, build, and land code only
         shell: bash
         run: |
           set -euo pipefail
@@ -42,7 +42,6 @@ jobs:
 
           node --input-type=module <<'EOF'
           import { readFileSync, writeFileSync } from 'node:fs';
-
           let news = readFileSync('lib/news.ts', 'utf8');
           const oldBlock = `function properNameTokens(text: string) {
             const matches = clean(text).match(/\\b[A-Z][A-Za-z0-9&.-]{1,}\\b/g) ?? [];
@@ -96,15 +95,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/korean-proper-name-collision-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const anchor = `      - name: Template headline collision abuse\n        run: node scripts/template-collision-abuse.mjs\n`;
-          const step = `      - name: Korean proper-name template collision abuse\n        run: node scripts/korean-proper-name-collision-abuse.mjs\n`;
-          if (!ci.includes('Korean proper-name template collision abuse')) {
-            if (!ci.includes(anchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(anchor, anchor + step);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/korean-proper-name-collision-abuse.mjs
@@ -113,7 +103,6 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          rm -f .github/workflows/one-shot-korean-proper-name-hardening.yml
-          git add -A
+          git add lib/news.ts scripts/korean-proper-name-collision-abuse.mjs
           git commit -m "Prevent Korean company template collisions"
           git push origin HEAD:main
