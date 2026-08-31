@@ -111,6 +111,30 @@ const wifeFalsePositive = auditEventAccuracy(event([
 ]));
 check("Korean wife noun does not masquerade as denial", wifeFalsePositive.negationDifference === false);
 
+const noFewerFalsePositive = auditEventAccuracy(event([
+  article("No fewer than 10 people were evacuated after the fire", "Reuters"),
+  article("At least 10 people were evacuated after the fire", "BBC"),
+]));
+check("no-fewer-than quantitative bound is not treated as propositional negation", noFewerFalsePositive.negationDifference === false);
+
+const noMoreFalsePositive = auditEventAccuracy(event([
+  article("No more than 20 flights were canceled", "Reuters"),
+  article("At most 20 flights were canceled", "BBC"),
+]));
+check("no-more-than quantitative bound is not treated as propositional negation", noMoreFalsePositive.negationDifference === false);
+
+const notLessFalsePositive = auditEventAccuracy(event([
+  article("Turnout was not less than 60 percent", "Reuters"),
+  article("Turnout was at least 60 percent", "BBC"),
+]));
+check("not-less-than comparative bound is not treated as propositional negation", notLessFalsePositive.negationDifference === false);
+
+const realNoConflict = auditEventAccuracy(event([
+  article("Government says an agreement was reached", "Reuters"),
+  article("Government says no agreement was reached", "BBC"),
+]));
+check("ordinary no-negation still produces a disagreement warning", realNoConflict.negationDifference === true);
+
 console.log(`Negation disagreement abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
