@@ -120,6 +120,8 @@ jobs:
         run: node scripts/unverified-accuracy-laundering-abuse.mjs
       - name: Negation disagreement abuse
         run: node scripts/negation-disagreement-abuse.mjs
+      - name: Negation scope false-positive abuse
+        run: node scripts/negation-scope-false-positive-abuse.mjs
       - name: Number-label negation ambiguity abuse
         run: node scripts/number-label-negation-abuse.mjs
       - name: Unverified trust-signal laundering abuse
