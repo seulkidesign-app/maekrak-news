@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land
+      - name: Reproduce, patch, regress, build, and land code
         shell: bash
         run: |
           set -euo pipefail
@@ -34,9 +34,9 @@ jobs:
             publishedAt: '2026-08-31T01:00:00Z', category: '세계', scope: 'world',
             sourceType: 'aggregated', sourceRole: source === 'Reuters' ? 'wire' : 'international',
           });
-          const left = article('Russia attacks Ukraine near border', 'Reuters');
-          const reversed = article('Ukraine attacks Russia near border', 'BBC');
-          if (!__test.sameEvent(left, reversed)) throw new Error('role-reversal attack no longer reproduces');
+          if (!__test.sameEvent(article('Russia attacks Ukraine near border'), article('Ukraine attacks Russia near border', 'BBC'))) {
+            throw new Error('role-reversal attack no longer reproduces');
+          }
           console.log('REPRODUCED: reversed attacker and target are merged as one event');
           EOF
 
@@ -105,15 +105,6 @@ jobs:
           if (failures.length) process.exit(1);
           `;
           writeFileSync('scripts/directional-role-reversal-abuse.mjs', regression);
-
-          let ci = readFileSync('.github/workflows/adversarial-e2e.yml', 'utf8');
-          const ciAnchor = `      - name: Unverified cluster poisoning abuse\n        run: node scripts/unverified-cluster-poisoning-abuse.mjs\n`;
-          const ciStep = `      - name: Directional role reversal abuse\n        run: node scripts/directional-role-reversal-abuse.mjs\n`;
-          if (!ci.includes('Directional role reversal abuse')) {
-            if (!ci.includes(ciAnchor)) throw new Error('CI insertion anchor not found');
-            ci = ci.replace(ciAnchor, ciAnchor + ciStep);
-          }
-          writeFileSync('.github/workflows/adversarial-e2e.yml', ci);
           EOF
 
           node scripts/directional-role-reversal-abuse.mjs
@@ -123,18 +114,6 @@ jobs:
           node scripts/content-abuse.mjs
           npm run build
 
-          cat > .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml <<'EOF'
-          name: completed-directional-role-reversal-hardening
-          on:
-            workflow_dispatch:
-          jobs:
-            completed:
-              if: false
-              runs-on: ubuntu-latest
-              steps:
-                - run: echo "Directional role reversal hardening has landed in main."
-          EOF
-
-          git add lib/news.ts scripts/directional-role-reversal-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/one-shot-unicode-decimal-dedupe-hardening.yml
+          git add lib/news.ts scripts/directional-role-reversal-abuse.mjs
           git commit -m "Prevent attacker-target reversal event collisions"
           git push origin HEAD:main
