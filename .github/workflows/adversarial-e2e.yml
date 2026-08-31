@@ -162,6 +162,8 @@ jobs:
         run: node scripts/stale-visit-snapshot-abuse.mjs
       - name: Visit snapshot relation integrity abuse
         run: node scripts/visit-snapshot-relation-abuse.mjs
+      - name: Duplicate visit snapshot ID abuse
+        run: node scripts/duplicate-visit-snapshot-id-abuse.mjs
       - name: Multitab visit snapshot race abuse
         run: node scripts/multitab-visit-snapshot-abuse.mjs
       - run: npm run build
