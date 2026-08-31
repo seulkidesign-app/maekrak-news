@@ -51,6 +51,42 @@ const contractionConflict = auditEventAccuracy(event([
 ]));
 check("English contraction negation disagreement is surfaced", contractionConflict.negationDifference === true);
 
+const hasntConflict = auditEventAccuracy(event([
+  article("Government approved the bill", "Reuters"),
+  article("Government hasn't approved the bill", "BBC"),
+]));
+check("hasn't negation disagreement is surfaced", hasntConflict.negationDifference === true);
+
+const isntConflict = auditEventAccuracy(event([
+  article("Government approves the bill", "Reuters"),
+  article("Government isn't approving the bill", "BBC"),
+]));
+check("isn't negation disagreement is surfaced", isntConflict.negationDifference === true);
+
+const wasntConflict = auditEventAccuracy(event([
+  article("Government approved the bill", "Reuters"),
+  article("Government wasn't approving the bill", "BBC"),
+]));
+check("wasn't negation disagreement is surfaced", wasntConflict.negationDifference === true);
+
+const couldntConflict = auditEventAccuracy(event([
+  article("Government approved the bill", "Reuters"),
+  article("Government couldn't approve the bill", "BBC"),
+]));
+check("couldn't negation disagreement is surfaced", couldntConflict.negationDifference === true);
+
+const shouldntConflict = auditEventAccuracy(event([
+  article("Government approves the bill", "Reuters"),
+  article("Government shouldn't approve the bill", "BBC"),
+]));
+check("shouldn't negation disagreement is surfaced", shouldntConflict.negationDifference === true);
+
+const curlyApostropheConflict = auditEventAccuracy(event([
+  article("Government approved the bill", "Reuters"),
+  article("Government hasn’t approved the bill", "BBC"),
+]));
+check("curly-apostrophe negation contraction is surfaced", curlyApostropheConflict.negationDifference === true);
+
 const koreanConflict = auditEventAccuracy(event([
   article("정부가 법안을 승인했다", "Reuters"),
   article("정부가 법안을 승인하지 않았다", "BBC"),
