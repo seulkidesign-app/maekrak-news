@@ -21,7 +21,7 @@ check("RFC numeric offset remains allowed", Boolean(parse("Sun, 30 Aug 2026 19:0
 check("ambiguous CST abbreviation is rejected", parse("Sun, 30 Aug 2026 10:00:00 CST") === "");
 check("ambiguous IST abbreviation is rejected", parse("Sun, 30 Aug 2026 10:00:00 IST") === "");
 check("ambiguous BST abbreviation is rejected", parse("Sun, 30 Aug 2026 10:00:00 BST") === "");
-check("date-only value remains deterministic", parse("2026-08-30") === "2026-08-30T00:00:00.000Z");
+check("date-only publication value is rejected because recency precision is unknown", parse("2026-08-30") === "");
 
 console.log("Timezone-less publication timestamp abuse: " + passes.length + " passed / " + failures.length + " failed");
 passes.forEach((name) => console.log("PASS  " + name));

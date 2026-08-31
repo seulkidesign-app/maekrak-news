@@ -319,7 +319,7 @@ function hasValidExplicitCalendarDate(raw: string) {
 
 function hasExplicitTimezoneForTimestamp(raw: string) {
   const hasClock = /(?:T|\s)\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?/.test(raw);
-  if (!hasClock) return true;
+  if (!hasClock) return false;
   const normalized = raw.trim();
   if (/(?:Z|[+-]\d{2}:?\d{2})(?:\s*\([^)]*\))?$/i.test(normalized)) return true;
   return /(?:GMT|UTC)(?:\s*\([^)]*\))?$/i.test(normalized);
