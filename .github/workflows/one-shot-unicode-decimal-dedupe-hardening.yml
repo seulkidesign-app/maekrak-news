@@ -1,100 +1,11 @@
-name: one-shot-publication-precision-hardening
+name: completed-publication-precision-hardening
 
 on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  harden:
-    if: github.actor != 'github-actions[bot]'
+  completed:
+    if: false
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npm install --no-audit --no-fund
-      - name: Reproduce, patch, regress, build, and land source changes
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          node --input-type=module <<'EOF'
-          const { __test } = await import('./lib/news.ts');
-          const now = Date.UTC(2026, 7, 31, 1, 0, 0);
-          const accepted = __test.safePublishedAt('2026-08-31', now);
-          if (!accepted) throw new Error('date-only publication precision attack no longer reproduces');
-          if (accepted !== '2026-08-31T00:00:00.000Z') throw new Error('unexpected date-only parse result: ' + accepted);
-          console.log('REPRODUCED: date-only publication value becomes a fabricated exact timestamp');
-          EOF
-
-          node --input-type=module <<'EOF'
-          import { readFileSync, writeFileSync } from 'node:fs';
-
-          let news = readFileSync('lib/news.ts', 'utf8');
-          const oldBlock = `function hasExplicitTimezoneForTimestamp(raw: string) {
-            const hasClock = /(?:T|\\s)\\d{1,2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?/.test(raw);
-            if (!hasClock) return true;
-            const normalized = raw.trim();
-            if (/(?:Z|[+-]\\d{2}:?\\d{2})(?:\\s*\\([^)]*\\))?$/i.test(normalized)) return true;
-            return /(?:GMT|UTC)(?:\\s*\\([^)]*\\))?$/i.test(normalized);
-          }`;
-          const newBlock = `function hasExplicitTimezoneForTimestamp(raw: string) {
-            const hasClock = /(?:T|\\s)\\d{1,2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?/.test(raw);
-            if (!hasClock) return false;
-            const normalized = raw.trim();
-            if (/(?:Z|[+-]\\d{2}:?\\d{2})(?:\\s*\\([^)]*\\))?$/i.test(normalized)) return true;
-            return /(?:GMT|UTC)(?:\\s*\\([^)]*\\))?$/i.test(normalized);
-          }`;
-          if (!news.includes(oldBlock)) throw new Error('publication timezone helper anchor not found');
-          news = news.replace(oldBlock, newBlock);
-          writeFileSync('lib/news.ts', news);
-
-          let timezoneTest = readFileSync('scripts/timezone-less-published-at-abuse.mjs', 'utf8');
-          timezoneTest = timezoneTest.replace(
-            'check("date-only value remains deterministic", parse("2026-08-30") === "2026-08-30T00:00:00.000Z");',
-            'check("date-only publication value is rejected because recency precision is unknown", parse("2026-08-30") === "");'
-          );
-          writeFileSync('scripts/timezone-less-published-at-abuse.mjs', timezoneTest);
-
-          const regression = `const failures = [];
-          const passes = [];
-          const { __test } = await import("../lib/news.ts");
-          function check(name, condition) { if (condition) passes.push(name); else failures.push(name); }
-          const now = Date.UTC(2026, 7, 31, 1, 0, 0);
-          const parse = (value) => __test.safePublishedAt(value, now);
-          check("ISO date-only publication is rejected", parse("2026-08-31") === "");
-          check("RFC date-only publication is rejected", parse("Mon, 31 Aug 2026") === "");
-          check("full UTC timestamp remains accepted", parse("2026-08-31T00:00:00Z") === "2026-08-31T00:00:00.000Z");
-          check("full numeric-offset timestamp remains accepted", parse("2026-08-31T09:00:00+09:00") === "2026-08-31T00:00:00.000Z");
-          check("full RFC GMT timestamp remains accepted", parse("Mon, 31 Aug 2026 00:00:00 GMT") === "2026-08-31T00:00:00.000Z");
-          check("timezone-less clock remains rejected", parse("2026-08-31T00:00:00") === "");
-          console.log("Publication precision spoofing abuse: " + passes.length + " passed / " + failures.length + " failed");
-          passes.forEach((name) => console.log("PASS  " + name));
-          failures.forEach((name) => console.error("FAIL  " + name));
-          if (failures.length) process.exit(1);
-          `;
-          writeFileSync('scripts/publication-precision-abuse.mjs', regression);
-          EOF
-
-          node scripts/publication-precision-abuse.mjs
-          node scripts/timezone-less-published-at-abuse.mjs
-          node scripts/ambiguous-timezone-abbreviation-abuse.mjs
-          node scripts/calendar-rollover-abuse.mjs
-          node scripts/timestamp-abuse.mjs
-          node scripts/content-abuse.mjs
-          npm run build
-
-          git restore --worktree --staged .next 2>/dev/null || true
-          git clean -fd .next 2>/dev/null || true
-          git add lib/news.ts scripts/timezone-less-published-at-abuse.mjs scripts/publication-precision-abuse.mjs
-          git commit -m "Reject imprecise date-only news publication timestamps"
-          git push origin HEAD:main
+      - run: echo "Publication precision hardening has landed in main."
