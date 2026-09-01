@@ -1,3 +1,4 @@
+# one-shot repository patch; removes itself after applying
 name: apply-nat64-fix
 
 on:
