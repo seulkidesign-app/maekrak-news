@@ -1,0 +1,80 @@
+name: wildcard-dns-private-ip-fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Patch wildcard DNS URL validation and CI regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          news = Path('lib/news.ts')
+          text = news.read_text()
+          old = '''function isPrivateHostname(hostname: string) {
+            const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
+            if (!host) return true;
+            if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+          '''
+          new = '''function wildcardDnsIpv4Parts(host: string) {
+            const wildcard = host.match(/^(.*)\\.(?:nip|sslip)\\.io$/i)?.[1];
+            if (!wildcard) return null;
+            const dotted = wildcard.match(/(?:^|\\.)(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$/);
+            if (dotted) return dotted.slice(1).map(Number);
+            const dashed = wildcard.match(/(?:^|-)(\\d{1,3})-(\\d{1,3})-(\\d{1,3})-(\\d{1,3})$/);
+            if (dashed) return dashed.slice(1).map(Number);
+            const hex = wildcard.match(/(?:^|-)([0-9a-f]{8})$/i);
+            if (!hex) return null;
+            const value = Number.parseInt(hex[1], 16);
+            return [(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255];
+          }
+
+          function isPrivateHostname(hostname: string) {
+            const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
+            if (!host) return true;
+            if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+            const wildcardIpv4 = wildcardDnsIpv4Parts(host);
+            if (wildcardIpv4 && isPrivateIpv4Parts(wildcardIpv4)) return true;
+          '''
+          if old not in text:
+              raise SystemExit('news.ts patch anchor missing')
+          news.write_text(text.replace(old, new, 1))
+
+          workflow = Path('.github/workflows/adversarial-e2e.yml')
+          flow = workflow.read_text()
+          old_flow = '''      - name: NAT64 private-IP abuse
+                run: node scripts/nat64-private-ip-abuse.mjs
+          '''
+          new_flow = '''      - name: NAT64 private-IP abuse
+                run: node scripts/nat64-private-ip-abuse.mjs
+              - name: Wildcard DNS private-IP abuse
+                run: node scripts/wildcard-dns-private-ip-abuse.mjs
+          '''
+          if 'Wildcard DNS private-IP abuse' not in flow:
+              if old_flow not in flow:
+                  raise SystemExit('adversarial workflow patch anchor missing')
+              workflow.write_text(flow.replace(old_flow, new_flow, 1))
+
+          Path('.github/workflows/wildcard-dns-private-ip-probe.yml').unlink(missing_ok=True)
+          Path('.github/workflows/wildcard-dns-private-ip-fix.yml').unlink(missing_ok=True)
+          PY
+          node scripts/wildcard-dns-private-ip-abuse.mjs
+      - name: Commit fix
+        run: |
+          git config user.name github-actions-bot
+          git config user.email github-actions-bot@users.noreply.github.com
+          git add lib/news.ts scripts/wildcard-dns-private-ip-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/wildcard-dns-private-ip-probe.yml .github/workflows/wildcard-dns-private-ip-fix.yml
+          git commit -m "fix: block private IP wildcard DNS aliases"
+          git push origin HEAD:main
