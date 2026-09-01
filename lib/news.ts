@@ -243,10 +243,25 @@ function isPrivateIpv4Parts(parts: number[]) {
   return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224;
 }
 
+function wildcardDnsIpv4Parts(host: string) {
+  const wildcard = host.match(/^(.*)\.(?:nip|sslip)\.io$/i)?.[1];
+  if (!wildcard) return null;
+  const dotted = wildcard.match(/(?:^|\.)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (dotted) return dotted.slice(1).map(Number);
+  const dashed = wildcard.match(/(?:^|-)(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})$/);
+  if (dashed) return dashed.slice(1).map(Number);
+  const hex = wildcard.match(/(?:^|-)([0-9a-f]{8})$/i);
+  if (!hex) return null;
+  const value = Number.parseInt(hex[1], 16);
+  return [(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255];
+}
+
 function isPrivateHostname(hostname: string) {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (!host) return true;
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+  const wildcardIpv4 = wildcardDnsIpv4Parts(host);
+  if (wildcardIpv4 && isPrivateIpv4Parts(wildcardIpv4)) return true;
   if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89abcdef][0-9a-f]:/i.test(host) || /^ff[0-9a-f]{2}:/i.test(host)) return true;
   const mapped = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (mapped) {
