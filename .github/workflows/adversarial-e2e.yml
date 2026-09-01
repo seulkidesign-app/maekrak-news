@@ -134,6 +134,8 @@ jobs:
         run: node scripts/accuracy-correction-abuse.mjs
       - name: Dedupe URL identity abuse
         run: node scripts/dedupe-url-identity-abuse.mjs
+      - name: Tracker alias dedupe abuse
+        run: node scripts/tracker-alias-dedupe-abuse.mjs
       - name: Unverified evidence laundering abuse
         run: node scripts/unverified-evidence-laundering-abuse.mjs
       - name: Unverified accuracy laundering abuse
