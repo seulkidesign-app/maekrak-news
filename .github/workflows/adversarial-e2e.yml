@@ -68,6 +68,8 @@ jobs:
         run: node scripts/korea-entity-boundary-abuse.mjs
       - name: IPv6 URL boundary abuse
         run: node scripts/ipv6-boundary-abuse.mjs
+      - name: NAT64 private-IP abuse
+        run: node scripts/nat64-private-ip-abuse.mjs
       - name: Outlet case inflation abuse
         run: node scripts/outlet-case-abuse.mjs
       - name: Outlet punctuation inflation abuse
