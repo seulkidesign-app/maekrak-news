@@ -315,13 +315,14 @@ function hasValidExplicitCalendarDate(raw: string) {
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|\s|$)/);
   if (iso) return isValidCalendarParts(Number(iso[1]), Number(iso[2]), Number(iso[3]));
 
-  const rfc = raw.match(/^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s|$)/);
+  const rfc = raw.match(/^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})(?:\s|$)/);
   if (rfc) {
+    if (rfc[3].length !== 4) return false;
     const month = rfcMonths[rfc[2].toLowerCase()];
     if (!month) return false;
     return isValidCalendarParts(Number(rfc[3]), month, Number(rfc[1]));
   }
-  return true;
+  return false;
 }
 
 function hasExplicitTimezoneForTimestamp(raw: string) {
