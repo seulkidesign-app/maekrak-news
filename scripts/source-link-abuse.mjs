@@ -6,9 +6,10 @@ function check(name, condition) {
 }
 
 const { __test } = await import("../lib/news.ts");
-const { sourceForLink } = __test;
+const { sourceForLink, safeHttpUrl } = __test;
 
 check("source-aware article URL validator is exported for regression tests", typeof sourceForLink === "function");
+check("safe public URL validator is exported for regression tests", typeof safeHttpUrl === "function");
 
 if (typeof sourceForLink === "function") {
   check("Reuters on official root domain stays trusted", sourceForLink("Reuters", "https://reuters.com/world/story", "direct") === "Reuters");
@@ -27,6 +28,18 @@ if (typeof sourceForLink === "function") {
   check("Google News wrapper is not accepted for a direct-feed claim", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "direct", "https://www.reuters.com") === "Unverified source");
   check("BBC official UK domain stays trusted", sourceForLink("BBC", "https://www.bbc.co.uk/news/world-1", "direct") === "BBC");
   check("unknown outlets keep safe public links without invented authority", sourceForLink("Example News", "https://example.com/story", "aggregated") === "Example News");
+
+  // New attack class: URL userinfo / credential smuggling.
+  // Browsers parse the host after '@', while humans can easily read the prefix as the publisher.
+  check("userinfo prefix cannot disguise an evil host as Reuters", sourceForLink("Reuters", "https://reuters.com@evil.example/world/story", "direct") === "Unverified source");
+  check("aggregator attribution cannot smuggle trusted host through userinfo", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://reuters.com@evil.example/story") === "Unverified source");
+}
+
+if (typeof safeHttpUrl === "function") {
+  check("article URL with username on trusted host is rejected before trust evaluation", safeHttpUrl("https://attacker@reuters.com/world/story") === "");
+  check("article URL with username and password on trusted host is rejected", safeHttpUrl("https://attacker:secret@reuters.com/world/story") === "");
+  check("userinfo host-confusion URL is rejected", safeHttpUrl("https://reuters.com@evil.example/world/story") === "");
+  check("ordinary HTTPS Reuters URL remains accepted", safeHttpUrl("https://reuters.com/world/story").startsWith("https://reuters.com/"));
 }
 
 console.log(`\nSource-link trust abuse: ${passes.length} passed / ${failures.length} failed`);
