@@ -131,7 +131,11 @@ function placeholderWithCompatibilityLetterSuffix(value: string) {
   if (!compatibilityLetter.test(value)) return false;
   const characters = [...value.trim()];
   let index = characters.length;
-  while (index > 0 && /[\s\p{P}\p{S}]/u.test(characters[index - 1])) index -= 1;
+  while (
+    index > 0
+    && /[\s\p{P}\p{S}]/u.test(characters[index - 1])
+    && !compatibilityLetter.test(characters[index - 1])
+  ) index -= 1;
   let suffixStart = index;
   while (suffixStart > 0 && compatibilityLetter.test(characters[suffixStart - 1])) suffixStart -= 1;
   if (suffixStart === index) return false;
