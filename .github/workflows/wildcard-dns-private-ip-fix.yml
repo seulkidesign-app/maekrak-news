@@ -53,19 +53,18 @@ jobs:
           news.write_text(text.replace(old, new, 1))
 
           workflow = Path('.github/workflows/adversarial-e2e.yml')
-          flow = workflow.read_text()
-          old_flow = '''      - name: NAT64 private-IP abuse
-                run: node scripts/nat64-private-ip-abuse.mjs
-          '''
-          new_flow = '''      - name: NAT64 private-IP abuse
-                run: node scripts/nat64-private-ip-abuse.mjs
-              - name: Wildcard DNS private-IP abuse
-                run: node scripts/wildcard-dns-private-ip-abuse.mjs
-          '''
-          if 'Wildcard DNS private-IP abuse' not in flow:
-              if old_flow not in flow:
+          lines = workflow.read_text().splitlines()
+          if not any('Wildcard DNS private-IP abuse' in line for line in lines):
+              target = next((i for i, line in enumerate(lines) if line.strip() == '- name: NAT64 private-IP abuse'), None)
+              if target is None or target + 1 >= len(lines) or 'nat64-private-ip-abuse.mjs' not in lines[target + 1]:
                   raise SystemExit('adversarial workflow patch anchor missing')
-              workflow.write_text(flow.replace(old_flow, new_flow, 1))
+              step_indent = lines[target][:len(lines[target]) - len(lines[target].lstrip())]
+              run_indent = lines[target + 1][:len(lines[target + 1]) - len(lines[target + 1].lstrip())]
+              lines[target + 2:target + 2] = [
+                  f'{step_indent}- name: Wildcard DNS private-IP abuse',
+                  f'{run_indent}run: node scripts/wildcard-dns-private-ip-abuse.mjs',
+              ]
+              workflow.write_text('\n'.join(lines) + '\n')
 
           Path('.github/workflows/wildcard-dns-private-ip-probe.yml').unlink(missing_ok=True)
           Path('.github/workflows/wildcard-dns-private-ip-fix.yml').unlink(missing_ok=True)
@@ -75,6 +74,6 @@ jobs:
         run: |
           git config user.name github-actions-bot
           git config user.email github-actions-bot@users.noreply.github.com
-          git add lib/news.ts scripts/wildcard-dns-private-ip-abuse.mjs .github/workflows/adversarial-e2e.yml .github/workflows/wildcard-dns-private-ip-probe.yml .github/workflows/wildcard-dns-private-ip-fix.yml
+          git add -A
           git commit -m "fix: block private IP wildcard DNS aliases"
           git push origin HEAD:main
