@@ -46,6 +46,8 @@ jobs:
         run: node scripts/calendar-date-number-abuse.mjs
       - name: Timezone-less publication timestamp abuse
         run: node scripts/timezone-less-published-at-abuse.mjs
+      - name: Ambiguous publication-format abuse
+        run: node scripts/ambiguous-publication-format-abuse.mjs
       - name: Publication precision spoofing abuse
         run: node scripts/publication-precision-abuse.mjs
       - name: Ambiguous timezone abbreviation abuse
