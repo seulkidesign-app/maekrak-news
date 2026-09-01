@@ -23,6 +23,23 @@ const CONFUSABLE_TO_LATIN: Record<string, string> = {
   "Օ": "O", "օ": "o", "Ս": "U", "ս": "u",
 };
 
+const OUTER_IDENTITY_WRAPPERS: Array<[string, string]> = [
+  ["(", ")"], ["[", "]"], ["{", "}"], ["【", "】"], ["《", "》"], ["〈", "〉"],
+  ["「", "」"], ["『", "』"], ["“", "”"], ["\"", "\""],
+];
+
+function stripDecorativeOuterWrappers(value: string) {
+  let result = value.trim();
+  for (let depth = 0; depth < 4; depth += 1) {
+    const pair = OUTER_IDENTITY_WRAPPERS.find(([open, close]) => (
+      result.startsWith(open) && result.endsWith(close) && result.length > open.length + close.length
+    ));
+    if (!pair) break;
+    result = result.slice(pair[0].length, result.length - pair[1].length).trim();
+  }
+  return result;
+}
+
 function trustedBrandHomoglyphSpoof(value: string) {
   if (!/[\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Armenian}]/u.test(value)) return false;
   const skeleton = [...value]
@@ -142,7 +159,7 @@ export function canonicalSourceName(value: string) {
 }
 
 export function outletIdentityKey(value: string) {
-  return normalizeExternalText(genericMixedScriptIdentitySkeleton(canonicalSourceName(value)))
+  return normalizeExternalText(genericMixedScriptIdentitySkeleton(stripDecorativeOuterWrappers(canonicalSourceName(value))))
     // Overlay marks can make the same visible outlet look like a distinct publisher identity.
     // Remove only visual overlay marks here; keep ordinary accents and the displayed source name intact.
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
