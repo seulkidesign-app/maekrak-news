@@ -123,6 +123,23 @@ function placeholderWithRomanNumeralSuffix(value: string) {
   return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
 }
 
+function placeholderWithCompatibilityLetterSuffix(value: string) {
+  // Circled and mathematical alphabet glyphs NFKC-fold into ordinary ASCII letters.
+  // Treat them as machine-generated placeholder suffixes only when the untouched base
+  // is itself a placeholder, so legitimate names such as "Channel News Ⓐ" survive.
+  const compatibilityLetter = /[\u24B6-\u24E9\u{1D400}-\u{1D6A3}]/u;
+  if (!compatibilityLetter.test(value)) return false;
+  const characters = [...value.trim()];
+  let index = characters.length;
+  while (index > 0 && /[\s\p{P}\p{S}]/u.test(characters[index - 1])) index -= 1;
+  let suffixStart = index;
+  while (suffixStart > 0 && compatibilityLetter.test(characters[suffixStart - 1])) suffixStart -= 1;
+  if (suffixStart === index) return false;
+  const base = characters.slice(0, suffixStart).join("").replace(/[\s\p{P}\p{S}]+$/u, "").trim();
+  if (!base) return false;
+  return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
+}
+
 function normalizeUnicodeDecimalDigits(value: string) {
   return value.replace(/\p{Nd}/gu, (digit) => {
     const codePoint = digit.codePointAt(0)!;
@@ -153,7 +170,7 @@ export function canonicalSourceName(value: string) {
   const raw = normalizeExternalText(original);
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
-  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original)) return "Unverified source";
+  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)) return "Unverified source";
   if (compatibilitySpoof) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
