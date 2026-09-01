@@ -68,6 +68,33 @@ async function runViewport(label, width, height, path = "/") {
         return [`${name} (${Math.round(box.width)}x${Math.round(box.height)})`];
       }));
       check(`${label}: trust-critical mobile tap targets are at least 44px`, undersizedTrustTargets.length === 0, undersizedTrustTargets.slice(0, 5).join(" | "));
+
+      const headline = page.locator(".eventCard h3").first();
+      if (await headline.count()) {
+        await headline.evaluate((node) => { node.textContent = "W".repeat(512); });
+        const floodedHeadlineMetrics = await page.evaluate(() => {
+          const viewport = document.documentElement.clientWidth;
+          const card = document.querySelector(".eventCard");
+          const heading = card?.querySelector("h3");
+          const cardBox = card?.getBoundingClientRect();
+          const headingBox = heading?.getBoundingClientRect();
+          return {
+            viewport,
+            pageScrollWidth: document.documentElement.scrollWidth,
+            cardRight: cardBox?.right ?? 0,
+            headingRight: headingBox?.right ?? 0,
+            headingScrollWidth: heading?.scrollWidth ?? 0,
+            headingClientWidth: heading?.clientWidth ?? 0,
+          };
+        });
+        check(
+          `${label}: adversarial unbroken headline cannot create horizontal overflow`,
+          floodedHeadlineMetrics.pageScrollWidth <= floodedHeadlineMetrics.viewport + 2 &&
+            floodedHeadlineMetrics.cardRight <= floodedHeadlineMetrics.viewport + 2 &&
+            floodedHeadlineMetrics.headingRight <= floodedHeadlineMetrics.viewport + 2,
+          `page=${floodedHeadlineMetrics.pageScrollWidth}px viewport=${floodedHeadlineMetrics.viewport}px heading=${floodedHeadlineMetrics.headingScrollWidth}/${floodedHeadlineMetrics.headingClientWidth}px`,
+        );
+      }
     }
 
     const summary = page.locator("details > summary").first();
