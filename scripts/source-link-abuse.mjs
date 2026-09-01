@@ -20,6 +20,8 @@ if (typeof sourceForLink === "function") {
   check("plaintext HTTP Google News wrapper is not trusted", sourceForLink("Reuters", "http://news.google.com/rss/articles/example", "aggregated", "https://www.reuters.com") === "Unverified source");
   check("Google News wrapper with trusted label alone is downgraded", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated") === "Unverified source");
   check("Google News wrapper requires publisher-domain attribution", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://www.reuters.com") === "Reuters");
+  check("Google News wrapper rejects plaintext publisher attribution downgrade", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "http://www.reuters.com") === "Unverified source");
+  check("Google News wrapper rejects plaintext publisher attribution on official root domain", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "http://reuters.com") === "Unverified source");
   check("Google News wrapper rejects spoofed publisher attribution", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://reuters.com.evil.example") === "Unverified source");
   check("Google News wrapper rejects unrelated publisher attribution", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com") === "Unverified source");
   check("Google News wrapper is not accepted for a direct-feed claim", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "direct", "https://www.reuters.com") === "Unverified source");
