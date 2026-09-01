@@ -293,7 +293,9 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
 
     const attribution = safeHttpUrl(sourceAttributionUrl);
     if (!attribution) return "Unverified source";
-    const attributionHostname = new URL(attribution).hostname;
+    const attributionUrl = new URL(attribution);
+    if (attributionUrl.protocol !== "https:") return "Unverified source";
+    const attributionHostname = attributionUrl.hostname;
     return trustedDomains.some((domain) => hostMatches(attributionHostname, domain)) ? source : "Unverified source";
   } catch {
     return "Unverified source";
