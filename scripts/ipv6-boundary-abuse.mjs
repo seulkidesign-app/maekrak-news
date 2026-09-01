@@ -21,6 +21,13 @@ check("IPv6 unique-local fc00::/7 address is rejected", __test.safeHttpUrl("http
 check("IPv6 unique-local fd00::/8 address is rejected", __test.safeHttpUrl("http://[fd12:3456:789a::1]/admin") === "");
 check("IPv6 link-local fe80::/10 address is rejected", __test.safeHttpUrl("http://[fe80::1]/admin") === "");
 
+// New attack class: special-use IPv6 ranges that are neither ULA nor link-local.
+// Deprecated site-local and multicast literals are not public article destinations and
+// must not cross the URL trust boundary, while a known global-unicast literal should remain valid.
+check("IPv6 deprecated site-local fec0::/10 address is rejected", __test.safeHttpUrl("http://[fec0::1]/admin") === "");
+check("IPv6 multicast ff00::/8 address is rejected", __test.safeHttpUrl("http://[ff02::1]/admin") === "");
+check("IPv6 global-unicast address remains allowed", Boolean(__test.safeHttpUrl("https://[2001:4860:4860::8888]/story")));
+
 console.log(`IPv6 boundary abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
