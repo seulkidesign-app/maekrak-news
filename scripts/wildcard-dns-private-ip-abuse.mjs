@@ -13,6 +13,10 @@ const blocked = [
   ["nip.io hex RFC1918", "https://internal-c0a80101.nip.io/admin"],
   ["nip.io link-local metadata", "https://169.254.169.254.nip.io/latest/meta-data/"],
   ["sslip.io carrier-grade NAT", "https://edge-100-64-0-1.sslip.io/admin"],
+  ["localtest.me loopback alias", "https://localtest.me/admin"],
+  ["localtest.me wildcard loopback alias", "https://news.localtest.me/admin"],
+  ["lvh.me loopback alias", "https://lvh.me/admin"],
+  ["lvh.me wildcard loopback alias", "https://news.lvh.me/admin"],
 ];
 
 for (const [name, url] of blocked) {
@@ -30,6 +34,10 @@ check(
 check(
   "unrelated numeric hostname remains allowed",
   Boolean(__test.safeHttpUrl("https://news-10-0-0-1.example.com/story")),
+);
+check(
+  "ordinary domain containing localtest label remains allowed",
+  Boolean(__test.safeHttpUrl("https://localtest.example.com/story")),
 );
 
 console.log(`Wildcard DNS private-IP abuse: ${passes.length} passed / ${failures.length} failed`);
