@@ -30,14 +30,32 @@ const concatenatedPlaceholders = [
   "확인 불가10",
 ];
 
+// Unicode Roman numerals are compatibility characters. NFKC turns them into ASCII
+// letters (Ⅱ -> II, Ⅳ -> IV), which must not let machine-generated placeholder
+// labels masquerade as distinct publishers.
+const romanNumeralPlaceholders = [
+  "Unknown source Ⅱ",
+  "Unknown Ⅲ",
+  "Source unavailable Ⅳ",
+  "Unverified source (Ⅴ)",
+  "출처 없음 Ⅵ",
+  "출처 불명Ⅶ",
+  "출처 미상 Ⅷ",
+  "미상Ⅸ",
+  "확인 불가 Ⅹ",
+];
+
 check("numbered placeholder aliases collapse to unverified source",
   numberedPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
 
 check("concatenated numeric placeholder aliases collapse to unverified source",
   concatenatedPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
 
-check("numbered and concatenated placeholders cannot manufacture outlet diversity",
-  canonicalOutletCount([...numberedPlaceholders, ...concatenatedPlaceholders].map((source) => ({ source }))) === 1);
+check("Roman-numeral placeholder aliases collapse to unverified source",
+  romanNumeralPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
+
+check("numbered, concatenated, and Roman-numeral placeholders cannot manufacture outlet diversity",
+  canonicalOutletCount([...numberedPlaceholders, ...concatenatedPlaceholders, ...romanNumeralPlaceholders].map((source) => ({ source }))) === 1);
 
 check("numbered real outlet names are preserved",
   canonicalSourceName("Channel News 24") === "Channel News 24");
@@ -45,10 +63,13 @@ check("numbered real outlet names are preserved",
 check("real outlets with attached digits remain preserved",
   canonicalSourceName("Channel News24") === "Channel News24");
 
-check("real outlets remain distinct from numbered placeholders",
-  canonicalOutletCount([{ source: "Reuters" }, ...numberedPlaceholders.map((source) => ({ source })), ...concatenatedPlaceholders.map((source) => ({ source }))]) === 2);
+check("real outlets with Roman numerals remain preserved",
+  canonicalSourceName("Channel News Ⅳ") === "Channel News IV");
 
-console.log(`\nNumbered/concatenated placeholder outlet abuse: ${passes.length} passed / ${failures.length} failed`);
+check("real outlets remain distinct from numbered placeholders",
+  canonicalOutletCount([{ source: "Reuters" }, ...numberedPlaceholders.map((source) => ({ source })), ...concatenatedPlaceholders.map((source) => ({ source })), ...romanNumeralPlaceholders.map((source) => ({ source }))]) === 2);
+
+console.log(`\nNumbered/concatenated/Roman-numeral placeholder outlet abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
 if (failures.length) process.exit(1);
