@@ -26,6 +26,32 @@ check(
   new Set(punctuationVariants.map((item) => outletIdentityKey(item.source))).size === 1,
 );
 
+const decorativeWrapperVariants = [
+  { source: "Example News" },
+  { source: "(Example News)" },
+  { source: "[Example News]" },
+  { source: "{Example News}" },
+  { source: "【Example News】" },
+  { source: "《Example News》" },
+  { source: "“Example News”" },
+];
+
+check(
+  "decorative wrappers cannot inflate one unknown outlet into independent sources",
+  canonicalOutletCount(decorativeWrapperVariants) === 1,
+  `count=${canonicalOutletCount(decorativeWrapperVariants)}`,
+);
+
+check(
+  "decorative wrapper identity normalization is stable",
+  new Set(decorativeWrapperVariants.map((item) => outletIdentityKey(item.source))).size === 1,
+);
+
+check(
+  "meaningful parenthetical outlet qualifiers remain distinct",
+  canonicalOutletCount([{ source: "Example News (UK)" }, { source: "Example News (US)" }]) === 2,
+);
+
 check(
   "distinct unknown outlet names remain distinct",
   canonicalOutletCount([{ source: "Example News" }, { source: "Example Times" }]) === 2,
