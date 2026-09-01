@@ -165,7 +165,7 @@ function wildcardDnsIpv4Parts(host: string) {
 function isPrivateHostname(hostname: string) {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (!host) return true;
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "localtest.me" || host.endsWith(".localtest.me") || host === "lvh.me" || host.endsWith(".lvh.me")) return true;
   const wildcardIpv4 = wildcardDnsIpv4Parts(host);
   if (wildcardIpv4 && isPrivateIpv4Parts(wildcardIpv4)) return true;
   if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89abcdef][0-9a-f]:/i.test(host) || /^ff[0-9a-f]{2}:/i.test(host)) return true;
