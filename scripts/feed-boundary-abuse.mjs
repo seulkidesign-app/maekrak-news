@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-// Regression coverage includes feed-window starvation via invalid and duplicate front-loading.
+// Regression coverage includes feed-window starvation via invalid, duplicate, and stale-valid front-loading.
 const source = await readFile(new URL("../lib/news.ts", import.meta.url), "utf8");
 const { __test } = await import("../lib/news.ts");
 const failures = [];
@@ -31,7 +31,7 @@ check("RSS parser disables custom entity expansion", /new XMLParser\(\{[^}]*proc
 check("RSS fetch refuses automatic redirects", /fetch\(feed\.url,\s*\{[\s\S]*?redirect:\s*["']error["']/.test(source));
 check("feed payload keeps an explicit byte ceiling", source.includes("readResponseTextLimited(response)"));
 check("article URLs reject private hosts", source.includes("isPrivateHostname(url.hostname)"));
-check("feed scans beyond the 28 output slots before validation", source.includes("rawItems.slice(0, 112).map"));
+check("feed maps the full byte-bounded parsed item list before output limiting", source.includes("const candidates = rawItems.map") && !source.includes("rawItems.slice(0, 112).map"));
 
 const invalidFrontload = Array.from({ length: 28 }, (_, index) =>
   article(`poison-${index}`, "", "")
@@ -52,6 +52,22 @@ const deduped = __test.selectFeedWindow([
 ]);
 check("duplicate front-loaded entries cannot crowd out a later unique story", deduped.length === 2 && deduped.some((item) => item.link.endsWith("/independent")));
 check("duplicate front-load keeps the newest revision", deduped.some((item) => item.link.endsWith("/repeated") && item.publishedAt === "2026-08-31T23:00:00Z"));
+
+// New attack class: a feed can be syntactically valid but deliberately/mistakenly reverse-ordered.
+// More than the old 112-item scan cap of stale articles must not hide a fresh item at the tail.
+const staleFrontload = Array.from({ length: 112 }, (_, index) =>
+  article(
+    `Stale story ${index}`,
+    `https://www.reuters.com/world/stale-${index}`,
+    `2026-08-29T${String(index % 24).padStart(2, "0")}:00:00Z`,
+  )
+);
+const staleRescue = __test.selectFeedWindow([
+  ...staleFrontload,
+  article("Fresh story after stale prefix", "https://www.reuters.com/world/fresh-after-prefix", "2026-08-31T23:45:00Z"),
+]);
+check("stale valid front-load cannot starve a newer article from the 28 output slots", staleRescue.some((item) => item.link.endsWith("/fresh-after-prefix")));
+check("feed window is ordered newest-first after validation and dedupe", staleRescue[0]?.link.endsWith("/fresh-after-prefix"));
 
 console.log(`\nFeed boundary abuse: ${passes.length} passed / ${failures.length} failed`);
 if (failures.length) process.exit(1);
