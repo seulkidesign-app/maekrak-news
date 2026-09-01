@@ -1,0 +1,40 @@
+name: one-shot-ipv6-special-range-fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'fix: reject IPv6 special-use ranges'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Patch IPv6 special-use ranges
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/news.ts')
+          text = path.read_text()
+          old = '  if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89ab][0-9a-f]:/i.test(host)) return true;'
+          new = '  if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89abcdef][0-9a-f]:/i.test(host) || /^ff[0-9a-f]{2}:/i.test(host)) return true;'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one IPv6 boundary matcher, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Verify IPv6 boundary regression
+        run: node scripts/ipv6-boundary-abuse.mjs
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib/news.ts
+          git commit -m 'fix: reject IPv6 special-use ranges'
+          git push origin HEAD:main
