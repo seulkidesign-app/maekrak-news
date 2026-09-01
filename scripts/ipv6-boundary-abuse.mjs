@@ -13,6 +13,14 @@ check("IPv4-mapped IPv6 loopback is rejected", __test.safeHttpUrl("http://[::fff
 check("IPv4-mapped IPv6 RFC1918 address is rejected", __test.safeHttpUrl("http://[::ffff:10.0.0.1]/admin") === "");
 check("hex IPv4-mapped loopback is rejected", __test.safeHttpUrl("http://[::ffff:7f00:1]/admin") === "");
 
+// Distinct attack class: non-loopback IPv6 ranges that are still non-public.
+// A malicious feed must not turn source links into requests to unspecified,
+// unique-local (ULA), or link-local infrastructure.
+check("IPv6 unspecified address is rejected", __test.safeHttpUrl("http://[::]/admin") === "");
+check("IPv6 unique-local fc00::/7 address is rejected", __test.safeHttpUrl("http://[fc00::1]/admin") === "");
+check("IPv6 unique-local fd00::/8 address is rejected", __test.safeHttpUrl("http://[fd12:3456:789a::1]/admin") === "");
+check("IPv6 link-local fe80::/10 address is rejected", __test.safeHttpUrl("http://[fe80::1]/admin") === "");
+
 console.log(`IPv6 boundary abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
