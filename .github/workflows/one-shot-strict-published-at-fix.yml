@@ -57,27 +57,15 @@ jobs:
               raise SystemExit('news.ts target not found')
           p.write_text(s.replace(old, new))
 
-          test = Path('scripts/ambiguous-publication-format-abuse.mjs')
-          test.write_text('''const { __test } = await import("../lib/news.ts");\n\nconst failures = [];\nconst passes = [];\nfunction check(name, condition) {\n  if (condition) passes.push(name);\n  else failures.push(name);\n}\n\nconst now = Date.parse("2026-09-02T00:00:00Z");\nconst parse = (value) => __test.safePublishedAt(value, now);\n\ncheck("two-digit RFC year is rejected", parse("Tue, 01 Sep 26 07:00:00 GMT") === "");\ncheck("two-digit RFC year without weekday is rejected", parse("01 Sep 26 07:00:00 GMT") === "");\ncheck("ambiguous slash date is rejected", parse("09/01/2026 07:00:00 GMT") === "");\ncheck("implementation-dependent month-first text is rejected", parse("Sep 01 2026 07:00:00 GMT") === "");\ncheck("three-digit RFC year is rejected", parse("Tue, 01 Sep 026 07:00:00 GMT") === "");\ncheck("valid four-digit RFC timestamp is accepted", parse("Tue, 01 Sep 2026 07:00:00 GMT") === "2026-09-01T07:00:00.000Z");\ncheck("valid ISO timestamp is accepted", parse("2026-09-01T07:00:00Z") === "2026-09-01T07:00:00.000Z");\ncheck("impossible RFC calendar date is rejected", parse("Tue, 31 Feb 2026 07:00:00 GMT") === "");\n\nconsole.log(`\\nAmbiguous publication-format abuse: ${passes.length} passed / ${failures.length} failed`);\npasses.forEach((name) => console.log(`PASS  ${name}`));\nfailures.forEach((name) => console.error(`FAIL  ${name}`));\nif (failures.length) process.exit(1);\n''')
-
-          wf = Path('.github/workflows/adversarial-e2e.yml')
-          w = wf.read_text()
-          anchor = '''      - name: Timezone-less publication timestamp abuse\n        run: node scripts/timezone-less-published-at-abuse.mjs\n'''
-          addition = anchor + '''      - name: Ambiguous publication-format abuse\n        run: node scripts/ambiguous-publication-format-abuse.mjs\n'''
-          if 'Ambiguous publication-format abuse' not in w:
-              if anchor not in w:
-                  raise SystemExit('workflow anchor not found')
-              wf.write_text(w.replace(anchor, addition))
+          Path('scripts/ambiguous-publication-format-abuse.mjs').write_text('''const { __test } = await import("../lib/news.ts");\n\nconst failures = [];\nconst passes = [];\nfunction check(name, condition) {\n  if (condition) passes.push(name);\n  else failures.push(name);\n}\n\nconst now = Date.parse("2026-09-02T00:00:00Z");\nconst parse = (value) => __test.safePublishedAt(value, now);\n\ncheck("two-digit RFC year is rejected", parse("Tue, 01 Sep 26 07:00:00 GMT") === "");\ncheck("two-digit RFC year without weekday is rejected", parse("01 Sep 26 07:00:00 GMT") === "");\ncheck("ambiguous slash date is rejected", parse("09/01/2026 07:00:00 GMT") === "");\ncheck("implementation-dependent month-first text is rejected", parse("Sep 01 2026 07:00:00 GMT") === "");\ncheck("three-digit RFC year is rejected", parse("Tue, 01 Sep 026 07:00:00 GMT") === "");\ncheck("valid four-digit RFC timestamp is accepted", parse("Tue, 01 Sep 2026 07:00:00 GMT") === "2026-09-01T07:00:00.000Z");\ncheck("valid ISO timestamp is accepted", parse("2026-09-01T07:00:00Z") === "2026-09-01T07:00:00.000Z");\ncheck("impossible RFC calendar date is rejected", parse("Tue, 31 Feb 2026 07:00:00 GMT") === "");\n\nconsole.log(`\\nAmbiguous publication-format abuse: ${passes.length} passed / ${failures.length} failed`);\npasses.forEach((name) => console.log(`PASS  ${name}`));\nfailures.forEach((name) => console.error(`FAIL  ${name}`));\nif (failures.length) process.exit(1);\n''')
           PY
       - run: npm install --no-audit --no-fund
       - name: Run new regression
         run: node scripts/ambiguous-publication-format-abuse.mjs
-      - name: Remove one-shot workflow
-        run: git rm .github/workflows/one-shot-strict-published-at-fix.yml
       - name: Commit fix
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/news.ts scripts/ambiguous-publication-format-abuse.mjs .github/workflows/adversarial-e2e.yml
+          git add lib/news.ts scripts/ambiguous-publication-format-abuse.mjs
           git commit -m "fix: reject ambiguous publication timestamps"
           git push origin main
