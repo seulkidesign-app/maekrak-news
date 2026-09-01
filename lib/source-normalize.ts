@@ -111,6 +111,18 @@ function placeholderOutletKey(value: string) {
     .trim();
 }
 
+function placeholderWithRomanNumeralSuffix(value: string) {
+  // Unicode Roman numerals (Ⅱ, Ⅳ, etc.) NFKC-fold into ASCII letters, so they can
+  // bypass the decimal-suffix placeholder rule. Strip only an actual Roman-numeral
+  // code-point suffix from the original label, then test the remaining base.
+  if (!/[\u2160-\u2188]/u.test(value)) return false;
+  const base = value
+    .replace(/(?:[\s\p{P}\p{S}]*)[\u2160-\u2188]+(?:[\s\p{P}\p{S}]*)$/u, "")
+    .trim();
+  if (!base || base === value.trim()) return false;
+  return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
+}
+
 function normalizeUnicodeDecimalDigits(value: string) {
   return value.replace(/\p{Nd}/gu, (digit) => {
     const codePoint = digit.codePointAt(0)!;
@@ -141,7 +153,7 @@ export function canonicalSourceName(value: string) {
   const raw = normalizeExternalText(original);
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
-  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey)) return "Unverified source";
+  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original)) return "Unverified source";
   if (compatibilitySpoof) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
