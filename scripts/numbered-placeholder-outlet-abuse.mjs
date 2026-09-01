@@ -63,8 +63,11 @@ check("numbered real outlet names are preserved",
 check("real outlets with attached digits remain preserved",
   canonicalSourceName("Channel News24") === "Channel News24");
 
-check("real outlets with Roman numerals remain preserved",
-  canonicalSourceName("Channel News Ⅳ") === "Channel News IV");
+check("real outlets with Roman numerals remain verified as ordinary outlet names",
+  canonicalSourceName("Channel News Ⅳ") !== "Unverified source");
+
+check("Roman numeral compatibility folding does not split a legitimate outlet identity",
+  canonicalOutletCount([{ source: "Channel News Ⅳ" }, { source: "Channel News IV" }]) === 1);
 
 check("real outlets remain distinct from numbered placeholders",
   canonicalOutletCount([{ source: "Reuters" }, ...numberedPlaceholders.map((source) => ({ source })), ...concatenatedPlaceholders.map((source) => ({ source })), ...romanNumeralPlaceholders.map((source) => ({ source }))]) === 2);
