@@ -640,7 +640,7 @@ function canonicalDedupeUrl(link: string) {
     const url = new URL(link);
     url.hash = "";
     const trackingKeys = [...url.searchParams.keys()].filter((key) =>
-      /^utm_/i.test(key) || /^(?:gclid|fbclid|mc_cid|mc_eid)$/i.test(key)
+      /^utm_/i.test(key) || /^(?:gclid|gbraid|wbraid|fbclid|msclkid|dclid|twclid|igshid|_gl|mc_cid|mc_eid)$/i.test(key)
     );
     trackingKeys.forEach((key) => url.searchParams.delete(key));
     url.searchParams.sort();
