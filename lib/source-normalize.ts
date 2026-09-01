@@ -64,10 +64,18 @@ function trustedBrandCombiningMarkSpoof(value: string) {
 }
 
 function trustedBrandCompatibilitySpoof(value: string) {
-  // Full-width publisher labels are intentionally normalized by the existing pipeline.
-  // Reject only deceptive compatibility glyph families that visually restyle letters.
-  if (!/[\u2460-\u24FF\u{1D400}-\u{1D7FF}]/u.test(value)) return false;
   const folded = value.normalize("NFKC");
+  if (folded === value) return false;
+
+  // Full-width ASCII publisher labels are an intentionally supported feed normalization.
+  // Any other compatibility code point that folds a label exactly onto a trusted brand
+  // (letterlike symbols, modifier letters, circled/math alphabets, etc.) is untrusted.
+  const hasSuspiciousCompatibilityCharacter = [...value].some((character) => (
+    character.normalize("NFKC") !== character
+    && !/[\u3000\uFF01-\uFF5E]/u.test(character)
+  ));
+  if (!hasSuspiciousCompatibilityCharacter) return false;
+
   const skeleton = folded
     .toLocaleLowerCase("en-US")
     .replace(/\s+/g, " ")
