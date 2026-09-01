@@ -18,19 +18,37 @@ const numberedPlaceholders = [
   "null:8",
 ];
 
+const concatenatedPlaceholders = [
+  "Unknown source2",
+  "Unknown3",
+  "Source unavailable4",
+  "Unverified source5",
+  "출처 없음6",
+  "출처 불명7",
+  "출처 미상8",
+  "미상9",
+  "확인 불가10",
+];
+
 check("numbered placeholder aliases collapse to unverified source",
   numberedPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
 
-check("numbered placeholders cannot manufacture outlet diversity",
-  canonicalOutletCount(numberedPlaceholders.map((source) => ({ source }))) === 1);
+check("concatenated numeric placeholder aliases collapse to unverified source",
+  concatenatedPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
+
+check("numbered and concatenated placeholders cannot manufacture outlet diversity",
+  canonicalOutletCount([...numberedPlaceholders, ...concatenatedPlaceholders].map((source) => ({ source }))) === 1);
 
 check("numbered real outlet names are preserved",
   canonicalSourceName("Channel News 24") === "Channel News 24");
 
-check("real outlets remain distinct from numbered placeholders",
-  canonicalOutletCount([{ source: "Reuters" }, ...numberedPlaceholders.map((source) => ({ source }))]) === 2);
+check("real outlets with attached digits remain preserved",
+  canonicalSourceName("Channel News24") === "Channel News24");
 
-console.log(`\nNumbered placeholder outlet abuse: ${passes.length} passed / ${failures.length} failed`);
+check("real outlets remain distinct from numbered placeholders",
+  canonicalOutletCount([{ source: "Reuters" }, ...numberedPlaceholders.map((source) => ({ source })), ...concatenatedPlaceholders.map((source) => ({ source }))]) === 2);
+
+console.log(`\nNumbered/concatenated placeholder outlet abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
 if (failures.length) process.exit(1);
