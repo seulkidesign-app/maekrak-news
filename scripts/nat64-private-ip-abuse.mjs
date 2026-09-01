@@ -12,6 +12,7 @@ const blocked = [
   ["NAT64 RFC1918 10/8", "http://[64:ff9b::10.0.0.1]/admin"],
   ["NAT64 RFC1918 172.16/12", "http://[64:ff9b::172.16.0.1]/admin"],
   ["NAT64 RFC1918 192.168/16", "http://[64:ff9b::192.168.1.1]/admin"],
+  ["NAT64 carrier-grade NAT", "http://[64:ff9b::100.64.0.1]/admin"],
   ["NAT64 link-local", "http://[64:ff9b::169.254.1.1]/admin"],
 ];
 
