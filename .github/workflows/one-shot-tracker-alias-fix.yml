@@ -1,15 +1,12 @@
-name: one-shot-tracker-alias-fix
+name: tracker-alias-fix
 
-on:
-  push:
-    branches: [main]
+on: [push]
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.event.head_commit.message != 'fix: dedupe common tracker aliases'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -17,24 +14,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Patch common tracker aliases
+      - name: Patch and verify
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('lib/news.ts')
           text = path.read_text()
-          old = r'/^(?:gclid|fbclid|mc_cid|mc_eid)$/i.test(key)'
-          new = r'/^(?:gclid|gbraid|wbraid|fbclid|msclkid|dclid|twclid|igshid|_gl|mc_cid|mc_eid)$/i.test(key)'
-          if text.count(old) != 1:
-              raise SystemExit(f'expected exactly one tracker matcher, found {text.count(old)}')
-          path.write_text(text.replace(old, new, 1))
+          old = '/^(?:gclid|fbclid|mc_cid|mc_eid)$/i.test(key)'
+          new = '/^(?:gclid|gbraid|wbraid|fbclid|msclkid|dclid|twclid|igshid|_gl|mc_cid|mc_eid)$/i.test(key)'
+          if old in text:
+              path.write_text(text.replace(old, new, 1))
           PY
-      - name: Verify tracker regression
-        run: node scripts/tracker-alias-dedupe-abuse.mjs
-      - name: Commit fix
+          node scripts/tracker-alias-dedupe-abuse.mjs
+      - name: Commit if changed
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if git diff --quiet -- lib/news.ts; then exit 0; fi
+          git config user.name github-actions-bot
+          git config user.email github-actions-bot@users.noreply.github.com
           git add lib/news.ts
-          git commit -m 'fix: dedupe common tracker aliases'
+          git commit -m "fix: dedupe common tracker aliases"
           git push origin HEAD:main
