@@ -28,6 +28,16 @@ check("IPv6 deprecated site-local fec0::/10 address is rejected", __test.safeHtt
 check("IPv6 multicast ff00::/8 address is rejected", __test.safeHttpUrl("http://[ff02::1]/admin") === "");
 check("IPv6 global-unicast address remains allowed", Boolean(__test.safeHttpUrl("https://[2001:4860:4860::8888]/story")));
 
+// New attack class: special-use IPv4 literals are syntactically valid but not
+// legitimate public article destinations. They must not be laundered through
+// the same trust boundary as globally routable article links.
+check("TEST-NET-1 documentation IPv4 is rejected", __test.safeHttpUrl("https://192.0.2.1/story") === "");
+check("benchmark IPv4 network is rejected", __test.safeHttpUrl("https://198.18.0.1/story") === "");
+check("TEST-NET-2 documentation IPv4 is rejected", __test.safeHttpUrl("https://198.51.100.7/story") === "");
+check("TEST-NET-3 documentation IPv4 is rejected", __test.safeHttpUrl("https://203.0.113.9/story") === "");
+check("IETF protocol-assignment IPv4 is rejected", __test.safeHttpUrl("https://192.0.0.170/story") === "");
+check("public IPv4 address remains allowed", Boolean(__test.safeHttpUrl("https://8.8.8.8/story")));
+
 console.log(`IPv6 boundary abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
