@@ -13,8 +13,8 @@ const now = Date.parse("2026-08-28T00:00:00.000Z");
 const iso = (offsetMs) => new Date(now + offsetMs).toISOString();
 
 check("current timestamp is accepted", safePublishedAt(iso(0), now) === iso(0));
-check("small 90-second clock skew is tolerated", safePublishedAt(iso(90_000), now) === iso(90_000));
-check("two-minute boundary is tolerated", safePublishedAt(iso(120_000), now) === iso(120_000));
+check("small 90-second clock skew is tolerated but clamped", safePublishedAt(iso(90_000), now) === iso(0));
+check("two-minute boundary is tolerated but clamped", safePublishedAt(iso(120_000), now) === iso(0));
 check("three-minute future timestamp is rejected", safePublishedAt(iso(180_000), now) === "");
 check("old twenty-minute poisoning window is rejected", safePublishedAt(iso(20 * 60_000), now) === "");
 check("invalid timestamp is rejected", safePublishedAt("not-a-date", now) === "");
