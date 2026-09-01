@@ -10,6 +10,7 @@ const TRUSTED_CONFUSABLE_SKELETONS = new Set([
   "dw", "deutsche welle",
   "nhk", "nhk world", "nhk world-japan",
 ]);
+const TRUSTED_INITIALISM_IDENTITIES = new Set(["ap", "bbc", "kbs", "mbc", "sbs", "dw", "nhk"]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   // Cyrillic characters commonly used to visually impersonate Latin outlet names.
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
@@ -159,7 +160,13 @@ export function canonicalSourceName(value: string) {
 }
 
 export function outletIdentityKey(value: string) {
-  return normalizeExternalText(genericMixedScriptIdentitySkeleton(stripDecorativeOuterWrappers(canonicalSourceName(value))))
+  const normalized = normalizeExternalText(genericMixedScriptIdentitySkeleton(stripDecorativeOuterWrappers(canonicalSourceName(value))));
+  const compactInitialism = normalized
+    .toLocaleLowerCase("en-US")
+    .replace(/[\p{P}\p{S}\s]+/gu, "");
+  if (TRUSTED_INITIALISM_IDENTITIES.has(compactInitialism)) return compactInitialism;
+
+  return normalized
     // Overlay marks can make the same visible outlet look like a distinct publisher identity.
     // Remove only visual overlay marks here; keep ordinary accents and the displayed source name intact.
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
