@@ -16,6 +16,14 @@ check("positive markdown quality still enables markdown representation", accepts
 check("plain markdown media type remains accepted", acceptsMarkdown("text/markdown") === true);
 check("media type comparison is case-insensitive", acceptsMarkdown("TEXT/MARKDOWN;Q=1") === true);
 
+// New attack class: malformed RFC qvalues that JavaScript Number() would otherwise coerce into valid numbers.
+check("leading-dot qvalue cannot force markdown representation", acceptsMarkdown("text/html, text/markdown;q=.5") === false);
+check("signed qvalue cannot force markdown representation", acceptsMarkdown("text/html, text/markdown;q=+0.5") === false);
+check("qvalue with more than three fractional digits is rejected", acceptsMarkdown("text/html, text/markdown;q=0.0001") === false);
+check("1 qvalue with more than three trailing zeroes is rejected", acceptsMarkdown("text/html, text/markdown;q=1.0000") === false);
+check("minimum valid three-decimal positive qvalue remains accepted", acceptsMarkdown("text/markdown;q=0.001, text/html") === true);
+check("maximum valid three-decimal qvalue remains accepted", acceptsMarkdown("text/markdown;q=1.000, text/html") === true);
+
 const proxySource = fs.readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 check("proxy uses the hardened Accept parser", proxySource.includes("acceptsMarkdown(accept)"));
 check("proxy no longer uses substring-only markdown negotiation", !proxySource.includes('accept.includes("text/markdown")'));
