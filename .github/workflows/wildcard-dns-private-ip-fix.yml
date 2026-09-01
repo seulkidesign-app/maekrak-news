@@ -16,13 +16,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Patch wildcard DNS URL validation and CI regression
+      - name: Patch wildcard DNS URL validation
         run: |
           python - <<'PY'
           from pathlib import Path
 
           news = Path('lib/news.ts')
           text = news.read_text()
+          if 'function wildcardDnsIpv4Parts' in text:
+              raise SystemExit(0)
           old = '''function isPrivateHostname(hostname: string) {
             const host = hostname.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
             if (!host) return true;
@@ -51,29 +53,16 @@ jobs:
           if old not in text:
               raise SystemExit('news.ts patch anchor missing')
           news.write_text(text.replace(old, new, 1))
-
-          workflow = Path('.github/workflows/adversarial-e2e.yml')
-          lines = workflow.read_text().splitlines()
-          if not any('Wildcard DNS private-IP abuse' in line for line in lines):
-              target = next((i for i, line in enumerate(lines) if line.strip() == '- name: NAT64 private-IP abuse'), None)
-              if target is None or target + 1 >= len(lines) or 'nat64-private-ip-abuse.mjs' not in lines[target + 1]:
-                  raise SystemExit('adversarial workflow patch anchor missing')
-              step_indent = lines[target][:len(lines[target]) - len(lines[target].lstrip())]
-              run_indent = lines[target + 1][:len(lines[target + 1]) - len(lines[target + 1].lstrip())]
-              lines[target + 2:target + 2] = [
-                  f'{step_indent}- name: Wildcard DNS private-IP abuse',
-                  f'{run_indent}run: node scripts/wildcard-dns-private-ip-abuse.mjs',
-              ]
-              workflow.write_text('\n'.join(lines) + '\n')
-
-          Path('.github/workflows/wildcard-dns-private-ip-probe.yml').unlink(missing_ok=True)
-          Path('.github/workflows/wildcard-dns-private-ip-fix.yml').unlink(missing_ok=True)
           PY
           node scripts/wildcard-dns-private-ip-abuse.mjs
-      - name: Commit fix
+      - name: Commit product fix
         run: |
+          if git diff --quiet -- lib/news.ts; then
+            echo "Product fix already present"
+            exit 0
+          fi
           git config user.name github-actions-bot
           git config user.email github-actions-bot@users.noreply.github.com
-          git add -A
+          git add lib/news.ts
           git commit -m "fix: block private IP wildcard DNS aliases"
           git push origin HEAD:main
