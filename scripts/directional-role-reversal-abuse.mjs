@@ -25,6 +25,14 @@ check("same Korean directional attack remains clusterable",
 check("Korean threat actor-target reversal is not one event",
   !__test.sameEvent(article("이란이 이스라엘을 위협 협상 결렬"), article("이스라엘이 이란을 위협 협상 결렬", "BBC")));
 
+// Korean news headlines frequently omit particles. This makes the token sets identical even when actor and target swap.
+check("particleless Korean attack reversal is not one event",
+  !__test.sameEvent(article("이란, 이스라엘 공격 긴장 고조"), article("이스라엘, 이란 공격 긴장 고조", "BBC")));
+check("particleless Korean threat reversal is not one event",
+  !__test.sameEvent(article("이란, 이스라엘 위협 협상 결렬"), article("이스라엘, 이란 위협 협상 결렬", "BBC")));
+check("same particleless Korean direction remains clusterable",
+  __test.sameEvent(article("이란, 이스라엘 공격 긴장 고조"), article("이란 이스라엘 공격 긴장 고조 속보", "BBC")));
+
 console.log("Directional role reversal abuse: " + passes.length + " passed / " + failures.length + " failed");
 passes.forEach((name) => console.log("PASS  " + name));
 failures.forEach((name) => console.error("FAIL  " + name));
