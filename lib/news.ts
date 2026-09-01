@@ -184,38 +184,19 @@ const topicRules: Array<{ category: NewsCategory; pattern: RegExp }> = [
 const highImpactPattern = /전쟁|공격|미사일|핵|휴전|계엄|탄핵|선거|대통령|총리|붕괴|지진|태풍|홍수|산불|금리|관세|제재|\b(?:war|attack|missiles?|nuclear|ceasefire|election|president|prime minister|earthquake|typhoon|flood|wildfire|interest rates?|tariffs?|sanctions?)\b/i;
 const leaderDeathPattern = /(?:대통령|총리|국왕|교황).{0,35}(?:사망|숨져)|(?:사망|숨져).{0,35}(?:대통령|총리|국왕|교황)|\b(?:president|prime minister|king|pope)\b.{0,35}\b(?:dies|dead|death)\b|\b(?:dies|dead|death)\b.{0,35}\b(?:president|prime minister|king|pope)\b/i;
 const softNewsPattern = /연예|가수|배우|콘서트|앨범|스포츠|축구|야구|농구|\b(?:celebrity|singer|actor|actress|concert|album|country music|football|baseball|basketball)\b/i;
-const structuralImpactPattern = /경찰 개혁|검찰 개혁|재정|예산|주택 공급|부동산|출생|인구|반도체|\b(?:police reform|prosecution reform|budget|housing supply|birth|population|semiconductor)\b/i;
-const uncertaintyPattern = /추정|잠정|확인 중|미확인|알려졌|보인다|가능성|\b(?:reportedly|unconfirmed|appears?|likely|estimated|might|could)\b/i;
-const claimPattern = /말했|밝혔|주장|반박|촉구|경고|전망|예상|계획|검토|시사|\b(?:says?|said|claims?|alleges?|warns?|expects?|plans?)\b/i;
-const worldSignals = /북한|미국|중국|일본|러시아|우크라이나|이란|이스라엘|팔레스타인|가자|캐나다|유럽|나토|호르무즈|\b(?:north korea|dprk|united states|china|japan|russia|ukraine|iran|israel|gaza|canada|europe|nato|hormuz)\b|palestin/i;
-const domesticSignals = /한국|대한민국|남한|서울|부산|제주|국회|청와대|이재명|코스피|\b(?:south korea|republic of korea|seoul|busan|jeju|lee jae myung|kospi)\b/i;
-
-function highImpactSignalText(text: string) {
-  return text
-    .replace(/\bwar memorial\b/gi, " memorial ")
-    .replace(/\bwar museum\b/gi, " museum ")
-    .replace(/\bwar and peace\b/gi, " literary work ")
-    .replace(/전쟁기념관/g, "기념관")
-    .replace(/전쟁\s*박물관/g, "박물관");
-}
-
-function isHighImpact(text: string) {
-  const signalText = highImpactSignalText(text);
-  return highImpactPattern.test(signalText) || leaderDeathPattern.test(signalText);
-}
-
-function safeCodePoint(raw: string, radix: number) {
-  const value = Number.parseInt(raw, radix);
-  return Number.isInteger(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "�";
-}
+const structuralImpactPattern = /경찰 개혁|검찰 개혁|연금 개혁|의료 개혁|교육 개혁|노동 개혁|주택 정책|주거 정책|세제 개편|비자 정책|산업 정책|노동 정책|공급망|\b(?:police reform|justice reform|pension reform|healthcare reform|education reform|labor reform|housing policy|tax reform|visa policy|industrial policy|supply chain)\b/i;
+const uncertaintyPattern = /가능성|추정|미확인|불확실|논의 중|검토 중|\b(?:may|might|could|reportedly|unconfirmed|uncertain|considering|under discussion)\b/i;
+const claimPattern = /주장|밝혀|발표|말해|\b(?:claims?|says?|announces?|according to)\b/i;
+const domesticSignals = /한국|대한민국|서울|정부|국회|대통령실|한국은행|금융위|검찰|경찰|교육부|보건복지부|\b(?:south korea|republic of korea|seoul|korean government|bank of korea)\b/i;
+const worldSignals = /미국|중국|일본|러시아|우크라이나|이스라엘|이란|가자|유럽|나토|대만|북한|트럼프|시진핑|푸틴|\b(?:united states|china|japan|russia|ukraine|israel|iran|gaza|europe|nato|taiwan|north korea|trump|xi jinping|putin)\b/i;
 
 function decodeEntities(value: string) {
   return value
-    .replace(/&#(\d+);/g, (_, code) => safeCodePoint(code, 10))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => safeCodePoint(code, 16))
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
     .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&nbsp;/g, " ");
@@ -293,7 +274,9 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
 
     const attribution = safeHttpUrl(sourceAttributionUrl);
     if (!attribution) return "Unverified source";
-    const attributionHostname = new URL(attribution).hostname;
+    const attributionUrl = new URL(attribution);
+    if (attributionUrl.protocol !== "https:") return "Unverified source";
+    const attributionHostname = attributionUrl.hostname;
     return trustedDomains.some((domain) => hostMatches(attributionHostname, domain)) ? source : "Unverified source";
   } catch {
     return "Unverified source";
@@ -978,14 +961,13 @@ export const __test = {
   sameEvent,
   clusterNewsItems,
   categoryCoverageFor,
-  selectPriorityEventIds,
-  canonicalDedupeUrl,
-  dedupeNews,
-  selectFeedWindow,
-  stableEventId,
-  sourceBalancedMajority,
-  verifiedSourceArticles,
   verifiedSourceCount,
   importanceFor,
   selectionReasons,
+  selectPriorityEventIds,
+  stableEventId,
+  sourceBalancedMajority,
+  dedupeNews,
+  selectFeedWindow,
+  readResponseTextLimited,
 };
