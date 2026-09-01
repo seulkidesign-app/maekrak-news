@@ -519,13 +519,44 @@ function firstNormalizedEntity(text: string) {
   return best?.concept ?? null;
 }
 
+function koreanDirectionalEntityRelation(text: string) {
+  const normalized = normalizeExternalText(text).toLowerCase();
+  const action = /(?:공격|공습|폭격|위협|협박)/.exec(normalized);
+  if (!action || action.index === undefined) return null;
+  const prefix = normalized.slice(0, action.index);
+  const occurrences: Array<{ concept: string; index: number; particle: string }> = [];
+  for (const [concept, variants] of Object.entries(entityAliases)) {
+    for (const variant of variants.filter((value) => /[가-힣]/.test(value))) {
+      let from = 0;
+      while (from < prefix.length) {
+        const index = prefix.indexOf(variant.toLowerCase(), from);
+        if (index < 0) break;
+        const particle = prefix.slice(index + variant.length, index + variant.length + 1);
+        occurrences.push({ concept, index, particle });
+        from = index + variant.length;
+      }
+    }
+  }
+  const ordered = occurrences
+    .sort((a, b) => a.index - b.index)
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.concept === entry.concept) === index)
+    .filter((entry) => entry.concept !== "korea" || !occurrences.some((candidate) => candidate.concept === "northkorea" || candidate.concept === "southkorea"));
+  const markedActor = ordered.find((entry) => entry.particle === "이" || entry.particle === "가")?.concept;
+  const markedTarget = ordered.find((entry) => entry.particle === "을" || entry.particle === "를")?.concept;
+  if (markedActor && markedTarget && markedActor !== markedTarget) return [markedActor, markedTarget] as const;
+  const [actor, target] = ordered;
+  return actor && target && actor.concept !== target.concept ? [actor.concept, target.concept] as const : null;
+}
+
 function directionalEntityRelation(text: string) {
   const normalized = normalizeExternalText(text).toLowerCase();
   const verb = /\b(?:attacks?|attacked|bombs?|bombed|threatens?|threatened)\b/.exec(normalized);
-  if (!verb || verb.index === undefined) return null;
-  const actor = firstNormalizedEntity(normalized.slice(0, verb.index));
-  const target = firstNormalizedEntity(normalized.slice(verb.index + verb[0].length));
-  return actor && target && actor !== target ? [actor, target] as const : null;
+  if (verb && verb.index !== undefined) {
+    const actor = firstNormalizedEntity(normalized.slice(0, verb.index));
+    const target = firstNormalizedEntity(normalized.slice(verb.index + verb[0].length));
+    if (actor && target && actor !== target) return [actor, target] as const;
+  }
+  return koreanDirectionalEntityRelation(normalized);
 }
 
 function hasDirectionalRoleReversal(a: string, b: string) {
