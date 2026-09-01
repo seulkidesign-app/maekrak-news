@@ -26,6 +26,25 @@ check(
   new Set(punctuationVariants.map((item) => outletIdentityKey(item.source))).size === 1,
 );
 
+const initialismVariants = [
+  { source: "AP" },
+  { source: "A.P." },
+  { source: "A·P" },
+  { source: "A․P" },
+];
+
+check(
+  "initialism punctuation cannot inflate one publisher into independent sources",
+  canonicalOutletCount(initialismVariants) === 1,
+  `count=${canonicalOutletCount(initialismVariants)}`,
+);
+
+check(
+  "initialism punctuation identity normalization is stable",
+  new Set(initialismVariants.map((item) => outletIdentityKey(item.source))).size === 1,
+  `keys=${initialismVariants.map((item) => outletIdentityKey(item.source)).join(",")}`,
+);
+
 const decorativeWrapperVariants = [
   { source: "Example News" },
   { source: "(Example News)" },
