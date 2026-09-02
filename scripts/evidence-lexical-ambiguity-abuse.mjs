@@ -50,6 +50,26 @@ check(
   classifyEvidence(article("Policy will change next month, according to the ministry")) === "발언·주장",
 );
 
+// New adversarial class: default-ignorable Unicode characters can be inserted into
+// epistemic markers while rendering almost identically to users. The classifier must
+// not let a feed turn an attributed claim or uncertainty marker into "일반 보도".
+check(
+  "zero-width insertion cannot launder an English claim as factual reporting",
+  classifyEvidence(article("Minister clai\u200bms the vote was manipulated")) === "발언·주장",
+);
+check(
+  "soft-hyphen insertion cannot launder English uncertainty language",
+  classifyEvidence(article("Officials report\u00adedly plan emergency restrictions")) === "전망·추정",
+);
+check(
+  "zero-width insertion cannot launder a Korean claim as factual reporting",
+  classifyEvidence(article("장관이 선거 결과를 주\u200b장했다")) === "발언·주장",
+);
+check(
+  "word-joiner insertion cannot launder Korean uncertainty language",
+  classifyEvidence(article("정부가 추가 대책을 검\u2060토 중이다")) === "전망·추정",
+);
+
 console.log(`Evidence lexical ambiguity abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach((name) => console.log(`PASS  ${name}`));
 failures.forEach((name) => console.error(`FAIL  ${name}`));
