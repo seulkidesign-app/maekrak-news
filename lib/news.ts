@@ -188,6 +188,7 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
     const hostname = url.hostname;
     const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain));
     if (!trustedDomains) {
+      if (sourceType === "direct") return "Unverified source";
       if (!allowedAggregator) return source;
       const attribution = safeHttpUrl(sourceAttributionUrl);
       if (!attribution) return "Unverified source";
