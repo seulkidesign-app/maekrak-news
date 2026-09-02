@@ -101,9 +101,6 @@ function canonicalUnknownOutletCase(value: string) {
 function placeholderOutletKey(value: string) {
   return value
     .toLocaleLowerCase("en-US")
-    // Decompose first so marks that NFKC composed into letters (for example o + acute -> ó)
-    // cannot evade placeholder detection. Recompose afterward so Hangul and other scripts
-    // retain their normal form. This transformation is used only for placeholder matching.
     .normalize("NFD")
     .replace(/\p{M}+/gu, "")
     .normalize("NFC")
@@ -199,7 +196,7 @@ export function outletIdentityKey(value: string) {
   return normalized
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
     .toLocaleLowerCase("en-US")
-    .replace(/[._\p{Pd}/:|\u2044\u2215]+/gu, " ")
+    .replace(/[._\p{Pd}/:|\u00B7\u2022\u2027\u2044\u2215\u2219\u22C5]+/gu, " ")
     .replace(/[’‘ʼ']/g, "")
     .replace(/\s+/g, " ")
     .trim();
