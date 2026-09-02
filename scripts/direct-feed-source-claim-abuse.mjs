@@ -31,8 +31,8 @@ if (typeof sourceForLink === "function") {
     sourceForLink("Reuters", "https://www.reuters.com/world/example", "direct") === "Reuters",
   );
   check(
-    "unknown aggregator publisher with explicit HTTPS attribution keeps its name",
-    sourceForLink("Example Wire", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/story") === "Example Wire",
+    "unknown aggregator publisher with explicit HTTPS attribution is bound to publisher hostname",
+    sourceForLink("Example Wire", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/story") === "example.com",
   );
 }
 
