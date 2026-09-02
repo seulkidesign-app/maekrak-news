@@ -19,52 +19,44 @@ jobs:
 
           source = Path('lib/source-normalize.ts')
           text = source.read_text()
-          marker = 'function normalizeUnicodeDecimalDigits(value: string) {'
-          helper = '''function placeholderWithAlphanumericSuffix(value: string) {
-            const match = value.trim().match(/[\\s\\p{P}\\p{S}]+(?:[A-Za-z]*\\d+[A-Za-z\\d]*|\\d+[A-Za-z][A-Za-z\\d]*)$/u);
-            if (!match || match.index == null) return false;
-            const base = value.slice(0, match.index).trim();
-            if (!base) return false;
-            return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
-          }
-
-          '''
-          if 'function placeholderWithAlphanumericSuffix' not in text:
-            if marker not in text:
-              raise SystemExit('source helper insertion marker not found')
-            text = text.replace(marker, helper + marker, 1)
-          old = 'PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)'
-          new = old + ' || placeholderWithAlphanumericSuffix(raw)'
+          old = 'const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null|출처 없음|출처 불명|출처 미상|알 수 없음|미상|확인 불가)(?:\\s*(?:\\d+|[A-Za-z]))?$/i;'
+          new = 'const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null|출처 없음|출처 불명|출처 미상|알 수 없음|미상|확인 불가)(?:\\s*(?:\\d+|[A-Za-z]|(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\\d)[A-Za-z0-9]+))?$/i;'
           if new not in text:
             if old not in text:
-              raise SystemExit('canonical placeholder condition not found')
+              raise SystemExit('placeholder regex not found')
             text = text.replace(old, new, 1)
           source.write_text(text)
 
-          test = Path('scripts/alphanumeric-placeholder-suffix-abuse.mjs')
+          test = Path('scripts/ascii-placeholder-suffix-abuse.mjs')
           text = test.read_text()
-          start = 'check("ordinary outlet names containing alphanumeric tokens remain preserved",\n  canonicalSourceName("Studio 54") === "Studio 54" &&\n  canonicalSourceName("Channel A1") === "Channel A1" &&\n  canonicalSourceName("Newsroom 2026A") === "Newsroom 2026A");'
-          replacement = 'const benignAlphanumericOutlets = ["Studio 54", "Channel A1", "Newsroom 2026A"];\ncheck("ordinary outlet names containing alphanumeric tokens remain preserved",\n  benignAlphanumericOutlets.every((value) => canonicalSourceName(value) !== "Unverified source") &&\n  canonicalOutletCount(benignAlphanumericOutlets.map((source) => ({ source }))) === 3);'
-          if replacement not in text:
-            if start not in text:
-              raise SystemExit('benign regression block not found')
-            text = text.replace(start, replacement, 1)
-          test.write_text(text)
+          marker = 'console.log(`\\nASCII placeholder suffix abuse: ${passes.length} passed / ${failures.length} failed`);'
+          block = '''const alphanumericPlaceholders = [
+            "Unknown source A1", "Unknown source B2", "Unknown v2", "Source unavailable r3",
+            "Unverified source 2026A", "N/A x9", "None build7", "null id42",
+            "출처 없음 A1", "출처 불명 v2", "출처 미상 2026B", "미상 id7", "확인 불가 r4",
+          ];
 
-          workflow = Path('.github/workflows/adversarial-e2e.yml')
-          text = workflow.read_text()
-          anchor = '      - name: Separator placeholder outlet inflation abuse'
-          addition = '      - name: Alphanumeric placeholder suffix abuse\n        run: node scripts/alphanumeric-placeholder-suffix-abuse.mjs\n'
-          if 'node scripts/alphanumeric-placeholder-suffix-abuse.mjs' not in text:
-            if anchor not in text:
-              raise SystemExit('CI insertion anchor not found')
-            text = text.replace(anchor, addition + anchor, 1)
-          workflow.write_text(text)
+          check("mixed alphanumeric placeholder aliases collapse to unverified source",
+            alphanumericPlaceholders.every((value) => canonicalSourceName(value) === "Unverified source"));
+          check("mixed alphanumeric placeholders cannot manufacture outlet diversity",
+            canonicalOutletCount(alphanumericPlaceholders.map((source) => ({ source }))) === 1);
+          const benignAlphanumericOutlets = ["Studio 54", "Channel A1", "Newsroom 2026A"];
+          check("ordinary alphanumeric outlet names remain preserved",
+            benignAlphanumericOutlets.every((value) => canonicalSourceName(value) !== "Unverified source") &&
+            canonicalOutletCount(benignAlphanumericOutlets.map((source) => ({ source }))) === 3);
+          check("real outlets remain distinct from mixed alphanumeric placeholders",
+            canonicalOutletCount([{ source: "Reuters" }, ...alphanumericPlaceholders.map((source) => ({ source }))]) === 2);
+
+          '''
+          if 'mixed alphanumeric placeholder aliases collapse to unverified source' not in text:
+            if marker not in text:
+              raise SystemExit('ASCII regression insertion marker not found')
+            text = text.replace(marker, block + marker, 1)
+          test.write_text(text)
           PY
-          git rm .github/workflows/one-time-alphanumeric-placeholder-probe.yml
-          git rm .github/workflows/one-time-alphanumeric-placeholder-fix.yml
           git config user.name "maekrak-redteam-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add lib/source-normalize.ts scripts/alphanumeric-placeholder-suffix-abuse.mjs .github/workflows/adversarial-e2e.yml
+          git add lib/source-normalize.ts scripts/ascii-placeholder-suffix-abuse.mjs
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m "fix: collapse alphanumeric source placeholders"
           git push origin HEAD:main
