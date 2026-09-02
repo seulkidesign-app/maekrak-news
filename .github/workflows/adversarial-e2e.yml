@@ -124,6 +124,8 @@ jobs:
         run: node scripts/aggregator-unknown-source-attribution-abuse.mjs
       - name: Direct-feed source claim abuse
         run: node scripts/direct-feed-source-claim-abuse.mjs
+      - name: Wire-role attribution laundering abuse
+        run: node scripts/wire-role-attribution-laundering-abuse.mjs
       - name: Transport downgrade abuse
         run: node scripts/transport-downgrade-abuse.mjs
       - name: Representation cache poisoning abuse
