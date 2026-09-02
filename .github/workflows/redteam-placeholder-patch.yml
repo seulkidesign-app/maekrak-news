@@ -13,22 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Patch terminal unverified source state
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('lib/news.ts')
           text = p.read_text()
-          old = '''function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
-  const trustedDomains = trustedSourceDomains[source];
-  try {'''
-          new = '''function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
-  const trustedDomains = trustedSourceDomains[source];
-  if (source === "Unverified source") return "Unverified source";
-  try {'''
-          if old not in text:
-              raise SystemExit('sourceForLink insertion target not found')
-          p.write_text(text.replace(old, new, 1))
+          needle = '  const trustedDomains = trustedSourceDomains[source];\n  try {'
+          replacement = '  const trustedDomains = trustedSourceDomains[source];\n  if (source === "Unverified source") return "Unverified source";\n  try {'
+          if needle not in text:
+              raise SystemExit('patch target not found')
+          p.write_text(text.replace(needle, replacement, 1))
           PY
       - name: Commit patch
         run: |
