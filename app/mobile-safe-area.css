@@ -6,11 +6,20 @@
   padding-right:max(5vw, env(safe-area-inset-right));
 }
 
+/* Keep final trust/disclosure content clear of the iOS home indicator while preserving ordinary footer spacing. */
+footer{
+  padding-bottom:calc(40px + env(safe-area-inset-bottom));
+}
+
 @supports (height: constant(safe-area-inset-top)){
   .topbar{
     height:calc(68px + constant(safe-area-inset-top));
     padding-top:constant(safe-area-inset-top);
     padding-left:max(5vw, constant(safe-area-inset-left));
     padding-right:max(5vw, constant(safe-area-inset-right));
+  }
+
+  footer{
+    padding-bottom:calc(40px + constant(safe-area-inset-bottom));
   }
 }
