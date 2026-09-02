@@ -180,6 +180,8 @@ function isPrivateHostname(hostname: string) {
 
 function safeHttpUrl(value: unknown) { const raw = String(value ?? "").trim(); if (!raw) return ""; try { const url = new URL(raw); if (url.protocol !== "http:" && url.protocol !== "https:") return ""; if (url.username || url.password || isPrivateHostname(url.hostname)) return ""; return url.toString(); } catch { return ""; } }
 function hostMatches(hostname: string, domain: string) { const host = hostname.toLowerCase().replace(/\.$/, ""); const normalizedDomain = domain.toLowerCase().replace(/\.$/, ""); return host === normalizedDomain || host.endsWith(`.${normalizedDomain}`); }
+function publisherHostnameKey(hostname: string) { return hostname.toLowerCase().replace(/\.$/, "").replace(/^www\./, ""); }
+function samePublisherHostname(left: string, right: string) { return publisherHostnameKey(left) === publisherHostnameKey(right); }
 function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
   const trustedDomains = trustedSourceDomains[source];
   try {
@@ -189,13 +191,15 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
     const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain));
     if (!trustedDomains) {
       if (sourceType === "direct") return "Unverified source";
-      if (!allowedAggregator) return source;
       const attribution = safeHttpUrl(sourceAttributionUrl);
       if (!attribution) return "Unverified source";
       const attributionUrl = new URL(attribution);
       if (attributionUrl.protocol !== "https:") return "Unverified source";
-      if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
-      return source;
+      if (allowedAggregator) {
+        if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
+        return source;
+      }
+      return samePublisherHostname(hostname, attributionUrl.hostname) ? source : "Unverified source";
     }
     const official = trustedDomains.some((domain) => hostMatches(hostname, domain));
     if (official) return source;
