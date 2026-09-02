@@ -6,6 +6,7 @@ export type VisitSnapshot = {
 
 const MAX_EVENT_IDS = 500;
 const MAX_ID_LENGTH = 160;
+const MAX_RAW_SNAPSHOT_LENGTH = 256 * 1024;
 const MAX_FUTURE_SKEW_MS = 5 * 60_000;
 const MAX_SNAPSHOT_AGE_MS = 48 * 60 * 60_000;
 const CANONICAL_ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -30,7 +31,7 @@ function canonicalVisitTimestamp(value: string) {
 }
 
 export function parseVisitSnapshot(raw: string | null, now = Date.now()): VisitSnapshot | null {
-  if (!raw) return null;
+  if (!raw || raw.length > MAX_RAW_SNAPSHOT_LENGTH) return null;
   try {
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
