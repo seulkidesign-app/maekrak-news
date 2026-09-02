@@ -12,15 +12,12 @@ const TRUSTED_CONFUSABLE_SKELETONS = new Set([
 ]);
 const TRUSTED_INITIALISM_IDENTITIES = new Set(["ap", "bbc", "kbs", "mbc", "sbs", "dw", "nhk"]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
-  // Cyrillic characters commonly used to visually impersonate Latin outlet names.
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
   "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
   "С": "C", "с": "c", "Т": "T", "т": "t", "Х": "X", "х": "x", "У": "Y", "у": "y",
   "І": "I", "і": "i", "Ј": "J", "ј": "j", "Ѕ": "S", "ѕ": "s", "Ԝ": "W", "ԝ": "w",
-  // Greek lookalikes used in the same spoofing class.
   "Α": "A", "α": "a", "Β": "B", "Ε": "E", "ε": "e", "Ζ": "Z", "Η": "H", "Ι": "I",
   "Κ": "K", "Μ": "M", "Ν": "N", "Ο": "O", "ο": "o", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
-  // Armenian lookalikes can bypass Greek/Cyrillic-only mixed-script defenses.
   "Օ": "O", "օ": "o", "Ս": "U", "ս": "u",
 };
 
@@ -66,16 +63,11 @@ function trustedBrandCombiningMarkSpoof(value: string) {
 function trustedBrandCompatibilitySpoof(value: string) {
   const folded = value.normalize("NFKC");
   if (folded === value) return false;
-
-  // Full-width ASCII publisher labels are an intentionally supported feed normalization.
-  // Any other compatibility code point that folds a label exactly onto a trusted brand
-  // (letterlike symbols, modifier letters, circled/math alphabets, etc.) is untrusted.
   const hasSuspiciousCompatibilityCharacter = [...value].some((character) => (
     character.normalize("NFKC") !== character
     && !/[\u3000\uFF01-\uFF5E]/u.test(character)
   ));
   if (!hasSuspiciousCompatibilityCharacter) return false;
-
   const skeleton = folded
     .toLocaleLowerCase("en-US")
     .replace(/\s+/g, " ")
@@ -96,8 +88,6 @@ function genericMixedScriptIdentitySkeleton(value: string) {
     if (/\p{L}/u.test(character) && !/\p{Script=Latin}/u.test(character)) hasUnmappedNonLatinLetter = true;
     return character;
   }).join("");
-  // Collapse only Latin-looking mixed-script variants whose non-Latin letters are all known visual confusables.
-  // Genuine multilingual names such as "Meduza Россия" retain their distinct identity.
   return sawMappedConfusable && !hasUnmappedNonLatinLetter ? skeleton : value;
 }
 
@@ -111,22 +101,19 @@ function canonicalUnknownOutletCase(value: string) {
 function placeholderOutletKey(value: string) {
   return value
     .toLocaleLowerCase("en-US")
-    // Combining marks embedded inside a placeholder can make the label look distinct
-    // while preserving the same human-readable trust meaning. Ignore them only for
-    // placeholder detection; legitimate accented outlet display names stay untouched.
+    // Decompose first so marks that NFKC composed into letters (for example o + acute -> ó)
+    // cannot evade placeholder detection. Recompose afterward so Hangul and other scripts
+    // retain their normal form. This transformation is used only for placeholder matching.
+    .normalize("NFD")
     .replace(/\p{M}+/gu, "")
+    .normalize("NFC")
     .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
-    // Placeholder labels are often machine-generated with arbitrary separators.
-    // Normalize separators only for placeholder detection so real outlet names keep their punctuation.
     .replace(/[\p{P}\p{S}_]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function placeholderWithRomanNumeralSuffix(value: string) {
-  // Unicode Roman numerals (Ⅱ, Ⅳ, etc.) NFKC-fold into ASCII letters, so they can
-  // bypass the decimal-suffix placeholder rule. Strip only an actual Roman-numeral
-  // code-point suffix from the original label, then test the remaining base.
   if (!/[\u2160-\u2188]/u.test(value)) return false;
   const base = value
     .replace(/(?:[\s\p{P}\p{S}]*)[\u2160-\u2188]+(?:[\s\p{P}\p{S}]*)$/u, "")
@@ -141,24 +128,17 @@ function compatibilityAsciiLetter(character: string) {
 }
 
 function placeholderWithCompatibilityLetterSuffix(value: string) {
-  // Modifier/subscript/circled/math/full-width letters and ligatures can NFKC-fold into
-  // ordinary ASCII letters and turn a placeholder into a seemingly distinct publisher.
-  // Strip only an actual compatibility-letter suffix from the untouched input, and only
-  // classify it as unverified when the remaining base is already a known placeholder.
   const characters = [...value.trim()];
   if (!characters.some(compatibilityAsciiLetter)) return false;
-
   let index = characters.length;
   while (
     index > 0
     && /[\s\p{P}\p{S}]/u.test(characters[index - 1])
     && !compatibilityAsciiLetter(characters[index - 1])
   ) index -= 1;
-
   let suffixStart = index;
   while (suffixStart > 0 && compatibilityAsciiLetter(characters[suffixStart - 1])) suffixStart -= 1;
   if (suffixStart === index) return false;
-
   const base = characters.slice(0, suffixStart).join("").replace(/[\s\p{P}\p{S}]+$/u, "").trim();
   if (!base) return false;
   return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
@@ -206,8 +186,6 @@ export function canonicalSourceName(value: string) {
   if (/^(al jazeera|al jazeera english)$/.test(lower)) return "Al Jazeera";
   if (/^(dw|deutsche welle)$/.test(lower)) return "DW";
   if (/^(nhk|nhk world|nhk world-japan)$/.test(lower)) return "NHK";
-  // Reject strings that resolve to a trusted-brand homoglyph, combining-mark, or compatibility spoof,
-  // but do not reject benign multilingual or accented outlet names in general.
   if (trustedBrandHomoglyphSpoof(raw) || trustedBrandCombiningMarkSpoof(raw) || TRUSTED_BRAND_TOKENS.test(raw)) return "Unverified source";
   return canonicalUnknownOutletCase(raw);
 }
@@ -218,14 +196,9 @@ export function outletIdentityKey(value: string) {
     .toLocaleLowerCase("en-US")
     .replace(/[\p{P}\p{S}\s]+/gu, "");
   if (TRUSTED_INITIALISM_IDENTITIES.has(compactInitialism)) return compactInitialism;
-
   return normalized
-    // Overlay marks can make the same visible outlet look like a distinct publisher identity.
-    // Remove only visual overlay marks here; keep ordinary accents and the displayed source name intact.
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
     .toLocaleLowerCase("en-US")
-    // Feed/source labels commonly alternate punctuation separators while naming the same publisher.
-    // Collapse low-semantic separators and Unicode slash lookalikes here so they cannot inflate independent-outlet counts.
     .replace(/[._\p{Pd}/:|\u2044\u2215]+/gu, " ")
     .replace(/[’‘ʼ']/g, "")
     .replace(/\s+/g, " ")
