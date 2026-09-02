@@ -11,9 +11,9 @@ const { sourceForLink } = __test;
 check("source-aware article URL validator is exported", typeof sourceForLink === "function");
 
 if (typeof sourceForLink === "function") {
-  // New attack class: an aggregated wrapper can currently attach any non-placeholder
-  // publisher label without proving a publisher attribution URL. Downstream code then
-  // treats that arbitrary label as verified evidence and can inflate sourceCount/trust UX.
+  // Aggregated wrappers need publisher attribution before an unknown outlet name can be
+  // treated as evidence. Direct-feed unknown labels are also not independently verified:
+  // a direct RSS channel can otherwise mint arbitrary outlet identities through <source>.
   check(
     "unknown outlet on Google News wrapper without publisher attribution is downgraded",
     sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated") === "Unverified source",
@@ -27,8 +27,8 @@ if (typeof sourceForLink === "function") {
     sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "Example News",
   );
   check(
-    "unknown outlet direct public article remains named without aggregator attribution",
-    sourceForLink("Example News", "https://example.com/story", "direct") === "Example News",
+    "unknown outlet claim from a direct feed is downgraded without a registered trust mapping",
+    sourceForLink("Example News", "https://example.com/story", "direct") === "Unverified source",
   );
 }
 
