@@ -118,6 +118,8 @@ jobs:
         run: node scripts/source-link-abuse.mjs
       - name: Aggregator unknown-source attribution abuse
         run: node scripts/aggregator-unknown-source-attribution-abuse.mjs
+      - name: Direct-feed source claim abuse
+        run: node scripts/direct-feed-source-claim-abuse.mjs
       - name: Transport downgrade abuse
         run: node scripts/transport-downgrade-abuse.mjs
       - name: Representation cache poisoning abuse
