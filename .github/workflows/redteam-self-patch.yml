@@ -1,0 +1,73 @@
+name: redteam-self-patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch publisher-bound identities and regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          news = Path('lib/news.ts')
+          text = news.read_text()
+          old = '''      if (allowedAggregator) {
+                if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
+                return source;
+              }
+              return samePublisherHostname(hostname, attributionUrl.hostname) ? source : "Unverified source";'''
+          new = '''      if (allowedAggregator) {
+                if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
+                return publisherHostnameKey(attributionUrl.hostname);
+              }
+              return samePublisherHostname(hostname, attributionUrl.hostname) ? publisherHostnameKey(hostname) : "Unverified source";'''
+          if old not in text:
+              raise SystemExit('sourceForLink patch target not found')
+          news.write_text(text.replace(old, new, 1))
+
+          p = Path('scripts/aggregator-unknown-source-attribution-abuse.mjs')
+          text = p.read_text()
+          old = '''  check(
+              "unknown outlet on Google News wrapper with HTTPS publisher attribution remains named",
+              sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "Example News",
+            );'''
+          new = '''  check(
+              "unknown outlet on Google News wrapper is bound to its HTTPS publisher hostname",
+              sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "example.com",
+            );'''
+          if old not in text:
+              raise SystemExit('aggregator attribution regression target not found')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('scripts/aggregated-direct-source-alias-abuse.mjs')
+          text = p.read_text()
+          old = '''  check(
+              "matching publisher attribution can preserve an unknown direct-link outlet name",
+              sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "Outlet Alpha",
+            );'''
+          new = '''  check(
+              "matching publisher attribution binds an unknown direct-link outlet to the publisher hostname",
+              sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "publisher.example",
+            );'''
+          if old not in text:
+              raise SystemExit('direct-link attribution regression target not found')
+          p.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add lib/news.ts scripts/aggregator-unknown-source-attribution-abuse.mjs scripts/aggregated-direct-source-alias-abuse.mjs
+          git commit -m "fix: bind unknown source identity to publisher hostname"
+          git push origin HEAD:main
