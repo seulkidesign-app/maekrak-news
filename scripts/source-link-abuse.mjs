@@ -27,7 +27,8 @@ if (typeof sourceForLink === "function") {
   check("Google News wrapper rejects unrelated publisher attribution", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com") === "Unverified source");
   check("Google News wrapper is not accepted for a direct-feed claim", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "direct", "https://www.reuters.com") === "Unverified source");
   check("BBC official UK domain stays trusted", sourceForLink("BBC", "https://www.bbc.co.uk/news/world-1", "direct") === "BBC");
-  check("unknown outlets keep safe public links without invented authority", sourceForLink("Example News", "https://example.com/story", "aggregated") === "Example News");
+  check("unknown aggregated direct-link outlet without attribution is downgraded", sourceForLink("Example News", "https://example.com/story", "aggregated") === "Unverified source");
+  check("unknown aggregated direct-link outlet with matching attribution keeps its name", sourceForLink("Example News", "https://example.com/story", "aggregated", "https://www.example.com/about") === "Example News");
 
   // New attack class: URL userinfo / credential smuggling.
   // Browsers parse the host after '@', while humans can easily read the prefix as the publisher.
