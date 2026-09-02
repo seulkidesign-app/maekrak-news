@@ -23,8 +23,8 @@ if (typeof sourceForLink === "function") {
     sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "javascript:alert(1)") === "Unverified source",
   );
   check(
-    "unknown outlet on Google News wrapper with HTTPS publisher attribution remains named",
-    sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "Example News",
+    "unknown outlet on Google News wrapper is bound to its HTTPS publisher hostname",
+    sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "example.com",
   );
   check(
     "unknown outlet claim from a direct feed is downgraded without a registered trust mapping",

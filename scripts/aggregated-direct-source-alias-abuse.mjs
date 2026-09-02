@@ -28,8 +28,8 @@ if (typeof sourceForLink === "function") {
   );
 
   check(
-    "matching publisher attribution can preserve an unknown direct-link outlet name",
-    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "Outlet Alpha",
+    "matching publisher attribution binds an unknown direct-link outlet to the publisher hostname",
+    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "publisher.example",
   );
 
   const articles = [

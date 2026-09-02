@@ -197,9 +197,9 @@ function sourceForLink(source: string, link: string, sourceType: Feed["sourceTyp
       if (attributionUrl.protocol !== "https:") return "Unverified source";
       if (allowedAggregator) {
         if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
-        return source;
+        return publisherHostnameKey(attributionUrl.hostname);
       }
-      return samePublisherHostname(hostname, attributionUrl.hostname) ? source : "Unverified source";
+      return samePublisherHostname(hostname, attributionUrl.hostname) ? publisherHostnameKey(hostname) : "Unverified source";
     }
     const official = trustedDomains.some((domain) => hostMatches(hostname, domain));
     if (official) return source;
