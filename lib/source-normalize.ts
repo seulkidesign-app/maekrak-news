@@ -111,6 +111,10 @@ function canonicalUnknownOutletCase(value: string) {
 function placeholderOutletKey(value: string) {
   return value
     .toLocaleLowerCase("en-US")
+    // Combining marks embedded inside a placeholder can make the label look distinct
+    // while preserving the same human-readable trust meaning. Ignore them only for
+    // placeholder detection; legitimate accented outlet display names stay untouched.
+    .replace(/\p{M}+/gu, "")
     .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
     // Placeholder labels are often machine-generated with arbitrary separators.
     // Normalize separators only for placeholder detection so real outlet names keep their punctuation.
