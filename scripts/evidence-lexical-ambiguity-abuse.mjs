@@ -59,7 +59,7 @@ check(
 );
 check(
   "soft-hyphen insertion cannot launder English uncertainty language",
-  classifyEvidence(article("Officials report\u00adedly plan emergency restrictions")) === "전망·추정",
+  classifyEvidence(article("Officials are report\u00adedly preparing emergency restrictions")) === "전망·추정",
 );
 check(
   "zero-width insertion cannot launder a Korean claim as factual reporting",
