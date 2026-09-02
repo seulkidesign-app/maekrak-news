@@ -19,6 +19,10 @@ if (typeof sourceForLink === "function") {
     sourceForLink("Example Wire", "https://attacker.example/story", "direct") === "Unverified source",
   );
   check(
+    "unknown outlet claim on a real direct-feed publisher domain is still not independently verified",
+    sourceForLink("Example Wire", "https://www.bbc.com/news/example", "direct") === "Unverified source",
+  );
+  check(
     "registered Reuters claim still requires an official Reuters domain",
     sourceForLink("Reuters", "https://attacker.example/story", "direct") === "Unverified source",
   );
