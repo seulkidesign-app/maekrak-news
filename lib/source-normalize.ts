@@ -1,5 +1,6 @@
 const TRUSTED_BRAND_TOKENS = /\b(reuters|associated press|ap news|yonhap|bbc|kbs|mbc|sbs|al jazeera|deutsche welle|dw|nhk)\b|연합뉴스/i;
 const PLACEHOLDER_OUTLET = /^(?:unknown|unknown source|source unknown|unverified source|source unavailable|unavailable source|n a|na|none|null|출처 없음|출처 불명|출처 미상|알 수 없음|미상|확인 불가)(?:\s*(?:\d+|\p{L}|(?=[\p{L}\p{N}]*\p{L})(?=[\p{L}\p{N}]*\p{N})[\p{L}\p{N}]+))?$/iu;
+const UNBOUND_AUTHORITY_LABEL = /^(?:afp|agence france-presse)$/i;
 const TRUSTED_CONFUSABLE_SKELETONS = new Set([
   "reuters", "reuters news",
   "ap", "ap news", "associated press", "the associated press",
@@ -172,6 +173,7 @@ export function canonicalSourceName(value: string) {
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
   if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)) return "Unverified source";
+  if (UNBOUND_AUTHORITY_LABEL.test(raw)) return "Unverified source";
   if (compatibilitySpoof) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
   if (/^(ap|ap news|associated press|the associated press)$/.test(lower)) return "AP";
