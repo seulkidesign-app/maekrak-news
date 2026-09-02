@@ -180,7 +180,33 @@ function isPrivateHostname(hostname: string) {
 
 function safeHttpUrl(value: unknown) { const raw = String(value ?? "").trim(); if (!raw) return ""; try { const url = new URL(raw); if (url.protocol !== "http:" && url.protocol !== "https:") return ""; if (url.username || url.password || isPrivateHostname(url.hostname)) return ""; return url.toString(); } catch { return ""; } }
 function hostMatches(hostname: string, domain: string) { const host = hostname.toLowerCase().replace(/\.$/, ""); const normalizedDomain = domain.toLowerCase().replace(/\.$/, ""); return host === normalizedDomain || host.endsWith(`.${normalizedDomain}`); }
-function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") { const trustedDomains = trustedSourceDomains[source]; if (!trustedDomains) return source; try { const url = new URL(link); if (url.protocol !== "https:") return "Unverified source"; const hostname = url.hostname; const official = trustedDomains.some((domain) => hostMatches(hostname, domain)); if (official) return source; const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain)); if (!allowedAggregator) return "Unverified source"; const attribution = safeHttpUrl(sourceAttributionUrl); if (!attribution) return "Unverified source"; const attributionUrl = new URL(attribution); if (attributionUrl.protocol !== "https:") return "Unverified source"; const attributionHostname = attributionUrl.hostname; return trustedDomains.some((domain) => hostMatches(attributionHostname, domain)) ? source : "Unverified source"; } catch { return "Unverified source"; } }
+function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
+  const trustedDomains = trustedSourceDomains[source];
+  try {
+    const url = new URL(link);
+    if (url.protocol !== "https:") return "Unverified source";
+    const hostname = url.hostname;
+    const allowedAggregator = sourceType === "aggregated" && allowedAggregatorDomains.some((domain) => hostMatches(hostname, domain));
+    if (!trustedDomains) {
+      if (!allowedAggregator) return source;
+      const attribution = safeHttpUrl(sourceAttributionUrl);
+      if (!attribution) return "Unverified source";
+      const attributionUrl = new URL(attribution);
+      if (attributionUrl.protocol !== "https:") return "Unverified source";
+      if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
+      return source;
+    }
+    const official = trustedDomains.some((domain) => hostMatches(hostname, domain));
+    if (official) return source;
+    if (!allowedAggregator) return "Unverified source";
+    const attribution = safeHttpUrl(sourceAttributionUrl);
+    if (!attribution) return "Unverified source";
+    const attributionUrl = new URL(attribution);
+    if (attributionUrl.protocol !== "https:") return "Unverified source";
+    const attributionHostname = attributionUrl.hostname;
+    return trustedDomains.some((domain) => hostMatches(attributionHostname, domain)) ? source : "Unverified source";
+  } catch { return "Unverified source"; }
+}
 
 const rfcMonths: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 function isValidCalendarParts(year: number, month: number, day: number) { if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return false; if (month < 1 || month > 12 || day < 1) return false; return day <= new Date(Date.UTC(year, month, 0)).getUTCDate(); }
