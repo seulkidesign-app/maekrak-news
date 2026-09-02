@@ -122,6 +122,8 @@ jobs:
         run: node scripts/url-parser-differential-abuse.mjs
       - name: Aggregator unknown-source attribution abuse
         run: node scripts/aggregator-unknown-source-attribution-abuse.mjs
+      - name: Aggregator publisher alias inflation abuse
+        run: node scripts/aggregator-publisher-alias-inflation-abuse.mjs
       - name: Direct-feed source claim abuse
         run: node scripts/direct-feed-source-claim-abuse.mjs
       - name: Wire-role attribution laundering abuse
