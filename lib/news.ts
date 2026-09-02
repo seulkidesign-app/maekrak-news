@@ -184,6 +184,7 @@ function publisherHostnameKey(hostname: string) { return hostname.toLowerCase().
 function samePublisherHostname(left: string, right: string) { return publisherHostnameKey(left) === publisherHostnameKey(right); }
 function sourceForLink(source: string, link: string, sourceType: Feed["sourceType"], sourceAttributionUrl = "") {
   const trustedDomains = trustedSourceDomains[source];
+  if (source === "Unverified source") return "Unverified source";
   try {
     const url = new URL(link);
     if (url.protocol !== "https:") return "Unverified source";
