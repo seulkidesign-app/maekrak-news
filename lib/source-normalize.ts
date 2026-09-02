@@ -131,22 +131,30 @@ function placeholderWithRomanNumeralSuffix(value: string) {
   return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
 }
 
+function compatibilityAsciiLetter(character: string) {
+  const folded = character.normalize("NFKC");
+  return folded !== character && /^[A-Za-z]+$/.test(folded);
+}
+
 function placeholderWithCompatibilityLetterSuffix(value: string) {
-  // Circled and mathematical alphabet glyphs NFKC-fold into ordinary ASCII letters.
-  // Treat them as machine-generated placeholder suffixes only when the untouched base
-  // is itself a placeholder, so legitimate names such as "Channel News Ⓐ" survive.
-  const compatibilityLetter = /[\u24B6-\u24E9\u{1D400}-\u{1D6A3}]/u;
-  if (!compatibilityLetter.test(value)) return false;
+  // Modifier/subscript/circled/math/full-width letters and ligatures can NFKC-fold into
+  // ordinary ASCII letters and turn a placeholder into a seemingly distinct publisher.
+  // Strip only an actual compatibility-letter suffix from the untouched input, and only
+  // classify it as unverified when the remaining base is already a known placeholder.
   const characters = [...value.trim()];
+  if (!characters.some(compatibilityAsciiLetter)) return false;
+
   let index = characters.length;
   while (
     index > 0
     && /[\s\p{P}\p{S}]/u.test(characters[index - 1])
-    && !compatibilityLetter.test(characters[index - 1])
+    && !compatibilityAsciiLetter(characters[index - 1])
   ) index -= 1;
+
   let suffixStart = index;
-  while (suffixStart > 0 && compatibilityLetter.test(characters[suffixStart - 1])) suffixStart -= 1;
+  while (suffixStart > 0 && compatibilityAsciiLetter(characters[suffixStart - 1])) suffixStart -= 1;
   if (suffixStart === index) return false;
+
   const base = characters.slice(0, suffixStart).join("").replace(/[\s\p{P}\p{S}]+$/u, "").trim();
   if (!base) return false;
   return PLACEHOLDER_OUTLET.test(placeholderOutletKey(normalizeExternalText(base)));
