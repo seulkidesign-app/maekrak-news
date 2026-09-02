@@ -23,6 +23,27 @@ check("invalid savedAt is rejected", parseVisitSnapshot(JSON.stringify({ savedAt
 check("oversized ID arrays are rejected", parseVisitSnapshot(JSON.stringify({ savedAt: new Date().toISOString(), eventIds: Array.from({ length: 501 }, (_, i) => `evt_${i}`), priorityEventIds: [] })) === null);
 check("oversized individual IDs are rejected", parseVisitSnapshot(JSON.stringify({ savedAt: new Date().toISOString(), eventIds: ["x".repeat(161)], priorityEventIds: [] })) === null);
 
+const oversizedPayload = JSON.stringify({
+  savedAt: new Date().toISOString(),
+  eventIds: [],
+  priorityEventIds: [],
+  padding: "x".repeat(2 * 1024 * 1024),
+});
+const originalJsonParse = JSON.parse;
+let oversizedParseCalls = 0;
+JSON.parse = function guardedParse(...args) {
+  oversizedParseCalls += 1;
+  return originalJsonParse.apply(this, args);
+};
+let oversizedResult;
+try {
+  oversizedResult = parseVisitSnapshot(oversizedPayload);
+} finally {
+  JSON.parse = originalJsonParse;
+}
+check("oversized raw snapshot is rejected", oversizedResult === null);
+check("oversized raw snapshot is rejected before JSON.parse", oversizedParseCalls === 0);
+
 const now = Date.now();
 const previous = {
   savedAt: new Date(now - 60 * 60_000).toISOString(),
