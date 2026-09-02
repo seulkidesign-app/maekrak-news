@@ -110,6 +110,8 @@ jobs:
         run: node scripts/placeholder-combining-mark-abuse.mjs
       - name: Numbered placeholder outlet inflation abuse
         run: node scripts/numbered-placeholder-outlet-abuse.mjs
+      - name: ASCII placeholder suffix abuse
+        run: node scripts/ascii-placeholder-suffix-abuse.mjs
       - name: Separator placeholder outlet inflation abuse
         run: node scripts/separator-placeholder-outlet-abuse.mjs
       - name: Source-link trust abuse
