@@ -19,44 +19,30 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           news = Path('lib/news.ts')
           text = news.read_text()
-          pattern = re.compile(r'''if \(allowedAggregator\) \{\n\s+if \(allowedAggregatorDomains\.some\(\(domain\) => hostMatches\(attributionUrl\.hostname, domain\)\)\) return "Unverified source";\n\s+return source;\n\s+\}\n\s+return samePublisherHostname\(hostname, attributionUrl\.hostname\) \? source : "Unverified source";''')
-          replacement = '''if (allowedAggregator) {
-        if (allowedAggregatorDomains.some((domain) => hostMatches(attributionUrl.hostname, domain))) return "Unverified source";
-        return publisherHostnameKey(attributionUrl.hostname);
-      }
-      return samePublisherHostname(hostname, attributionUrl.hostname) ? publisherHostnameKey(hostname) : "Unverified source";'''
-          text, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'sourceForLink patch count={count}')
-          news.write_text(text)
+          old = '        return source;\n      }\n      return samePublisherHostname(hostname, attributionUrl.hostname) ? source : "Unverified source";'
+          new = '        return publisherHostnameKey(attributionUrl.hostname);\n      }\n      return samePublisherHostname(hostname, attributionUrl.hostname) ? publisherHostnameKey(hostname) : "Unverified source";'
+          if old not in text:
+              raise SystemExit('sourceForLink patch target not found')
+          news.write_text(text.replace(old, new, 1))
 
           p = Path('scripts/aggregator-unknown-source-attribution-abuse.mjs')
           text = p.read_text()
-          text, count = re.subn(
-              r'"unknown outlet on Google News wrapper with HTTPS publisher attribution remains named",\n\s+sourceForLink\("Example News", "https://news\.google\.com/rss/articles/example", "aggregated", "https://example\.com/news"\) === "Example News",',
-              '"unknown outlet on Google News wrapper is bound to its HTTPS publisher hostname",\n    sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "example.com",',
-              text,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit(f'aggregator regression patch count={count}')
-          p.write_text(text)
+          old = '"unknown outlet on Google News wrapper with HTTPS publisher attribution remains named",\n    sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "Example News",'
+          new = '"unknown outlet on Google News wrapper is bound to its HTTPS publisher hostname",\n    sourceForLink("Example News", "https://news.google.com/rss/articles/example", "aggregated", "https://example.com/news") === "example.com",'
+          if old not in text:
+              raise SystemExit('aggregator regression patch target not found')
+          p.write_text(text.replace(old, new, 1))
 
           p = Path('scripts/aggregated-direct-source-alias-abuse.mjs')
           text = p.read_text()
-          text, count = re.subn(
-              r'"matching publisher attribution can preserve an unknown direct-link outlet name",\n\s+sourceForLink\("Outlet Alpha", linkA, "aggregated", "https://publisher\.example/about"\) === "Outlet Alpha",',
-              '"matching publisher attribution binds an unknown direct-link outlet to the publisher hostname",\n    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "publisher.example",',
-              text,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit(f'direct-link regression patch count={count}')
-          p.write_text(text)
+          old = '"matching publisher attribution can preserve an unknown direct-link outlet name",\n    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "Outlet Alpha",'
+          new = '"matching publisher attribution binds an unknown direct-link outlet to the publisher hostname",\n    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "publisher.example",'
+          if old not in text:
+              raise SystemExit('direct-link regression patch target not found')
+          p.write_text(text.replace(old, new, 1))
           PY
       - name: Commit patch
         run: |
