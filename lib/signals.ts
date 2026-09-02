@@ -18,6 +18,18 @@ const nonAssertionClaimNouns = [
 ];
 const nonAssertionStatements = /\b(?:financial|income|bank|account)\s+statements?\b/gi;
 
+// Feed text can contain default-ignorable Unicode code points (zero-width spaces,
+// word joiners, soft hyphens, variation selectors, etc.). They are nearly invisible
+// to readers but can split epistemic markers such as "claims", "reportedly", "주장",
+// or "검토" and launder cautious language into the factual-looking "일반 보도" label.
+// Normalize compatibility forms and remove those invisible separators before any
+// trust classification. This is intentionally scoped to classification text only.
+function normalizeEvidenceText(text: string) {
+  return text
+    .normalize("NFKC")
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, "");
+}
+
 // Korean morphemes used for uncertainty can also appear inside ordinary nouns.
 // Mask narrow, clearly non-epistemic senses before applying the uncertainty rules:
 // - 전망대: an observation deck / observatory, not a forecast
@@ -55,7 +67,7 @@ function hasClaimLanguage(text: string) {
 }
 
 export function classifyEvidence(article: NewsItem): EvidenceLabel {
-  const text = `${article.title} ${article.description}`;
+  const text = normalizeEvidenceText(`${article.title} ${article.description}`);
   if (hasUncertaintyLanguage(text)) return "전망·추정";
   if (hasClaimLanguage(text)) return "발언·주장";
   return "일반 보도";
