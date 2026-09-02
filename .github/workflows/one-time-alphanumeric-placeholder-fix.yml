@@ -19,7 +19,7 @@ jobs:
 
           source = Path('lib/source-normalize.ts')
           text = source.read_text()
-          marker = '''function normalizeUnicodeDecimalDigits(value: string) {'''
+          marker = 'function normalizeUnicodeDecimalDigits(value: string) {'
           helper = '''function placeholderWithAlphanumericSuffix(value: string) {
             const match = value.trim().match(/[\\s\\p{P}\\p{S}]+(?:[A-Za-z]*\\d+[A-Za-z\\d]*|\\d+[A-Za-z][A-Za-z\\d]*)$/u);
             if (!match || match.index == null) return false;
@@ -29,43 +29,36 @@ jobs:
           }
 
           '''
-          if helper not in text:
+          if 'function placeholderWithAlphanumericSuffix' not in text:
             if marker not in text:
               raise SystemExit('source helper insertion marker not found')
             text = text.replace(marker, helper + marker, 1)
-          old = '''PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)'''
-          new = '''PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original) || placeholderWithAlphanumericSuffix(raw)'''
-          if old not in text:
-            raise SystemExit('canonical placeholder condition not found')
-          text = text.replace(old, new, 1)
+          old = 'PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)'
+          new = old + ' || placeholderWithAlphanumericSuffix(raw)'
+          if new not in text:
+            if old not in text:
+              raise SystemExit('canonical placeholder condition not found')
+            text = text.replace(old, new, 1)
           source.write_text(text)
 
           test = Path('scripts/alphanumeric-placeholder-suffix-abuse.mjs')
           text = test.read_text()
-          old = '''check("ordinary outlet names containing alphanumeric tokens remain preserved",
-            canonicalSourceName("Studio 54") === "Studio 54" &&
-            canonicalSourceName("Channel A1") === "Channel A1" &&
-            canonicalSourceName("Newsroom 2026A") === "Newsroom 2026A");'''
-          new = '''const benignAlphanumericOutlets = ["Studio 54", "Channel A1", "Newsroom 2026A"];
-          check("ordinary outlet names containing alphanumeric tokens remain preserved",
-            benignAlphanumericOutlets.every((value) => canonicalSourceName(value) !== "Unverified source") &&
-            canonicalOutletCount(benignAlphanumericOutlets.map((source) => ({ source }))) === 3);'''
-          if old not in text:
-            raise SystemExit('benign regression block not found')
-          test.write_text(text.replace(old, new, 1))
+          start = 'check("ordinary outlet names containing alphanumeric tokens remain preserved",\n  canonicalSourceName("Studio 54") === "Studio 54" &&\n  canonicalSourceName("Channel A1") === "Channel A1" &&\n  canonicalSourceName("Newsroom 2026A") === "Newsroom 2026A");'
+          replacement = 'const benignAlphanumericOutlets = ["Studio 54", "Channel A1", "Newsroom 2026A"];\ncheck("ordinary outlet names containing alphanumeric tokens remain preserved",\n  benignAlphanumericOutlets.every((value) => canonicalSourceName(value) !== "Unverified source") &&\n  canonicalOutletCount(benignAlphanumericOutlets.map((source) => ({ source }))) === 3);'
+          if replacement not in text:
+            if start not in text:
+              raise SystemExit('benign regression block not found')
+            text = text.replace(start, replacement, 1)
+          test.write_text(text)
 
           workflow = Path('.github/workflows/adversarial-e2e.yml')
           text = workflow.read_text()
-          anchor = '''      - name: ASCII placeholder suffix abuse
-            run: node scripts/ascii-placeholder-suffix-abuse.mjs
-          '''
-          addition = '''      - name: Alphanumeric placeholder suffix abuse
-            run: node scripts/alphanumeric-placeholder-suffix-abuse.mjs
-          '''
-          if addition not in text:
+          anchor = '      - name: Separator placeholder outlet inflation abuse'
+          addition = '      - name: Alphanumeric placeholder suffix abuse\n        run: node scripts/alphanumeric-placeholder-suffix-abuse.mjs\n'
+          if 'node scripts/alphanumeric-placeholder-suffix-abuse.mjs' not in text:
             if anchor not in text:
               raise SystemExit('CI insertion anchor not found')
-            text = text.replace(anchor, anchor + addition, 1)
+            text = text.replace(anchor, addition + anchor, 1)
           workflow.write_text(text)
           PY
           git rm .github/workflows/one-time-alphanumeric-placeholder-probe.yml
