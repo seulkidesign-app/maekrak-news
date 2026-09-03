@@ -127,7 +127,7 @@ function highImpactSignalText(text: string) { return text.replace(/\bwar memoria
 function isHighImpact(text: string) { const signalText = highImpactSignalText(text); return highImpactPattern.test(signalText) || leaderDeathPattern.test(signalText); }
 function safeCodePoint(raw: string, radix: number) { const value = Number.parseInt(raw, radix); return Number.isInteger(value) && value >= 0 && value <= 0x10ffff ? String.fromCodePoint(value) : "�"; }
 function decodeEntities(value: string) { return value.replace(/&#(\d+);/g, (_, code) => safeCodePoint(code, 10)).replace(/&#x([0-9a-f]+);/gi, (_, code) => safeCodePoint(code, 16)).replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " "); }
-function clean(value: unknown, maxLength = 4000) { const withoutMarkup = decodeEntities(String(value ?? "")).replace(/<[^>]*>/g, " ").replace(/^[▲△▶►◆■●]\s*/, ""); return normalizeExternalText(withoutMarkup).slice(0, maxLength); }
+function clean(value: unknown, maxLength = 4000) { const withoutMarkup = decodeEntities(String(value ?? "")).replace(/<[^>]*>/g, " ").replace(/^[▲△▶►◆■●]\s*/, ""); const normalized = normalizeExternalText(withoutMarkup); if (normalized.length <= maxLength) return normalized; const truncated = normalized.slice(0, maxLength); const lastCodeUnit = truncated.charCodeAt(truncated.length - 1); return lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff ? truncated.slice(0, -1) : truncated; }
 function asArray<T>(value: T | T[] | undefined): T[] { if (!value) return []; return Array.isArray(value) ? value : [value]; }
 function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
