@@ -161,6 +161,7 @@ function normalizeArabicScriptNumericGlyphs(value: string) {
 
 export function normalizeExternalText(value: unknown) {
   return normalizeArabicScriptNumericGlyphs(String(value ?? "").normalize("NFKC"))
+    .replace(/[\uD800-\uDFFF]/gu, "�")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
     .replace(/\p{Default_Ignorable_Code_Point}+/gu, "")
     .replace(/\s+/g, " ")
