@@ -173,6 +173,7 @@ export function canonicalSourceName(value: string) {
   const original = input.trim();
   const compatibilitySpoof = trustedBrandCompatibilitySpoof(original);
   const raw = normalizeExternalText(original);
+  if (raw.length > MAX_SOURCE_LABEL_LENGTH) return "Unverified source";
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
   if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)) return "Unverified source";
