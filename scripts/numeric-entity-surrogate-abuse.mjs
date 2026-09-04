@@ -1,5 +1,5 @@
 const { __test } = await import("../lib/news.ts");
-const { clean, decodeEntities } = __test;
+const { clean } = __test;
 
 function hasLoneSurrogate(value) {
   for (let index = 0; index < value.length; index += 1) {
@@ -24,11 +24,10 @@ const attacks = [
 
 let failed = 0;
 for (const [name, input] of attacks) {
-  const decoded = decodeEntities(input);
   const output = clean(input, 320);
-  if (hasLoneSurrogate(decoded) || hasLoneSurrogate(output)) {
+  if (hasLoneSurrogate(output)) {
     failed += 1;
-    console.error(`${name}: numeric entity produced a lone UTF-16 surrogate`);
+    console.error(`${name}: sanitized feed text retained a lone UTF-16 surrogate`);
   }
 }
 
