@@ -64,6 +64,8 @@ jobs:
         run: node scripts/unverified-cluster-poisoning-abuse.mjs
       - name: Directional role reversal abuse
         run: node scripts/directional-role-reversal-abuse.mjs
+      - name: Directional event ID collision abuse
+        run: node scripts/directional-event-id-collision-abuse.mjs
       - name: Korea entity boundary abuse
         run: node scripts/korea-entity-boundary-abuse.mjs
       - name: IPv6 URL boundary abuse
