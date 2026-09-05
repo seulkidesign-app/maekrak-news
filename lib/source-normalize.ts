@@ -13,6 +13,7 @@ const TRUSTED_CONFUSABLE_SKELETONS = new Set([
   "nhk", "nhk world", "nhk world-japan",
 ]);
 const TRUSTED_INITIALISM_IDENTITIES = new Set(["ap", "bbc", "kbs", "mbc", "sbs", "dw", "nhk"]);
+const MULTI_TENANT_PUBLIC_SUFFIXES = new Set(["github.io", "pages.dev", "vercel.app", "netlify.app", "blogspot.com"]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
   "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
@@ -166,7 +167,12 @@ function publisherLikeDomainKey(value: string) {
   if (labels.length < 3) return hostname;
   const tld = labels.at(-1)!;
   const secondLevel = labels.at(-2)!;
-  const registrableLabelCount = tld.length === 2 && secondLevel.length <= 3 && labels.length >= 3 ? 3 : 2;
+  const twoLabelSuffix = labels.slice(-2).join(".");
+  const registrableLabelCount = MULTI_TENANT_PUBLIC_SUFFIXES.has(twoLabelSuffix)
+    ? 3
+    : tld.length === 2 && secondLevel.length <= 3 && labels.length >= 3
+      ? 3
+      : 2;
   return labels.slice(-registrableLabelCount).join(".");
 }
 
