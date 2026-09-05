@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:e2e": "node scripts/aggregator-subdomain-inflation-abuse.mjs && node scripts/numeric-entity-surrogate-abuse.mjs && node scripts/unicode-truncation-boundary-abuse.mjs && node scripts/source-normalization-expansion-abuse.mjs && node scripts/oversized-source-label-abuse.mjs && node scripts/aggregated-direct-source-alias-abuse.mjs && node scripts/e2e-abuse.mjs",
+    "test:e2e": "node scripts/multitenant-publisher-collision-abuse.mjs && node scripts/aggregator-subdomain-inflation-abuse.mjs && node scripts/numeric-entity-surrogate-abuse.mjs && node scripts/unicode-truncation-boundary-abuse.mjs && node scripts/source-normalization-expansion-abuse.mjs && node scripts/oversized-source-label-abuse.mjs && node scripts/aggregated-direct-source-alias-abuse.mjs && node scripts/e2e-abuse.mjs",
     "test:visual": "node scripts/visual-abuse.mjs && node scripts/keyboard-trust-focus-abuse.mjs"
   },
   "dependencies": {
