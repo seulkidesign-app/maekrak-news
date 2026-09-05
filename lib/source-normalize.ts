@@ -159,6 +159,17 @@ function normalizeArabicScriptNumericGlyphs(value: string) {
     .replace(/٬/g, ",");
 }
 
+function publisherLikeDomainKey(value: string) {
+  const hostname = value.toLocaleLowerCase("en-US").replace(/\.$/, "");
+  if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(hostname)) return value;
+  const labels = hostname.split(".");
+  if (labels.length < 3) return hostname;
+  const tld = labels.at(-1)!;
+  const secondLevel = labels.at(-2)!;
+  const registrableLabelCount = tld.length === 2 && secondLevel.length <= 3 && labels.length >= 3 ? 3 : 2;
+  return labels.slice(-registrableLabelCount).join(".");
+}
+
 export function normalizeExternalText(value: unknown) {
   return normalizeArabicScriptNumericGlyphs(String(value ?? "").normalize("NFKC"))
     .replace(/[\uD800-\uDFFF]/gu, "�")
@@ -196,11 +207,12 @@ export function canonicalSourceName(value: string) {
 
 export function outletIdentityKey(value: string) {
   const normalized = normalizeExternalText(genericMixedScriptIdentitySkeleton(stripDecorativeOuterWrappers(canonicalSourceName(value))));
-  const compactInitialism = normalized
+  const publisherDomain = publisherLikeDomainKey(normalized);
+  const compactInitialism = publisherDomain
     .toLocaleLowerCase("en-US")
     .replace(/[\p{P}\p{S}\s]+/gu, "");
   if (TRUSTED_INITIALISM_IDENTITIES.has(compactInitialism)) return compactInitialism;
-  return normalized
+  return publisherDomain
     .replace(/[\u0334-\u0338\u20D2\u20D3\u20E5\u20E6]+/g, "")
     .toLocaleLowerCase("en-US")
     .replace(/[._\p{Pd}/:|\u00B7\u2022\u2027\u2044\u2215\u2219\u22C5]+/gu, " ")
