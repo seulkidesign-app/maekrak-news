@@ -6,6 +6,7 @@ function check(name, condition) {
 }
 
 const { __test } = await import("../lib/news.ts");
+const { outletIdentityKey } = await import("../lib/source-normalize.ts");
 const { sourceForLink, verifiedSourceCount, selectionReasons, importanceFor } = __test;
 
 check("source-aware validator is exported", typeof sourceForLink === "function");
@@ -29,8 +30,8 @@ if (typeof sourceForLink === "function") {
   );
 
   check(
-    "one publisher cannot mint multiple verified identities with controlled subdomains",
-    sourceA === sourceB,
+    "controlled subdomains collapse to one publisher identity",
+    outletIdentityKey(sourceA) === outletIdentityKey(sourceB),
   );
 
   const articles = [
@@ -77,7 +78,10 @@ if (typeof sourceForLink === "function") {
     "aggregated",
     "https://m.publisher.co.uk/about",
   );
-  check("common ccTLD publisher subdomains also collapse", ccSourceA === ccSourceB);
+  check(
+    "common ccTLD publisher subdomains also collapse",
+    outletIdentityKey(ccSourceA) === outletIdentityKey(ccSourceB),
+  );
 
   const differentPublisher = sourceForLink(
     "Outlet Epsilon",
@@ -85,7 +89,10 @@ if (typeof sourceForLink === "function") {
     "aggregated",
     "https://desk.other-publisher.example/about",
   );
-  check("different registrable publishers remain distinguishable", differentPublisher !== sourceA);
+  check(
+    "different registrable publishers remain distinguishable",
+    outletIdentityKey(differentPublisher) !== outletIdentityKey(sourceA),
+  );
 }
 
 console.log(`\nAggregator subdomain inflation abuse: ${passes.length} passed / ${failures.length} failed`);
