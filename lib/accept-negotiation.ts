@@ -1,5 +1,16 @@
 export function acceptsMarkdown(accept: string) {
-  return accept.split(",").some((entry) => {
+  const entries = accept.split(",");
+  const markdownEntries = entries.filter((entry) => {
+    const [rawType] = entry.split(";");
+    return rawType.trim().toLowerCase() === "text/markdown";
+  });
+
+  // Repeated media ranges with different (or even identical) qvalues can be
+  // interpreted inconsistently by intermediaries. For the alternate markdown
+  // representation, fail closed rather than risk representation/cache confusion.
+  if (markdownEntries.length > 1) return false;
+
+  return entries.some((entry) => {
     const [rawType, ...rawParams] = entry.split(";");
     if (rawType.trim().toLowerCase() !== "text/markdown") return false;
 
