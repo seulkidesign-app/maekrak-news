@@ -39,9 +39,26 @@ check(
   new Set([...dashVariants, ...apostropheVariants].map((item) => outletIdentityKey(item.source))).size === 2,
 );
 
+const domainDelimiterVariants = [
+  { source: "desk.publisher.example" },
+  { source: "desk.publisher。example" },
+  { source: "desk.publisher｡example" },
+];
+
+check(
+  "Unicode hostname dot aliases cannot inflate one publisher into several",
+  canonicalOutletCount(domainDelimiterVariants) === 1,
+  `identities=${domainDelimiterVariants.map((item) => outletIdentityKey(item.source)).join(" | ")}`,
+);
+
 check(
   "genuinely different outlet names remain distinct",
   canonicalOutletCount([{ source: "Example-News" }, { source: "Example-Times" }]) === 2,
+);
+
+check(
+  "different registrable publisher domains remain distinct",
+  canonicalOutletCount([{ source: "desk.publisher.example" }, { source: "desk.other.example" }]) === 2,
 );
 
 console.log(`\nUnicode punctuation outlet abuse: ${passes.length} passed / ${failures.length} failed`);
