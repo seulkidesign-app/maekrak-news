@@ -29,6 +29,13 @@ const realConflict = auditEventAccuracy(event([
 ]));
 check("real latest cross-publisher numeric conflict remains visible", realConflict.headlineNumberDifference, JSON.stringify(realConflict.numberExamples));
 
+const sameOutletAliasConflict = auditEventAccuracy(event([
+  article("Example News", "Central bank cuts rate by 0.5%", "2026-08-30T10:05:00.000Z"),
+  article("Example-News", "Correction: Central bank cuts rate by 0.25%", "2026-08-30T10:42:00.000Z"),
+]));
+check("punctuation aliases of one outlet do not inflate accuracy outlet count", sameOutletAliasConflict.outletCount === 1, String(sameOutletAliasConflict.outletCount));
+check("same-outlet alias correction cannot manufacture a cross-publisher numeric conflict", !sameOutletAliasConflict.headlineNumberDifference, JSON.stringify(sameOutletAliasConflict.numberExamples));
+
 console.log(`Accuracy correction abuse: ${passes.length} passed / ${failures.length} failed`);
 passes.forEach(name => console.log(`PASS  ${name}`));
 failures.forEach(name => console.error(`FAIL  ${name}`));
