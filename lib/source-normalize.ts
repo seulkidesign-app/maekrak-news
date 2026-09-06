@@ -13,7 +13,10 @@ const TRUSTED_CONFUSABLE_SKELETONS = new Set([
   "nhk", "nhk world", "nhk world-japan",
 ]);
 const TRUSTED_INITIALISM_IDENTITIES = new Set(["ap", "bbc", "kbs", "mbc", "sbs", "dw", "nhk"]);
-const MULTI_TENANT_PUBLIC_SUFFIXES = new Set(["github.io", "pages.dev", "vercel.app", "netlify.app", "blogspot.com"]);
+const MULTI_TENANT_PUBLIC_SUFFIXES = new Set([
+  "github.io", "pages.dev", "vercel.app", "netlify.app", "blogspot.com",
+  "substack.com", "wordpress.com",
+]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
   "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
