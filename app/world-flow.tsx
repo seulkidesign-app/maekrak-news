@@ -1,6 +1,7 @@
 import { getDisplayArticle, type NewsEvent } from "@/lib/news";
 import type { Language } from "@/lib/i18n";
 import { translateToKorean } from "@/lib/translate";
+import { canonicalSourceName } from "@/lib/source-normalize";
 import { dailyMemoryLine, koreaImpact, type WorldFlow } from "@/lib/world-briefing";
 import { TrustLegend } from "./trust-panel";
 
@@ -88,9 +89,10 @@ function flowSources(flow: WorldFlow, events: NewsEvent[]) {
   const links: Array<{ source: string; link: string }> = [];
   flowEvents(flow, events).forEach((event) => {
     event.articles.forEach((article) => {
-      if (!seen.has(article.source)) {
-        seen.add(article.source);
-        links.push({ source: article.source, link: article.link });
+      const normalizedSource = canonicalSourceName(article.source);
+      if (!seen.has(normalizedSource)) {
+        seen.add(normalizedSource);
+        links.push({ source: normalizedSource, link: article.link });
       }
     });
   });
