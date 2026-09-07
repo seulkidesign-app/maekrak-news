@@ -163,6 +163,22 @@ function normalizeArabicScriptNumericGlyphs(value: string) {
     .replace(/٬/g, ",");
 }
 
+function isIpLiteralSource(value: string) {
+  const candidate = value.replace(/[。｡．]/g, ".").replace(/\.$/, "");
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(candidate)) {
+    return candidate.split(".").every((part) => Number(part) <= 255);
+  }
+  const bareIpv6 = candidate.startsWith("[") && candidate.endsWith("]")
+    ? candidate.slice(1, -1)
+    : candidate;
+  if (!bareIpv6.includes(":") || !/^[0-9a-f:.]+$/i.test(bareIpv6)) return false;
+  try {
+    return new URL(`http://[${bareIpv6}]`).hostname.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function publisherLikeDomainKey(value: string) {
   const candidate = value
     .toLocaleLowerCase("en-US")
@@ -210,6 +226,7 @@ export function canonicalSourceName(value: string) {
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
   if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)) return "Unverified source";
+  if (isIpLiteralSource(raw)) return "Unverified source";
   if (UNBOUND_AUTHORITY_LABEL.test(raw)) return "Unverified source";
   if (compatibilitySpoof) return "Unverified source";
   if (/^(reuters|reuters news)$/.test(lower)) return "Reuters";
