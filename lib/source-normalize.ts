@@ -164,10 +164,19 @@ function normalizeArabicScriptNumericGlyphs(value: string) {
 }
 
 function publisherLikeDomainKey(value: string) {
-  const hostname = value
+  const candidate = value
     .toLocaleLowerCase("en-US")
     .replace(/[。｡．]/g, ".")
     .replace(/\.$/, "");
+  if (!candidate.includes(".") || /[\/\\?#@:\s]/u.test(candidate)) return value;
+
+  let hostname: string;
+  try {
+    hostname = new URL(`http://${candidate}`).hostname.replace(/\.$/, "");
+  } catch {
+    return value;
+  }
+
   if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(hostname)) return value;
   const labels = hostname.split(".");
   if (labels.length < 3) return hostname;
