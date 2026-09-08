@@ -165,8 +165,16 @@ function normalizeArabicScriptNumericGlyphs(value: string) {
 
 function isIpLiteralSource(value: string) {
   const candidate = value.replace(/[。｡．]/g, ".").replace(/\.$/, "");
-  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(candidate)) {
-    return candidate.split(".").every((part) => Number(part) <= 255);
+  const legacyIpv4Syntax = /^(?:(?:0x[0-9a-f]+)|\d+)(?:\.(?:(?:0x[0-9a-f]+)|\d+)){0,3}$/i;
+  if (legacyIpv4Syntax.test(candidate)) {
+    try {
+      const hostname = new URL(`http://${candidate}`).hostname.replace(/\.$/, "");
+      if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
+        return hostname.split(".").every((part) => Number(part) <= 255);
+      }
+    } catch {
+      return false;
+    }
   }
   const bareIpv6 = candidate.startsWith("[") && candidate.endsWith("]")
     ? candidate.slice(1, -1)
