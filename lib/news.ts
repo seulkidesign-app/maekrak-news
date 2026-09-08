@@ -169,6 +169,7 @@ function isPrivateHostname(hostname: string) {
   const wildcardIpv4 = wildcardDnsIpv4Parts(host);
   if (wildcardIpv4 && isPrivateIpv4Parts(wildcardIpv4)) return true;
   if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89abcdef][0-9a-f]:/i.test(host) || /^ff[0-9a-f]{2}:/i.test(host)) return true;
+  if (/^64:ff9b:1(?::|$)/i.test(host)) return true;
   const mapped = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
   if (mapped) { const high = Number.parseInt(mapped[1], 16); const low = Number.parseInt(mapped[2], 16); return isPrivateIpv4Parts([high >> 8, high & 255, low >> 8, low & 255]); }
   const compatible = host.match(/^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
