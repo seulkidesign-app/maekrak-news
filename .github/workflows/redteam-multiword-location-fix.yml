@@ -1,0 +1,37 @@
+name: redteam-multiword-location-fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/redteam-multiword-location-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch multi-word disaster location cue
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/news.ts')
+          text = path.read_text()
+          old = r'''function disasterLocationCue(text: string) { if (!disasterPattern.test(text)) return ""; const cleaned = clean(text); const match = /\b(?:strikes?|hits?|near|around|for|in|at)\s+([A-Z][A-Za-z0-9&.-]{1,})\b/.exec(cleaned); return match?.[1]?.toLocaleLowerCase("en-US") ?? ""; }'''
+          new = r'''function disasterLocationCue(text: string) { if (!disasterPattern.test(text)) return ""; const cleaned = clean(text); const match = /\b(?:strikes?|hits?|near|around|for|in|at)\s+([A-Z][A-Za-z0-9&.-]{1,}(?:\s+[A-Z][A-Za-z0-9&.-]{1,}){0,2})\b/.exec(cleaned); return match?.[1]?.toLocaleLowerCase("en-US") ?? ""; }'''
+          if old not in text:
+              raise SystemExit('expected disasterLocationCue implementation not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/news.ts
+          git commit -m "fix: distinguish multi-word disaster locations"
+          git push origin HEAD:main
