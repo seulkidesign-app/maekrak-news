@@ -30,7 +30,7 @@ if (typeof sourceForLink === "function") {
   check("unknown aggregated direct-link outlet without attribution is downgraded", sourceForLink("Example News", "https://example.com/story", "aggregated") === "Unverified source");
   check("unknown aggregated direct-link outlet with matching attribution is bound to publisher hostname", sourceForLink("Example News", "https://example.com/story", "aggregated", "https://www.example.com/about") === "example.com");
 
-  // New attack class: URL userinfo / credential smuggling.
+  // URL userinfo / credential smuggling.
   // Browsers parse the host after '@', while humans can easily read the prefix as the publisher.
   check("userinfo prefix cannot disguise an evil host as Reuters", sourceForLink("Reuters", "https://reuters.com@evil.example/world/story", "direct") === "Unverified source");
   check("aggregator attribution cannot smuggle trusted host through userinfo", sourceForLink("Reuters", "https://news.google.com/rss/articles/example", "aggregated", "https://reuters.com@evil.example/story") === "Unverified source");
@@ -41,6 +41,14 @@ if (typeof safeHttpUrl === "function") {
   check("article URL with username and password on trusted host is rejected", safeHttpUrl("https://attacker:secret@reuters.com/world/story") === "");
   check("userinfo host-confusion URL is rejected", safeHttpUrl("https://reuters.com@evil.example/world/story") === "");
   check("ordinary HTTPS Reuters URL remains accepted", safeHttpUrl("https://reuters.com/world/story").startsWith("https://reuters.com/"));
+
+  // New attack class: RFC 8375 home.arpa special-use local-network links.
+  // These names are locally significant and can resolve to devices/services on the user's current homenet,
+  // so they must not pass a helper whose trust boundary is explicitly a safe public URL.
+  check("home.arpa root is rejected as a local-network destination", safeHttpUrl("https://home.arpa/") === "");
+  check("home.arpa device subdomain is rejected", safeHttpUrl("https://router.home.arpa/admin") === "");
+  check("home.arpa trailing root dot alias is rejected", safeHttpUrl("https://printer.home.arpa./status") === "");
+  check("ordinary public hostname remains accepted beside home.arpa guard", safeHttpUrl("https://example.com/news").startsWith("https://example.com/"));
 }
 
 console.log(`\nSource-link trust abuse: ${passes.length} passed / ${failures.length} failed`);
