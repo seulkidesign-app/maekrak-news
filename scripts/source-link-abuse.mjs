@@ -1,3 +1,4 @@
+// Security regressions for article-link and publisher-attribution trust boundaries.
 const failures = [];
 const passes = [];
 function check(name, condition) {
