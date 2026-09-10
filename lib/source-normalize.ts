@@ -228,12 +228,13 @@ export function canonicalSourceName(value: string) {
   const input = String(value ?? "");
   if (input.length > MAX_SOURCE_LABEL_LENGTH) return "Unverified source";
   const original = input.trim();
-  const compatibilitySpoof = trustedBrandCompatibilitySpoof(original);
-  const raw = normalizeExternalText(original);
+  const identityInput = stripDecorativeOuterWrappers(original);
+  const compatibilitySpoof = trustedBrandCompatibilitySpoof(identityInput);
+  const raw = normalizeExternalText(identityInput);
   if (raw.length > MAX_SOURCE_LABEL_LENGTH) return "Unverified source";
   const lower = raw.toLowerCase();
   const placeholderKey = placeholderOutletKey(raw);
-  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(original) || placeholderWithCompatibilityLetterSuffix(original)) return "Unverified source";
+  if (!raw || !placeholderKey || PLACEHOLDER_OUTLET.test(placeholderKey) || placeholderWithRomanNumeralSuffix(identityInput) || placeholderWithCompatibilityLetterSuffix(identityInput)) return "Unverified source";
   if (isIpLiteralSource(raw)) return "Unverified source";
   if (UNBOUND_AUTHORITY_LABEL.test(raw)) return "Unverified source";
   if (compatibilitySpoof) return "Unverified source";
