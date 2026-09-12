@@ -12,8 +12,8 @@ check("source-aware validator is exported", typeof sourceForLink === "function")
 check("verified source counting is exported", typeof verifiedSourceCount === "function");
 
 if (typeof sourceForLink === "function") {
-  const linkA = "https://publisher.example/story-a";
-  const linkB = "https://publisher.example/story-b";
+  const linkA = "https://publisher-one.com/story-a";
+  const linkB = "https://publisher-one.com/story-b";
 
   const noAttributionA = sourceForLink("Outlet Alpha", linkA, "aggregated");
   const noAttributionB = sourceForLink("Outlet Beta", linkB, "aggregated");
@@ -24,12 +24,12 @@ if (typeof sourceForLink === "function") {
 
   check(
     "mismatched publisher attribution cannot bless an unknown direct-link outlet",
-    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://different.example/about") === "Unverified source",
+    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://different-publisher.com/about") === "Unverified source",
   );
 
   check(
     "matching publisher attribution binds an unknown direct-link outlet to the publisher hostname",
-    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher.example/about") === "publisher.example",
+    sourceForLink("Outlet Alpha", linkA, "aggregated", "https://publisher-one.com/about") === "publisher-one.com",
   );
 
   const articles = [
