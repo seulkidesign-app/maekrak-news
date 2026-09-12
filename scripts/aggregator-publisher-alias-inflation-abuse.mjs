@@ -14,7 +14,7 @@ check("verified source counting is exported", typeof verifiedSourceCount === "fu
 if (typeof sourceForLink === "function") {
   const wrapperA = "https://news.google.com/rss/articles/alias-a";
   const wrapperB = "https://news.google.com/rss/articles/alias-b";
-  const attribution = "https://publisher.example/about";
+  const attribution = "https://publisher.example.com/about";
 
   const sourceA = sourceForLink("Outlet Alpha", wrapperA, "aggregated", attribution);
   const sourceB = sourceForLink("Outlet Beta", wrapperB, "aggregated", attribution);
@@ -60,7 +60,7 @@ if (typeof sourceForLink === "function") {
     "Outlet Gamma",
     "https://news.google.com/rss/articles/alias-c",
     "aggregated",
-    "https://different-publisher.example/about",
+    "https://different-publisher.example.com/about",
   );
   check("different attributed publishers remain distinguishable", differentPublisher !== sourceA);
 }
