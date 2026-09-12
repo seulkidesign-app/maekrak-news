@@ -1,4 +1,5 @@
 // Regression: RFC 2606 reserved DNS TLDs must never become usable public article links.
+// Keep both root-like subdomains and nested subdomains covered so suffix checks cannot regress.
 const failures = [];
 const passes = [];
 function check(name, condition) {
