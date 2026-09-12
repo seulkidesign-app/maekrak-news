@@ -1,3 +1,4 @@
+// Regression: RFC 3849 documentation-only IPv6 must never become a usable article link.
 const failures = [];
 const passes = [];
 function check(name, condition) {
