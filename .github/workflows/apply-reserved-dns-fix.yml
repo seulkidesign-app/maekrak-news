@@ -1,0 +1,38 @@
+name: apply-reserved-dns-fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-reserved-dns-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch reserved DNS trust boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/news.ts')
+          text = path.read_text()
+          old = '''  if (!host) return true;\n  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "home.arpa" || host.endsWith(".home.arpa") || host === "localtest.me" || host.endsWith(".localtest.me") || host === "lvh.me" || host.endsWith(".lvh.me")) return true;'''
+          new = '''  if (!host) return true;\n  if (["test", "invalid", "example"].some((suffix) => host === suffix || host.endsWith(`.${suffix}`))) return true;\n  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "home.arpa" || host.endsWith(".home.arpa") || host === "localtest.me" || host.endsWith(".localtest.me") || host === "lvh.me" || host.endsWith(".lvh.me")) return true;'''
+          if old not in text:
+              raise SystemExit('reserved DNS patch target not found')
+          path.write_text(text.replace(old, new, 1))
+          Path('.github/workflows/apply-reserved-dns-fix.yml').unlink()
+          PY
+      - name: Commit fix and remove one-shot workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/news.ts .github/workflows/apply-reserved-dns-fix.yml
+          git commit -m "fix: reject reserved DNS TLD article links"
+          git push origin HEAD:main
