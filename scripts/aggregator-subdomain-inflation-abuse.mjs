@@ -20,13 +20,13 @@ if (typeof sourceForLink === "function") {
     "Outlet Alpha",
     wrapperA,
     "aggregated",
-    "https://desk.publisher.example/about",
+    "https://desk.publisher-one.com/about",
   );
   const sourceB = sourceForLink(
     "Outlet Beta",
     wrapperB,
     "aggregated",
-    "https://mobile.publisher.example/about",
+    "https://mobile.publisher-one.com/about",
   );
 
   check(
@@ -87,7 +87,7 @@ if (typeof sourceForLink === "function") {
     "Outlet Epsilon",
     "https://news.google.com/rss/articles/subdomain-e",
     "aggregated",
-    "https://desk.other-publisher.example/about",
+    "https://desk.other-publisher.com/about",
   );
   check(
     "different registrable publishers remain distinguishable",
