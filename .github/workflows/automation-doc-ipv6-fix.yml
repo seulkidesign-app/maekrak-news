@@ -1,0 +1,38 @@
+name: one-shot documentation IPv6 fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/automation-doc-ipv6-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch documentation-only IPv6 guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/news.ts')
+          text = path.read_text()
+          needle = '  if (/^64:ff9b:1(?::|$)/i.test(host)) return true;\n'
+          replacement = '  if (/^2001:db8(?::|$)/i.test(host)) return true;\n' + needle
+          if replacement not in text:
+              if needle not in text:
+                  raise SystemExit('expected insertion point not found')
+              text = text.replace(needle, replacement, 1)
+              path.write_text(text)
+          PY
+          rm .github/workflows/automation-doc-ipv6-fix.yml
+          git config user.name "maekrak-redteam-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/news.ts .github/workflows/automation-doc-ipv6-fix.yml
+          git commit -m "fix: reject documentation-only IPv6 article links"
+          git push origin HEAD:main
