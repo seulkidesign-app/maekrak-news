@@ -1,0 +1,37 @@
+name: repair-source-suffix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, 'repair source suffix regex escaping') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore regex escaping
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'lib/news.ts';
+          let text = fs.readFileSync(path, 'utf8');
+          const bad = 'new RegExp(`\\s+-\\s+${escapeRegExp(label)}\\s*$`, "i")';
+          const good = 'new RegExp(`\\\\s+-\\\\s+${escapeRegExp(label)}\\\\s*$`, "i")';
+          if (!text.includes(bad)) {
+            console.error('Expected one-backslash regression not found');
+            process.exit(1);
+          }
+          text = text.replace(bad, good);
+          fs.writeFileSync(path, text);
+          NODE
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/news.ts
+          git commit -m "fix: repair source suffix regex escaping"
+          git push
