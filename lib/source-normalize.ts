@@ -17,6 +17,9 @@ const MULTI_TENANT_PUBLIC_SUFFIXES = new Set([
   "github.io", "pages.dev", "workers.dev", "vercel.app", "netlify.app", "blogspot.com",
   "substack.com", "wordpress.com", "webflow.io",
 ]);
+const CCTLD_SECOND_LEVEL_SUFFIX_LABELS = new Set([
+  "ac", "ad", "co", "com", "edu", "ed", "go", "gov", "gob", "lg", "mil", "ne", "net", "or", "org",
+]);
 const CONFUSABLE_TO_LATIN: Record<string, string> = {
   "А": "A", "а": "a", "В": "B", "в": "b", "Е": "E", "е": "e", "К": "K", "к": "k",
   "М": "M", "м": "m", "Н": "H", "н": "h", "О": "O", "о": "o", "Р": "P", "р": "p",
@@ -209,7 +212,7 @@ function publisherLikeDomainKey(value: string) {
   const twoLabelSuffix = labels.slice(-2).join(".");
   const registrableLabelCount = MULTI_TENANT_PUBLIC_SUFFIXES.has(twoLabelSuffix)
     ? 3
-    : tld.length === 2 && secondLevel.length <= 3 && labels.length >= 3
+    : tld.length === 2 && CCTLD_SECOND_LEVEL_SUFFIX_LABELS.has(secondLevel) && labels.length >= 3
       ? 3
       : 2;
   return labels.slice(-registrableLabelCount).join(".");
