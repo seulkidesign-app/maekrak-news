@@ -25,7 +25,7 @@ jobs:
             console.error('Expected one-backslash regression not found');
             process.exit(1);
           }
-          text = text.replace(bad, good);
+          text = text.replace(bad, () => good);
           fs.writeFileSync(path, text);
           NODE
       - name: Commit repair
