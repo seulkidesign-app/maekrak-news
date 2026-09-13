@@ -74,6 +74,8 @@ jobs:
         run: node scripts/nat64-private-ip-abuse.mjs
       - name: Wildcard DNS private-IP abuse
         run: node scripts/wildcard-dns-private-ip-abuse.mjs
+      - name: ORCHID IPv6 link abuse
+        run: node scripts/orchid-ipv6-link-abuse.mjs
       - name: Outlet case inflation abuse
         run: node scripts/outlet-case-abuse.mjs
       - name: Outlet punctuation inflation abuse
