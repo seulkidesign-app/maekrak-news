@@ -1,7 +1,54 @@
+function splitOutsideQuotes(value: string, delimiter: "," | ";") {
+  const parts: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let escaped = false;
+
+  for (const char of value) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    if (inQuotes && char === "\\") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      current += char;
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      parts.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  // Malformed quoted strings are parser-differential bait. Fail closed rather
+  // than guessing where a media range or parameter boundary was intended.
+  if (inQuotes || escaped) return null;
+
+  parts.push(current);
+  return parts;
+}
+
 export function acceptsMarkdown(accept: string) {
-  const entries = accept.split(",");
-  const markdownEntries = entries.filter((entry) => {
-    const [rawType] = entry.split(";");
+  const entries = splitOutsideQuotes(accept, ",");
+  if (!entries) return false;
+
+  const parsedEntries = entries.map((entry) => splitOutsideQuotes(entry, ";"));
+  if (parsedEntries.some((entry) => entry === null)) return false;
+
+  const markdownEntries = parsedEntries.filter((parts) => {
+    const [rawType] = parts!;
     return rawType.trim().toLowerCase() === "text/markdown";
   });
 
@@ -10,8 +57,8 @@ export function acceptsMarkdown(accept: string) {
   // representation, fail closed rather than risk representation/cache confusion.
   if (markdownEntries.length > 1) return false;
 
-  return entries.some((entry) => {
-    const [rawType, ...rawParams] = entry.split(";");
+  return parsedEntries.some((parts) => {
+    const [rawType, ...rawParams] = parts!;
     if (rawType.trim().toLowerCase() !== "text/markdown") return false;
 
     const qualityParams = rawParams
