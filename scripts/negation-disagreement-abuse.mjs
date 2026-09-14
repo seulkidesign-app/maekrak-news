@@ -93,6 +93,36 @@ const koreanConflict = auditEventAccuracy(event([
 ]));
 check("Korean negation disagreement is surfaced", koreanConflict.negationDifference === true);
 
+const refuteConflict = auditEventAccuracy(event([
+  article("Iran attacked Israel with missiles", "Reuters"),
+  article("Officials refute reports that Iran attacked Israel with missiles", "BBC"),
+]));
+check("semantic refute denial cannot launder an affirmative report", refuteConflict.negationDifference === true);
+
+const debunkConflict = auditEventAccuracy(event([
+  article("Iran attacked Israel with missiles", "Reuters"),
+  article("Investigation debunks claim that Iran attacked Israel with missiles", "BBC"),
+]));
+check("semantic debunk denial cannot launder an affirmative report", debunkConflict.negationDifference === true);
+
+const ruleOutConflict = auditEventAccuracy(event([
+  article("Officials say Iran attacked Israel with missiles", "Reuters"),
+  article("Officials rule out Iran attack on Israel", "BBC"),
+]));
+check("rule-out denial cannot launder an affirmative report", ruleOutConflict.negationDifference === true);
+
+const koreanRefuteConflict = auditEventAccuracy(event([
+  article("이란이 이스라엘을 미사일로 공격했다", "Reuters"),
+  article("당국, 이란의 이스라엘 공격 보도 반박했다", "BBC"),
+]));
+check("Korean rebuttal wording cannot launder an affirmative report", koreanRefuteConflict.negationDifference === true);
+
+const rulesPositiveControl = auditEventAccuracy(event([
+  article("Court rules on the attack case", "Reuters"),
+  article("Court issues ruling on the attack case", "BBC"),
+]));
+check("ordinary rules wording is not mistaken for rule-out denial", rulesPositiveControl.negationDifference === false);
+
 const aligned = auditEventAccuracy(event([
   article("Government approves the bill", "Reuters"),
   article("Government backs the bill", "BBC"),
