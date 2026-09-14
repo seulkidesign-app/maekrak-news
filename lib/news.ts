@@ -170,7 +170,7 @@ function isPrivateHostname(hostname: string) {
   const wildcardIpv4 = wildcardDnsIpv4Parts(host);
   if (wildcardIpv4 && isPrivateIpv4Parts(wildcardIpv4)) return true;
   if (host === "::" || host === "::1" || /^(?:fc|fd)[0-9a-f]{2}:/i.test(host) || /^fe[89abcdef][0-9a-f]:/i.test(host) || /^ff[0-9a-f]{2}:/i.test(host)) return true;
-  if (/^2001:0(?::|$)/i.test(host)) return true;
+  if (/^2001:(?:0(?::|$)|:)/i.test(host)) return true;
   if (/^2001:db8(?::|$)/i.test(host)) return true;
   if (/^2001:2(?::|$)/i.test(host)) return true;
   if (/^2001:(?:1[0-9a-f]|2[0-9a-f])(?::|$)/i.test(host)) return true;
