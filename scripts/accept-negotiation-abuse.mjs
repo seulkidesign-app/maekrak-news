@@ -30,12 +30,22 @@ check("reverse-order conflicting duplicate qvalues remain rejected", acceptsMark
 check("identical duplicate qvalues are still malformed and rejected", acceptsMarkdown("text/markdown;q=0.5;q=0.5, text/html") === false);
 check("non-q extension parameters do not break valid markdown negotiation", acceptsMarkdown("text/markdown;level=1;q=0.5, text/html") === true);
 
-// New attack class: duplicate markdown media ranges can let different HTTP parsers,
-// caches, or proxies choose conflicting qvalues. Fail closed on any repeated markdown range.
+// Duplicate markdown media ranges can let different HTTP parsers, caches, or proxies
+// choose conflicting qvalues. Fail closed on any repeated markdown range.
 check("conflicting duplicate markdown ranges cannot smuggle an accepted representation", acceptsMarkdown("text/markdown;q=0, text/markdown;q=1") === false);
 check("reverse-order duplicate markdown ranges remain rejected", acceptsMarkdown("text/markdown;q=1, text/markdown;q=0") === false);
 check("identical duplicate markdown ranges are rejected as ambiguous", acceptsMarkdown("text/markdown;q=0.5, text/markdown;q=0.5") === false);
 check("a single markdown range alongside other media types remains valid", acceptsMarkdown("text/html;q=1, text/markdown;q=0.5, application/json;q=0.8") === true);
+
+// New attack class: quoted-string delimiter smuggling. A naive split(',') parser treats
+// a comma inside an extension parameter as a media-range boundary, which can detach the
+// later q=0 and incorrectly enable Markdown despite an explicit refusal.
+check("quoted comma cannot detach q=0 from markdown media range", acceptsMarkdown('text/markdown;note="x,y";q=0') === false);
+check("quoted comma plus later media range still preserves markdown q=0", acceptsMarkdown('text/markdown;note="x,y";q=0, text/html') === false);
+check("quoted semicolon cannot hide markdown q=0", acceptsMarkdown('text/markdown;note="x;y";q=0') === false);
+check("valid quoted delimiters still allow positive markdown qvalue", acceptsMarkdown('text/markdown;note="x,y;z";q=0.5, text/html') === true);
+check("escaped quote and comma remain inside quoted extension value", acceptsMarkdown('text/markdown;note="x\\\",y";q=0') === false);
+check("unterminated quoted extension fails closed", acceptsMarkdown('text/markdown;note="x,y;q=1') === false);
 
 const proxySource = fs.readFileSync(new URL("../proxy.ts", import.meta.url), "utf8");
 check("proxy uses the hardened Accept parser", proxySource.includes("acceptsMarkdown(accept)"));
