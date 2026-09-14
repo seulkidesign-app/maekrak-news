@@ -1,0 +1,36 @@
+name: One-time Teredo canonicalization patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/teredo-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch compressed Teredo prefix guard
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/news.ts')
+          text = path.read_text()
+          old = 'if (/^2001:0(?::|$)/i.test(host)) return true;'
+          new = 'if (/^2001:(?:0(?::|$)|:)/i.test(host)) return true;'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one Teredo guard, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'maekrak-redteam-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/news.ts
+          git diff --cached --check
+          git commit -m 'Reject compressed Teredo IPv6 aliases'
+          git push
